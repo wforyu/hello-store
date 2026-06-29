@@ -23,6 +23,8 @@ class Reports extends Page
 
     protected static ?int $navigationSort = 5;
 
+    protected ?string $heading = 'Laporan';
+
     protected string $view = 'filament.pages.reports';
 
     public ?array $data = [];
