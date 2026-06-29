@@ -8,7 +8,9 @@ use App\Filament\Widgets\FinanceOverview;
 use App\Filament\Widgets\RecentOrdersWidget;
 use App\Filament\Widgets\RevenueChart;
 use App\Filament\Widgets\RevenueChartWidget;
-use App\Filament\Widgets\TopProductsWidget;
+use App\Filament\Widgets\TopCashiersTableWidget;
+use App\Filament\Widgets\TopCategoriesTableWidget;
+use App\Filament\Widgets\TopProductsTableWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,7 +21,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -57,12 +58,13 @@ class AdminPanelProvider extends PanelProvider
                 Reports::class,
             ])
             ->widgets([
-                AccountWidget::class,
                 EnhancedStatsOverviewWidget::class,
-                TopProductsWidget::class,
                 FinanceOverview::class,
                 RevenueChart::class,
                 RevenueChartWidget::class,
+                TopProductsTableWidget::class,
+                TopCategoriesTableWidget::class,
+                TopCashiersTableWidget::class,
                 RecentOrdersWidget::class,
             ])
             ->middleware([

@@ -9,6 +9,8 @@ class RevenueChart extends ChartWidget
 {
     protected static ?int $sort = 2;
 
+    protected int|string|array $columnSpan = 6;
+
     protected ?string $heading = 'Pendapatan Bulanan';
 
     protected function getData(): array
@@ -36,7 +38,7 @@ class RevenueChart extends ChartWidget
                     'data' => $revenues->toArray(),
                     'backgroundColor' => '#f59e0b',
                     'borderColor' => '#d97706',
-                    'fill' => 'start',
+                    'fill' => true,
                     'tension' => 0.3,
                 ],
             ],

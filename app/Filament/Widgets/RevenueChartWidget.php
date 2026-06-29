@@ -9,6 +9,8 @@ class RevenueChartWidget extends ChartWidget
 {
     protected static ?int $sort = 2;
 
+    protected int|string|array $columnSpan = 6;
+
     protected ?string $heading = 'Pendapatan 30 Hari Terakhir';
 
     protected function getData(): array
@@ -32,6 +34,7 @@ class RevenueChartWidget extends ChartWidget
                     'data' => $days->pluck('revenue')->toArray(),
                     'backgroundColor' => '#f59e0b',
                     'borderColor' => '#d97706',
+                    'fill' => true,
                     'tension' => 0.3,
                 ],
             ],

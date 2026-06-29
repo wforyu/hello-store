@@ -68,6 +68,22 @@
 | POST | `/product/{product}/review` | `StoreController@reviewStore` | `products.review` |
 | GET/PATCH/DELETE | `/profile` | `ProfileController` | `profile.*` |
 | Resource | `/addresses` (exc. show) | `AddressController` | `addresses.*` |
+| POST | `/wishlist/toggle/{product}` | `StoreController@wishlistToggle` | `wishlist.toggle` |
+| GET | `/wishlist` | `StoreController@wishlistIndex` | `wishlist.index` |
+| POST | `/compare/toggle/{product}` | `StoreController@compareToggle` | `compare.toggle` |
+| GET | `/compare` | `StoreController@compareIndex` | `compare.index` |
+| POST | `/orders/{order}/reorder` | `StoreController@reorder` | `orders.reorder` |
+| POST | `/checkout/apply-coupon` | `StoreController@applyCoupon` | `checkout.coupon` |
+| POST | `/orders/{order}/refund` | `StoreController@processRefund` | `orders.refund` |
+| GET | `/orders/{order}/download/{product}` | `StoreController@downloadDigital` | `orders.download` |
+| GET | `/notifications` | `NotificationController@index` | `notifications.index` |
+| GET | `/notifications/unread-count` | `NotificationController@unreadCount` | `notifications.unread-count` |
+| POST | `/notifications/{id}/read` | `NotificationController@markAsRead` | `notifications.read` |
+| POST | `/notifications/mark-all-read` | `NotificationController@markAllAsRead` | `notifications.mark-all-read` |
+| GET | `/notifications/unread-json` | `NotificationController@markAsReadJson` | `notifications.unread-json` |
+| GET | `/barcode` | `BarcodeController@index` | `barcode.index` |
+| POST | `/barcode/generate` | `BarcodeController@generate` | `barcode.generate` |
+| POST | `/barcode/generate-for-product/{product}` | `BarcodeController@generateForProduct` | `barcode.product` |
 
 ### POS (middleware: `auth`, `can:access-pos`)
 | Method | URI | Controller@method | Nama |
@@ -119,26 +135,34 @@
 
 ---
 
-## Models (15 total)
+## Models (20+ total)
 
 | Model | File | Fillable | Casts | Relasi Utama |
 |---|---|---|---|---|
-| **User** | `Models/User.php` | name, email, password, role | `password => hashed` | reviews() |
-| **Product** | `Models/Product.php` | category_id, name, slug, description, price, compare_price, stock, sku, weight, images, is_active, featured, meta_title, meta_description | `price/compare_price/weight => decimal:2`, `images => array`, `is_active/featured => boolean` | category(), productImages(), stockHistories(), reviews(), approvedReviews(); `booted` saved event: sync images JSON → ProductImage records + auto-log stock change |
+| **User** | `Models/User.php` | name, email, password, role | `password => hashed` | reviews(), wishlistProducts() |
+| **Product** | `Models/Product.php` | category_id, brand_id, name, slug, description, price, compare_price, stock, sku, weight, images, is_active, featured, is_digital, digital_file, license_key, meta_title, meta_description | `price/compare_price/weight => decimal:2`, `images => array`, `is_active/featured/is_digital => boolean` | category(), brand(), productImages(), stockHistories(), reviews(), approvedReviews(), attributes(), orderDownloads(); `booted` saved event: sync images JSON → ProductImage records + auto-log stock change |
 | **ProductImage** | `Models/ProductImage.php` | product_id, image, sort_order | — | belongsTo(Product); `$appends=['url']` dengan getUrlAttribute (relative path → Storage::url(), absolute → pass through) |
+| **ProductAttribute** | `Models/ProductAttribute.php` | product_id, type, value, label, sort_order | — | belongsTo(Product); scopeOfType() |
 | **StockHistory** | `Models/StockHistory.php` | product_id, user_id, type, reference_type, reference_id, quantity_change, stock_before, stock_after, notes | — | belongsTo(Product), belongsTo(User) |
 | **Category** | `Models/Category.php` | parent_id, name, slug, description, image, is_active, sort_order | — | parent(), children(), products(); SoftDeletes |
-| **Order** | `Models/Order.php` | user_id, order_number, status, subtotal, shipping_cost, total, payment_method, payment_status, notes, admin_notes, address_id, shipping_courier, shipping_tracking_number, shipped_at, delivered_at, cancelled_at | `subtotal/shipping_cost/total => decimal:2`, `shipped_at/delivered_at/cancelled_at => datetime` | user(), items(), payment(), address() |
+| **Brand** | `Models/Brand.php` | name, slug, description, logo, website, is_active | — | products() |
+| **Order** | `Models/Order.php` | user_id, order_number, status, subtotal, shipping_cost, total, payment_method, payment_status, notes, admin_notes, address_id, shipping_courier, shipping_tracking_number, coupon_id, discount, shipped_at, delivered_at, cancelled_at | `subtotal/shipping_cost/total/discount => decimal:2`, `shipped_at/delivered_at/cancelled_at => datetime` | user(), items(), payment(), address(), coupon() |
 | **OrderItem** | `Models/OrderItem.php` | order_id, product_id, product_name, product_price, quantity, subtotal | `product_price/subtotal => decimal:2` | order(), product() |
+| **OrderDownload** | `Models/OrderDownload.php` | order_id, product_id, user_id, download_count | — | belongsTo(Order), belongsTo(Product); canDownload() max 5 |
 | **Payment** | `Models/Payment.php` | order_id, method, amount, status, proof_image, bank_name, account_name, account_number, paid_at, notes | `amount => decimal:2`, `paid_at => datetime` | belongsTo(Order); `$appends=['proof_image_url']` |
 | **Address** | `Models/Address.php` | user_id, label, recipient, phone, street, city, province, postal_code, notes, is_default | `is_default => boolean` | belongsTo(User) |
 | **Cart** | `Models/Cart.php` | user_id, session_id | — | user(), items() |
 | **CartItem** | `Models/CartItem.php` | cart_id, product_id, quantity, price | — | cart(), product() |
+| **Wishlist** | `Models/Wishlist.php` | user_id, product_id | — | belongsTo(User), belongsTo(Product); unique pair |
 | **Review** | `Models/Review.php` | product_id, user_id, rating, comment, is_approved | — | belongsTo(Product), belongsTo(User) |
 | **Banner** | `Models/Banner.php` | title, description, image_url, link_url, link_text, type, start_at, end_at, is_active, sort_order | `start_at/end_at => datetime`, `is_active => boolean` | scopeActive(); SoftDeletes |
+| **Coupon** | `Models/Coupon.php` | code, type, value, max_discount, min_order, usage_limit, usage_per_user, expires_at, is_active | `expires_at => datetime`, `is_active => boolean` | isValid(), canUseBy(), calculateDiscount(); users() BelongsToMany |
 | **Setting** | `Models/Setting.php` | key, value | — | Static `get($key, $default)` — bank_accounts return `[]` never null; booleans stored as `"1"`/`"0"` |
 | **Expense** | `Models/Expense.php` | expense_category_id, amount, description, user_id, date | `amount => decimal:2`, `date => date` | belongsTo(ExpenseCategory), belongsTo(User) |
 | **ExpenseCategory** | `Models/ExpenseCategory.php` | name, slug, description | — | hasMany(Expense) |
+| **Shift** | `Models/Shift.php` | user_id, opened_at, closed_at, opening_balance, closing_balance, expected_balance, status | `opened_at/closed_at => datetime`, `opening_balance/closing_balance/expected_balance => decimal:2` | user(), orders(), expenses(); isOpen(), totalOrders(), totalRevenue() |
+| **ShiftExpense** | `Models/ShiftExpense.php` | shift_id, expense_category_id, amount, description, user_id | `amount => decimal:2` | belongsTo(Shift), belongsTo(ExpenseCategory), belongsTo(User) |
+| **Notification** | `Models/Notification.php` | user_id, type, title, message, data, is_read, read_at | `data => array`, `is_read => boolean`, `read_at => datetime` | createForUser(), createForAdmins(), markAsRead(), scopeUnread() |
 
 ---
 
@@ -153,17 +177,25 @@
 - **cartAdd()**: Validasi stock >= 1, add/update cart item, cap by stock
 - **cartUpdate()**: Batch update quantities dengan live stock check (N+1 safe via `whereIn`)
 - **cartRemove()**: Remove item dari cart
-- **checkout()**: Cart validation, address selection, shipping rates (RajaOngkir via ShippingService), subtotal, weight, **PPN (dari setting)**
-- **placeOrder()**: Validasi stock dengan N+1 fix (`$liveProducts`), DB transaction: **subtotal + ongkir + PPN = total**, create Order + OrderItems + Payment (manual_transfer), decrement stock, recordStockHistory, clear cart; PPN disimpan di notes
+- **checkout()**: Cart validation, address selection, shipping rates (RajaOngkir via ShippingService), subtotal, weight, **PPN (dari setting)**; coupon input + AJAX validation
+- **placeOrder()**: Validasi stock dengan N+1 fix (`$liveProducts`), DB transaction: **subtotal + ongkir - diskon + PPN = total**, create Order + OrderItems + Payment (manual_transfer), decrement stock, recordStockHistory, clear cart; PPN & diskon disimpan di notes; auto-notify user + admins
 - **orders()**: User's orders dengan eager load items+payment+address
 - **orderShow()**: Single order detail (authorization check user_id)
-- **paymentUpload()**: Upload proof image, auto set paid+processing, delete old proof file sebelum upload baru
-- **confirmReceived()**: Customer confirms delivery (only if status shipped → delivered + delivered_at)
+- **paymentUpload()**: Upload proof image, auto set paid+processing, delete old proof file sebelum upload baru; auto-notify admins
+- **confirmReceived()**: Customer confirms delivery (only if status shipped → delivered + delivered_at); auto-notify admins
 - **cancelOrder()**: Only pending orders, DB transaction restore stock + recordStockHistory; eager load items.product
 - **printReceipt()**: Thermal 80mm receipt
 - **printReceiptAdmin()**: Admin receipt print (tanpa auth check)
 - **reviewStore()**: Upsert review (create or update if exists)
 - **getCartWeight()**: Hitung total weight untuk shipping
+- **wishlistToggle()**: POST toggle wishlist (user, product_id unique), return JSON
+- **wishlistIndex()**: Paginated wishlist view with product images + prices
+- **compareToggle()**: POST toggle compare (session max 4), return JSON + count
+- **compareIndex()**: Full comparison table (price, stock, SKU, weight, category, rating, attributes, description)
+- **reorder()**: POST reorder dari order delivered — merge items ke session cart, skip inactive/out-of-stock
+- **applyCoupon()**: POST AJAX validasi kupon (check expired, usage limit, min_order, usage per user), return diskon + nama
+- **processRefund()**: POST refund (admin only) — restore stock per item, recordStockHistory, update order status refunded, notify user
+- **downloadDigital()**: GET download digital product — validasi ownership + payment + download limit (max 5), serve file dari Storage
 
 ### PosController (`app/Http/Controllers/PosController.php`)
 - **index()**: Load all active products, categories, customers, **PPN rate dari setting**
@@ -172,13 +204,19 @@
 - **add()**: Add to POS cart, validasi stock >= 1
 - **update()**: Update quantity + discount per item dengan live stock
 - **remove()**: Remove item dari POS cart
-- **checkout()**: Hitung item discount, global discount, **PPN dinamis (dari setting)**, total; validasi amount_paid untuk cash; DB transaction create Order (status=completed) + OrderItems + Payment, decrement stock, recordStockHistory; clear cart; PPN disimpan di notes
+- **checkout()**: Hitung item discount, global discount, **PPN dinamis (dari setting)**, total; validasi amount_paid untuk cash; DB transaction create Order (status=completed) + OrderItems + Payment, decrement stock, recordStockHistory; clear cart; PPN disimpan di notes; record shift_id
 - **holdOrder()**: Hold cart (simpan di session)
 - **recallOrders()**: List all held orders
 - **recallOrder()**: Recall held order ke cart
 - **deleteHold()**: Delete held order
 - **history()**: Today's completed orders (return JSON dengan parsed customer name dari notes)
 - **printReceipt()**: Thermal receipt view
+- **scanBarcode()**: POST /pos/scan — lookup by SKU, add to cart, return JSON
+- **openShift()**: Buka shift (set opening balance)
+- **closeShift()**: Tutup shift (hitung closing balance — opening + revenue - expenses)
+- **shiftHistory()**: Paginated list of all shifts
+- **addExpense()**: POST tambah pengeluaran shift (amount, category, description)
+- **deleteExpense()**: DELETE hapus pengeluaran shift
 
 ### AccountController (`app/Http/Controllers/AccountController.php`)
 - **dashboard()**: Stat cards (total orders, addresses, reviews) + recent orders
@@ -191,6 +229,15 @@
 
 ### Auth Controllers (`app/Http/Controllers/Auth/`)
 - Login, Register, Password Reset, Email Verification, Logout (Breeze scaffolding + custom layout/storefront integration)
+
+### BarcodeController (`app/Http/Controllers/BarcodeController.php`)
+- **index()/generate()/generateForProduct()**: Barcode generation page with product checkboxes, type (Code128/EAN13/QR), label size; print-optimized output with inline SVG + auto-print
+
+### NotificationController (`app/Http/Controllers/NotificationController.php`)
+- **index()/unreadCount()/markAsRead()/markAllAsRead()/markAsReadJson()**: Notification center with color-coded types, pagination, empty state, Alpine.js unread count
+
+### ReportController (`app/Http/Controllers/ReportController.php`)
+- **export()**: Stream CSV with UTF-8 BOM for Reports page, date range filter
 
 ---
 
@@ -219,15 +266,18 @@
 | Pesanan | Payments | Payment | `CreditCard` |
 | Pengguna | Users | User | `Users` |
 
-### Widgets (5)
+### Widgets (9)
 
-| Widget | Sort | Fungsi |
-|---|---|---|
-| **FinanceOverview** | 1 | 4 stat cards: Total Pendapatan, Total Pengeluaran, Laba Bersih, Total Pesanan |
-| **RevenueChart** | 2 | Line chart pendapatan 6 bulan terakhir (bukan 30 hari, per bulan) |
-| **StatsOverviewWidget** | 1 | 4 stat cards: Pesanan Hari Ini, **Pendapatan Bulan Ini**, Pesanan Menunggu, Stok Menipis — semuanya **clickable** via `->url()` menuju resource page dengan filter |
-| **RevenueChartWidget** | 2 | Line chart pendapatan 30 hari terakhir |
-| **RecentOrdersWidget** | 3 | Table 10 pesanan terakhir dengan status badges; full column span |
+| Widget | Type | Sort | Colspan | Fungsi |
+|---|---|---|---|---|---|
+| **EnhancedStatsOverviewWidget** | Stats | 1 | full | 8 stat cards: daily orders/sold/revenue/net profit + new customers/repeat/AOV/conversion rate — semuanya clickable menuju resource page dengan filter |
+| **FinanceOverview** | Stats | 2 | full | 4 stat cards (all-time): Total Pendapatan, Total Pengeluaran, Laba Bersih, Total Pesanan |
+| **RevenueChart** | Chart | 3 | 6 | Line chart pendapatan 6 bulan terakhir (per bulan) |
+| **RevenueChartWidget** | Chart | 3 | 6 | Line chart pendapatan 30 hari terakhir (per hari) |
+| **TopProductsTableWidget** | Table | 4 | 4 | Table top 10 produk terlaris (nama + terjual) |
+| **TopCategoriesTableWidget** | Table | 4 | 4 | Table top 10 kategori terlaris (nama + terjual) |
+| **TopCashiersTableWidget** | Table | 4 | 4 | Table top 10 kasir (nama + order + pendapatan) |
+| **RecentOrdersWidget** | Table | 5 | full | Table 10 pesanan terakhir dengan status badges |
 
 ### Custom Table Filters
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)" dan "Habis (0)" dengan custom `query()` callback
@@ -244,6 +294,10 @@
 - Product form: `FileUpload::make('images')->multiple()` langsung (JANGAN di dalam Repeater — Repeater+FileUpload+relationship bug di Filament 5.6)
 - Semua label Bahasa Indonesia, semua field punya `->helperText()`
 - Untuk non-input element price display di form (read-only): pakai `Placeholder::make()` + `<img>` tag dengan `HtmlString`, BUKAN `FileUpload::make()->disabled()`
+- **CSS pre-compiled**: Filament 5.6.7 `theme.css` hanya berisi class yang dipakai komponen Filament. Standard Tailwind utilities (`text-gray-500`, `bg-gray-50`, `grid`, `p-4`, `font-bold`) **TIDAK ADA**. Di custom Blade views, pakai inline styles + CSS variables (`var(--gray-500)`, `var(--success-600)`) atau komponen Filament (`<x-filament::section>`, `<x-filament::button>`).
+- **`TableWidget` grouped queries**: Untuk aggregated data (SUM, COUNT, GROUP BY), SELECT harus include `MAX(table.id) as id` sebagai record key. `getTableRecordKey()` expects string, null akan throw TypeError.
+- **`<x-filament::table>` TIDAK ADA**: Tidak ada Blade component untuk table di Filament 5.6. Tabel render via PHP `Table` class. Untuk custom views, pakai `<table>` HTML biasa.
+- **`<x-filament-widgets::widget>` wrapper**: Hanya `<div>` dengan grid column class (`fi-wi-widget`) — TIDAK memberikan card styling. Card look berasal dari inner component CSS (table component, dll).
 
 ---
 
@@ -267,11 +321,14 @@
 - Customer name + customer search
 - Discount toggle (% / Rp)
 - Quick amount buttons (50k, 100k, 200k, 500k, 1jt)
-- Keyboard shortcuts: Enter → checkout, Esc → reset
+- Keyboard shortcuts: F2 search, F4 checkout, F8 hold, Ctrl+B barcode, Enter checkout, Esc reset
 - Loading state
 - Stock warning: merah kalau ≤ 5
 - Change/kurang display setelah checkout
 - Success state dengan tombol print
+- Shift status indicator (green pulse) + Buka/Tutup modals
+- Kas Keluar modal (amount, category, description)
+- Barcode scanner input with Ctrl+B shortcut
 - **Auto-dot formatting**: `onAmountInput` (jumlah dibayar), `formatDiscount` (global diskon — nominal mode only), `updateItemDiscount` (per-item diskon — nominal mode only) — pakai regex `\B(?=(\d{3})+(?!\d))` + `.` separator
 
 ### Receipt: `resources/views/pos/print-receipt.blade.php`
@@ -289,7 +346,7 @@
 
 - **Model**: `Setting` — key-value store; `Setting::get($key, $default)` (bank_accounts returns `[]` never null; boolean settings disimpan sebagai string `"1"`/`"0"`)
 - **Page**: `ManageSettings.php` — Schema-based form
-- **Fields**: store_address, phone, whatsapp, email, instagram, facebook, tiktok, bank_accounts (Repeater), **ppn_enabled (Toggle)**, **ppn_percentage (TextInput, suffix %, default 11)**
+- **Fields**: store_address, phone, whatsapp, email, instagram, facebook, tiktok, bank_accounts (Repeater), **ppn_enabled (Toggle)**, **ppn_percentage (TextInput, suffix %, default 11)**, **logo**, **favicon**, **whatsapp_text**, **smtp fields** (host, port, username, password, encryption, from), **google_analytics_id**, **facebook_pixel_id**, **head_scripts**, **body_scripts**
 - **Save**: Boolean values (`is_bool`) otomatis dikonversi ke `"1"`/`"0"` sebelum disimpan
 - **Defaults (seeder)**: ppn_enabled = "0", ppn_percentage = "11"
 - **Footer**: 5-column grid — alamat, kontak, sosial media, pembayaran (logo bank dari `public/images/payments/`: bca, mandiri, bri, bni, cod), info toko
@@ -308,7 +365,7 @@
 
 ---
 
-## Storefront Views (10)
+## Storefront Views (10+)
 
 | View | Lokasi | Fungsi |
 |---|---|---|
@@ -465,11 +522,14 @@
 - Filament resource "Riwayat Stok" read-only: type badges, color-coded quantity (hijau positif, merah negatif, abu-abu 0), stock before/after, user, notes, timestamp
 
 ### 19. Dashboard Widgets (Admin)
-- **StatsOverviewWidget**: Pesanan Hari Ini, Pendapatan Bulan Ini, Pesanan Menunggu, Stok Menipis — **semua clickable** menuju resource page dengan filter
-- **RevenueChartWidget**: Line chart 30 hari terakhir
-- **RecentOrdersWidget**: Table 10 pesanan terakhir dengan status badges
+- **EnhancedStatsOverviewWidget**: 8 stat cards (daily orders/sold/revenue/net profit + new customers/repeat/AOV/conversion rate) — semuanya clickable menuju resource page dengan filter
 - **FinanceOverview**: Total Pendapatan, Total Pengeluaran, Laba Bersih, Total Pesanan — dari seluruh waktu
-- **RevenueChart**: Line chart pendapatan 6 bulan terakhir
+- **RevenueChart**: Line chart pendapatan 6 bulan terakhir (per bulan)
+- **RevenueChartWidget**: Line chart pendapatan 30 hari terakhir
+- **TopProductsTableWidget**: Table top 10 produk terlaris (nama + terjual)
+- **TopCategoriesTableWidget**: Table top 10 kategori terlaris (nama + terjual)
+- **TopCashiersTableWidget**: Table top 10 kasir (nama + order + pendapatan)
+- **RecentOrdersWidget**: Table 10 pesanan terakhir dengan status badges
 
 ### 20. Authentication
 - Laravel Breeze scaffolding dengan custom styling
@@ -499,11 +559,153 @@
 - **OrdersTable**: `Filter::make('hari_ini')` dan `Filter::make('menunggu')` — toggle filter
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)", "Habis (0)"
 
+### 24. Wishlist ❤️
+- Model `Wishlist` + migration (unique user_id + product_id)
+- `User` model: `wishlistProducts()` BelongsToMany
+- Routes: `wishlist.toggle` (POST JSON) + `wishlist.index` (paginated view)
+- Storefront: Alpine.js heart button di product-card, wishlist count badge di navbar
+- Empty state di halaman wishlist
+
+### 25. Brand (Merek)
+- Model `Brand` + migration (`brands` table + `brand_id` di products)
+- Filament Resource (BrandResource) di group Produk
+- 9 brand seeds (Samsung, Apple, Nike, Adidas, dll)
+- Products table punya brand column
+
+### 26. Voucher / Kupon
+- Model `Coupon` dengan methods: `isValid()`, `canUseBy()`, `calculateDiscount()`
+- Migrations: `coupons` + `coupon_user` pivot + `coupon_id`/`discount` di orders
+- Filament Resource (CouponResource) di group Keuangan
+- AJAX validation di checkout (`applyCoupon()`)
+- Discount applied server-side di `placeOrder()` (prevents manipulation)
+- 3 seed coupons: `HELLO10` (10% max Rp50k), `FLAT50` (Rp50k min Rp200k), `GRATIS` (Rp25k)
+
+### 27. Reorder (Beli Lagi)
+- Route `POST /orders/{order}/reorder`
+- Validasi ownership + status delivered
+- Merge items ke session cart, skip inactive/out-of-stock
+- "Beli Lagi" button di order-detail + orders list
+
+### 28. Barcode Scanner (POS)
+- `POST /pos/scan` — lookup by SKU, add to POS cart
+- Barcode input field + Ctrl+B keyboard shortcut
+- Success reloads page, failure shows inline error
+
+### 29. Reports (Admin)
+- Custom Filament page (`Reports.php`) di group Keuangan
+- Period filter (today/week/month/year/custom + date range)
+- 4 summary stat cards (orders/revenue/products sold/AOV)
+- Laba/rugi section (revenue vs expense vs profit)
+- Produk Terlaris table (top 20 by qty)
+- Kategori Terlaris table
+- Export CSV button (streamed via ReportController with UTF-8 BOM)
+- Print button
+- **CSS via inline styles + `<x-filament::section>`** (standard Tailwind utilities tidak tersedia di Filament's pre-compiled theme.css)
+
+### 30. Shift Kasir
+- Migration `shifts` table + `shift_id` pada orders
+- Model `Shift` with `isOpen()`, `totalOrders()`, `totalRevenue()`
+- PosController: `openShift`, `closeShift`, `shiftHistory`
+- POS view: shift status indicator (green pulse) + Buka/Tutup modals
+- Shift history paginated view
+- `shift_id` recorded on checkout
+
+### 31. Dashboard Kinerja (Laba Bersih & Top Products/Kategori/Kasir)
+- **EnhancedStatsOverviewWidget**: Row 1 (Hari Ini: Pesanan, Terjual, Pendapatan, Laba Bersih), Row 2 (Customer Baru, Repeat, AOV, Conversion Rate)
+- 3 TableWidgets: TopProductsTableWidget, TopCategoriesTableWidget, TopCashiersTableWidget — masing-masing `columnSpan=4`, menggunakan Eloquent grouped queries (MAX id untuk record key)
+- Old TopProductsWidget + blade view dihapus
+
+### 32. Product Attributes (Color, Size, Material)
+- Migration `product_attributes` table
+- Model `ProductAttribute` with `scopeOfType()`
+- Product: HasMany relationship + `getAttributeByType()` helper
+- Filament Repeater di product form (type select + value + label + sort_order)
+- Shown di product table column + product-detail page
+
+### 33. Print Barcode (EAN/QR/Code128)
+- Package: `milon/barcode`
+- `BarcodeController` (index, generate, generateForProduct)
+- 2 Blade views: selection form + print-optimized labels
+- Inline SVG barcode generation + auto-print
+- Barcode action button di ProductsTable
+
+### 34. Compare Product
+- Session-based: `session('compare', collect())` max 4 items
+- `compareToggle` (POST JSON) + `compareIndex` (comparison table)
+- Alpine.js toggle button di product-card, dispatches `compare-updated` event
+- Navbar badge with count
+- Full comparison: price, stock, SKU, weight, category, rating, attributes, description
+
+### 35. Notification Center
+- Migration `notifications` table
+- Model `Notification` with `createForUser()`, `createForAdmins()`, `markAsRead()`, `scopeUnread()`
+- Auto-notify on: placeOrder (user + admins), paymentUpload, confirmReceived, shipped, refund
+- Bell icon with Alpine.js live unread count in navbar
+- Notification list view with color-coded types + pagination + empty state
+- "Notifikasi" nav link in account sidebar
+
+### 36. Kas Keluar (Cash Outflow from Shift)
+- Migration `shift_expenses` table
+- Model `ShiftExpense`, Shift `HasMany` expenses
+- POS: Kas Keluar modal (amount, category, description)
+- `closeShift()` deducts total expenses from expected balance
+- Shift history view shows expenses column
+
+### 37. Refund (Stock Balik)
+- Route `POST /orders/{order}/refund` (admin only)
+- DB transaction: restore stock per item + StockHistory entries (type `refund`)
+- Order status → `refunded`, payment status → `refunded`
+- Red "Diretur" badge di orders list + order detail
+- Admin refund button (visible when processing/shipped/delivered + paid)
+
+### 38. Keyboard Shortcuts (POS)
+- F2: focus search
+- F4: checkout
+- F8: hold
+- Ctrl+B: barcode scanner
+- Enter: checkout
+- Esc: reset
+- Keyboard hint bar at bottom of product grid
+
+### 39. Settings: Logo, WhatsApp, SMTP, Google Analytics, Facebook Pixel
+- ManageSettings updated: Toko (logo upload, favicon, whatsapp), SMTP/Email (host, port, username, password, encryption, from), SEO & Analytics (GA ID, FB Pixel, head/body scripts)
+- Dynamic favicon in all 3 layouts
+- GA + FB Pixel + custom scripts injected in `<head>`
+- Dynamic logo in navbar from setting
+- WhatsApp floating button (fixed bottom-right, green)
+- `Setting::get()` wrapped in try/catch for QueryException
+
+### 40. Digital Product (Downloadable File)
+- Migration: `is_digital`, `digital_file`, `license_key` on products + `order_downloads` table
+- Model `OrderDownload` with `canDownload()` (max 5) + `recordDownload()`
+- Filament form section (Toggle + FileUpload + license key Textarea)
+- Route `GET /orders/{order}/download/{product}` — validates ownership, payment, download limit
+- Download button in order-detail for paid digital products
+
+### 41. Dashboard Layout Fixes
+- All widgets have explicit `columnSpan` (no inherited defaults)
+- Unique sort values per row: stats=1, overview=2, charts=3, top*=4, recent=5
+- Unused widgets removed: AccountWidget
+- RevenueChart + RevenueChartWidget: side by side (colspan=6 each), `fill => true` for both
+- Filament CSS pre-compiled: hanya class dari komponen Filament yang tersedia — custom Tailwind utilities (text-gray-500, bg-gray-50, dll) TIDAK ADA
+
+### 42. Reports Page Fix
+- Rewritten with `<x-filament::section>` (card container) + inline styles + CSS variables (`var(--gray-500)`, `var(--success-600)`)
+- Tombol pakai `<x-filament::button>` (`color="success"`, `color="gray"`)
+- Tabel pakai `<table>` HTML biasa (tidak ada `<x-filament::table>` di Filament 5.6)
+
+### 43. Top Products Widget (Refactor)
+- Old custom `TopProductsWidget.php` + Blade view **dihapus**
+- Diganti 3 `TableWidget` classes: TopProductsTableWidget, TopCategoriesTableWidget, TopCashiersTableWidget
+- Menggunakan Eloquent grouped queries (bukan `->data()` — method tidak ada di Filament 5)
+- Wajib include `MAX(table.id) as id` di SELECT untuk record key (`getTableRecordKey()` expects string)
+
 ---
 
 ## Gate & Middleware
 
 - `Gate::define('access-pos', fn ($user) => in_array($user->role, ['admin', 'cashier']))` di `AppServiceProvider::boot()`
+- `Gate::define('admin', fn ($user) => $user->role === 'admin')` di `AppServiceProvider::boot()`
 - POS route group: `['auth', 'can:access-pos']`
 - Order authorization: `if ($order->user_id !== auth()->id()) abort(403)`
 
@@ -543,11 +745,19 @@
 
 ---
 
+## Git & GitHub
+
+- **Remote**: `origin → https://github.com/wforyu/hello-store.git`, branch `master`
+- Multiple commits up to latest — includes all Phase 1 + Phase 1.5 features
+- Push command: `git push origin master`
+
+---
+
 ## Testing
 
 - Unit tests: `PHPUnit\Framework\TestCase` (tanpa app boot)
 - Feature tests: `Tests\TestCase` (full app boot), SQLite `:memory:`
 - Semua feature tests pakai `RefreshDatabase` (kecuali ExampleTest)
 - 25 tests, 61 assertions — semuanya pass
-- Pint clean: 159 files, 0 issues
+- Pint clean: 195 files, 0 issues
 - Command: `composer test` (config:clear lalu artisan test)

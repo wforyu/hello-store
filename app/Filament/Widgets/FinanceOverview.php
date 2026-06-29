@@ -9,7 +9,9 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class FinanceOverview extends BaseWidget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 2;
+
+    protected int|string|array $columnSpan = 'full';
 
     protected function getStats(): array
     {
