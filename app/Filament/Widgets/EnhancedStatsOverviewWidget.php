@@ -31,7 +31,7 @@ class EnhancedStatsOverviewWidget extends BaseWidget
         $todayProductsSold = OrderItem::whereHas('order', function ($q) use ($today) {
             $q->whereDate('created_at', $today)->where('payment_status', 'paid');
         })->sum('quantity');
-        $todayExpenses = Expense::whereDate('date', $today)->sum('amount');
+        $todayExpenses = Expense::whereDate('expense_date', $today)->sum('amount');
         $netProfit = $todayRevenue - $todayExpenses;
 
         // Month & customer stats
