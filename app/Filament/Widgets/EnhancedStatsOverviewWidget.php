@@ -54,38 +54,37 @@ class EnhancedStatsOverviewWidget extends BaseWidget
 
         return [
             // Row 1 — Hari Ini
-            Stat::make('🧾 Pesanan Hari Ini', $todayOrders)
+            Stat::make('Pesanan Hari Ini', $todayOrders)
                 ->description('Total pesanan hari ini')
                 ->descriptionIcon('heroicon-o-shopping-cart')
                 ->color('warning')
-                ->url(OrderResource::getUrl('index', ['tableFilters[hari_ini][isActive] => true]')),
-            Stat::make('📦 Produk Terjual (Hari Ini)', $todayProductsSold)
+                ->url(OrderResource::getUrl('index', ['tableFilters[hari_ini][isActive]' => true])),
+            Stat::make('Produk Terjual (Hari Ini)', $todayProductsSold)
                 ->description('Total barang terjual hari ini')
                 ->descriptionIcon('heroicon-o-cube')
                 ->color('success'),
-            Stat::make('💰 Pendapatan Hari Ini', 'Rp '.number_format($todayRevenue, 0, ',', '.'))
+            Stat::make('Pendapatan Hari Ini', 'Rp '.number_format($todayRevenue, 0, ',', '.'))
                 ->description('Pembayaran lunas hari ini')
                 ->descriptionIcon('heroicon-o-banknotes')
                 ->color('success'),
-            Stat::make('📊 Laba Bersih Hari Ini', 'Rp '.number_format($netProfit, 0, ',', '.'))
+            Stat::make('Laba Bersih Hari Ini', 'Rp '.number_format($netProfit, 0, ',', '.'))
                 ->description($netProfit >= 0 ? 'Pendapatan - Biaya hari ini' : 'Defisit hari ini')
                 ->descriptionIcon('heroicon-o-arrow-trending-up')
                 ->color($netProfit >= 0 ? 'success' : 'danger'),
 
-            // Row 2 — Customers & Performance
-            Stat::make('👤 Customer Baru (Bulan Ini)', $newCustomersMonth)
+            Stat::make('Customer Baru (Bulan Ini)', $newCustomersMonth)
                 ->description('Total customer baru')
                 ->descriptionIcon('heroicon-o-users')
                 ->color('primary'),
-            Stat::make('🔄 Repeat Customer', $repeatCustomers)
+            Stat::make('Repeat Customer', $repeatCustomers)
                 ->description('Customer dengan > 1 pesanan')
                 ->descriptionIcon('heroicon-o-arrow-path')
                 ->color('success'),
-            Stat::make('📈 Rata-rata Pesanan (AOV)', 'Rp '.number_format($aov, 0, ',', '.'))
+            Stat::make('Rata-rata Pesanan (AOV)', 'Rp '.number_format($aov, 0, ',', '.'))
                 ->description('Nilai rata-rata per pesanan')
                 ->descriptionIcon('heroicon-o-chart-bar')
                 ->color('warning'),
-            Stat::make('🎯 Conversion Rate', $conversionRate.'%')
+            Stat::make('Conversion Rate', $conversionRate.'%')
                 ->description('Pesanan per customer')
                 ->descriptionIcon('heroicon-o-arrow-trending-up')
                 ->color('info'),
