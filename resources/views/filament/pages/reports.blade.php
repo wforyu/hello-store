@@ -14,7 +14,7 @@
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem">
             <div>
                 <p style="font-size:0.875rem;color:var(--gray-500)">Total Pesanan</p>
-                <p style="font-size:1.25rem;font-weight:700;color:var(--gray-950)">{{ number_format($sales['total_orders'] ?? 0, 0, ',', '.') }}</p>
+                <p style="font-size:1.25rem;font-weight:700">{{ number_format($sales['total_orders'] ?? 0, 0, ',', '.') }}</p>
             </div>
             <div>
                 <p style="font-size:0.875rem;color:var(--gray-500)">Total Pendapatan</p>
@@ -68,9 +68,9 @@
                         @foreach($this->topProducts as $i => $p)
                             <tr style="border-bottom:1px solid var(--gray-200)">
                                 <td style="padding:0.5rem 0.75rem;color:var(--gray-400)">{{ $i + 1 }}</td>
-                                <td style="padding:0.5rem 0.75rem;font-weight:500;color:var(--gray-950)">{{ $p['name'] }}</td>
+                                <td style="padding:0.5rem 0.75rem;font-weight:500">{{ $p['name'] }}</td>
                                 <td style="text-align:center;padding:0.5rem 0.75rem;font-weight:700;color:var(--warning-600)">{{ number_format($p['qty']) }}</td>
-                                <td style="text-align:right;padding:0.5rem 0.75rem;font-weight:600;color:var(--gray-950)">Rp {{ number_format($p['revenue'], 0, ',', '.') }}</td>
+                                <td style="text-align:right;padding:0.5rem 0.75rem;font-weight:600">Rp {{ number_format($p['revenue'], 0, ',', '.') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -97,7 +97,7 @@
                         @foreach($this->topCategories as $i => $c)
                             <tr style="border-bottom:1px solid var(--gray-200)">
                                 <td style="padding:0.5rem 0.75rem;color:var(--gray-400)">{{ $i + 1 }}</td>
-                                <td style="padding:0.5rem 0.75rem;font-weight:500;color:var(--gray-950)">{{ $c['name'] }}</td>
+                                <td style="padding:0.5rem 0.75rem;font-weight:500">{{ $c['name'] }}</td>
                                 <td style="text-align:center;padding:0.5rem 0.75rem;font-weight:700;color:var(--warning-600)">{{ number_format($c['qty']) }}</td>
                             </tr>
                         @endforeach
