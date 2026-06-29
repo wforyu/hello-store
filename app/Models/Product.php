@@ -44,6 +44,7 @@ class Product extends Model
         'category_id', 'brand_id', 'name', 'slug', 'description', 'price', 'compare_price',
         'stock', 'sku', 'weight', 'images', 'is_active', 'featured',
         'meta_title', 'meta_description',
+        'is_digital', 'digital_file', 'license_key',
     ];
 
     protected function casts(): array
@@ -55,6 +56,7 @@ class Product extends Model
             'images' => 'array',
             'is_active' => 'boolean',
             'featured' => 'boolean',
+            'is_digital' => 'boolean',
         ];
     }
 
@@ -102,6 +104,21 @@ class Product extends Model
             'stock_after' => $this->stock,
             'notes' => $notes,
         ]);
+    }
+
+    public function attributes(): HasMany
+    {
+        return $this->hasMany(ProductAttribute::class)->orderBy('sort_order');
+    }
+
+    public function getAttributeByType(string $type)
+    {
+        return $this->attributes->where('type', $type)->values();
+    }
+
+    public function orderDownloads(): HasMany
+    {
+        return $this->hasMany(OrderDownload::class);
     }
 
     public function getMainImageAttribute(): ?string

@@ -65,6 +65,10 @@
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         Shift: {{ $activeShift->opened_at->format('H:i') }}
                     </div>
+                    <button type="button" @click="showKasKeluar = true"
+                        class="text-xs bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-full hover:bg-orange-100 transition">
+                        Kas Keluar
+                    </button>
                     <button type="button" @click="showCloseShift = true"
                         class="text-xs bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-full hover:bg-red-100 transition">
                         Tutup Shift
@@ -90,7 +94,7 @@
                 PPN <span x-text="ppnRate"></span>%
             </label>
 
-            <input type="text" x-model="search" @input.debounce="searchProducts" placeholder="Cari nama / SKU..." x-ref="searchInput"
+            <input type="text" id="search-product" x-model="search" @input.debounce="searchProducts" placeholder="Cari nama / SKU..." x-ref="searchInput"
                 class="ml-auto max-w-[200px] border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
 
             {{-- Hold badge --}}
@@ -174,6 +178,21 @@
             <div x-show="products.length === 0" class="col-span-full text-center py-16 text-gray-400">
                 Produk tidak ditemukan
             </div>
+        </div>
+
+        {{-- Keyboard shortcuts hint --}}
+        <div class="mt-2 text-[10px] text-gray-400 text-center leading-relaxed flex-shrink-0">
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">F2</kbd> Cari</span>
+            <span class="mx-1.5">·</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">F4</kbd> Bayar</span>
+            <span class="mx-1.5">·</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">F8</kbd> Hold</span>
+            <span class="mx-1.5">·</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">Ctrl+B</kbd> Barcode</span>
+            <span class="mx-1.5">·</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">Enter</kbd> Checkout</span>
+            <span class="mx-1.5">·</span>
+            <span class="inline-flex items-center gap-1"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">Esc</kbd> Reset</span>
         </div>
     </div>
 
@@ -345,18 +364,58 @@
 
             {{-- Bayar + Hold buttons --}}
             <div class="flex gap-2 mt-3">
-                <button @click="processCheckout" :disabled="!canCheckout || loading"
+                <button id="btn-checkout" @click="processCheckout" :disabled="!canCheckout || loading"
                     class="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3 rounded-xl hover:from-amber-600 hover:to-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm cursor-pointer text-shadow">
                     <span x-show="!loading">Bayar <span x-text="'Rp ' + formatPrice(total)"></span></span>
                     <span x-show="loading">⏳ Memproses...</span>
                 </button>
-                <button @click="holdCurrentOrder" :disabled="loading"
+                <button id="btn-hold" @click="holdCurrentOrder" :disabled="loading"
                     class="px-4 py-3 border border-gray-200 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-amber-500 hover:text-amber-600 transition disabled:opacity-40 cursor-pointer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </button>
             </div>
 
             <p x-show="errorMsg" class="text-sm text-red-500 text-center font-medium mt-2" x-text="errorMsg"></p>
+        </div>
+    </div>
+
+    {{-- Kas Keluar Modal --}}
+    <div x-cloak x-show="showKasKeluar" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        @keydown.escape.window="showKasKeluar = false">
+        <div @click.outside="showKasKeluar = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Kas Keluar</h3>
+            <p class="text-sm text-gray-500 mb-5">Catat pengeluaran dari shift aktif.</p>
+            <form action="{{ route('pos.shift.expense') }}" method="POST">
+                @csrf
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Jumlah (Rp)</label>
+                    <input type="number" name="amount" x-model="kasKeluarAmount" min="1" required
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Kategori</label>
+                    <select name="category" x-model="kasKeluarCategory"
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none">
+                        <option value="operasional">Operasional</option>
+                        <option value="belanja">Belanja</option>
+                        <option value="kebersihan">Kebersihan</option>
+                        <option value="lainnya">Lainnya</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Keterangan</label>
+                    <textarea name="description" x-model="kasKeluarDescription" rows="2" required
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" @click="showKasKeluar = false"
+                        class="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition">Batal</button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 transition shadow-sm">
+                        Simpan
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -391,6 +450,22 @@
         <div @click.outside="showCloseShift = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
             <h3 class="text-lg font-bold text-gray-900 mb-2">Tutup Shift</h3>
             <p class="text-sm text-gray-500 mb-5">Masukkan saldo akhir untuk menutup shift.</p>
+            @if($activeShift)
+                @if($activeShift->expenses->count() > 0)
+                    <div class="mb-4 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                        <p class="text-xs font-medium text-orange-700 mb-1">Total Pengeluaran Shift Ini</p>
+                        <p class="text-sm font-bold text-orange-800">Rp {{ number_format($activeShift->expenses->sum('amount'), 0, ',', '.') }}</p>
+                        <ul class="mt-1.5 space-y-1">
+                            @foreach($activeShift->expenses as $expense)
+                                <li class="text-xs text-orange-600 flex justify-between">
+                                    <span>{{ $expense->description }}</span>
+                                    <span class="font-medium">Rp {{ number_format($expense->amount, 0, ',', '.') }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            @endif
             <form action="{{ route('pos.shift.close') }}" method="POST">
                 @csrf
                 <div class="mb-4">
@@ -470,6 +545,10 @@
             holds: @json(session('pos_holds', [])),
             showHistory: false,
             history: [],
+            showKasKeluar: false,
+            kasKeluarAmount: 0,
+            kasKeluarDescription: '',
+            kasKeluarCategory: 'operasional',
             showOpenShift: false,
             showCloseShift: false,
             openingBalance: 0,
@@ -623,6 +702,25 @@
 
             // --- Keyboard ---
             handleKeydown(e) {
+                if (e.key === 'F2') {
+                    e.preventDefault();
+                    document.getElementById('search-product')?.focus();
+                    return;
+                }
+                if (e.key === 'F4') {
+                    e.preventDefault();
+                    if (this.cart.length > 0) {
+                        this.processCheckout();
+                    }
+                    return;
+                }
+                if (e.key === 'F8') {
+                    e.preventDefault();
+                    if (this.cart.length > 0) {
+                        document.getElementById('btn-hold')?.click();
+                    }
+                    return;
+                }
                 if (e.ctrlKey && e.key === 'b') {
                     e.preventDefault();
                     this.$refs.barcodeInput?.focus();

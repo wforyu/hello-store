@@ -34,6 +34,7 @@ class ManageSettings extends Page
             'store_address' => Setting::get('store_address'),
             'phone' => Setting::get('phone'),
             'whatsapp' => Setting::get('whatsapp'),
+            'whatsapp_text' => Setting::get('whatsapp_text'),
             'email' => Setting::get('email'),
             'instagram' => Setting::get('instagram'),
             'facebook' => Setting::get('facebook'),
@@ -41,6 +42,19 @@ class ManageSettings extends Page
             'bank_accounts' => Setting::get('bank_accounts'),
             'ppn_enabled' => Setting::get('ppn_enabled', '0') === '1',
             'ppn_percentage' => Setting::get('ppn_percentage', '11'),
+            'logo' => Setting::get('logo'),
+            'favicon' => Setting::get('favicon'),
+            'smtp_host' => Setting::get('smtp_host'),
+            'smtp_port' => Setting::get('smtp_port'),
+            'smtp_username' => Setting::get('smtp_username'),
+            'smtp_password' => Setting::get('smtp_password'),
+            'smtp_encryption' => Setting::get('smtp_encryption', 'tls'),
+            'smtp_from_address' => Setting::get('smtp_from_address'),
+            'smtp_from_name' => Setting::get('smtp_from_name'),
+            'google_analytics_id' => Setting::get('google_analytics_id'),
+            'facebook_pixel_id' => Setting::get('facebook_pixel_id'),
+            'head_scripts' => Setting::get('head_scripts'),
+            'body_scripts' => Setting::get('body_scripts'),
         ]);
     }
 
@@ -59,9 +73,6 @@ class ManageSettings extends Page
                             ->label('Nomor Telepon')
                             ->tel()
                             ->helperText('Nomor telepon yang bisa dihubungi'),
-                        TextInput::make('whatsapp')
-                            ->label('Nomor WhatsApp')
-                            ->helperText('Nomor WhatsApp dengan kode negara (contoh: 628123456789)'),
                         TextInput::make('email')
                             ->label('Email')
                             ->email()
@@ -126,6 +137,105 @@ class ManageSettings extends Page
                             ->defaultItems(4)
                             ->maxItems(10),
                     ]),
+                Section::make('Toko')
+                    ->description('Logo, favicon, dan informasi toko')
+                    ->schema([
+                        \Filament\Forms\Components\FileUpload::make('logo')
+                            ->label('Logo Toko')
+                            ->image()
+                            ->directory('settings')
+                            ->imageEditor()
+                            ->helperText('Upload logo toko (format: JPG, PNG, SVG)'),
+                        \Filament\Forms\Components\FileUpload::make('favicon')
+                            ->label('Favicon')
+                            ->image()
+                            ->directory('settings')
+                            ->helperText('Upload favicon (32x32px, format: ICO/PNG)'),
+                        \Filament\Forms\Components\TextInput::make('whatsapp')
+                            ->label('Nomor WhatsApp')
+                            ->placeholder('6281234567890')
+                            ->helperText('Format internasional tanpa +, contoh: 6281234567890')
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('whatsapp_text')
+                            ->label('Teks WhatsApp')
+                            ->placeholder('Halo, saya ingin bertanya...')
+                            ->columnSpan(1),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+                Section::make('SMTP / Email')
+                    ->description('Konfigurasi email server')
+                    ->schema([
+                        \Filament\Forms\Components\TextInput::make('smtp_host')
+                            ->label('SMTP Host')
+                            ->placeholder('smtp.gmail.com')
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('smtp_port')
+                            ->label('SMTP Port')
+                            ->placeholder('587')
+                            ->numeric()
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('smtp_username')
+                            ->label('SMTP Username')
+                            ->placeholder('email@domain.com')
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('smtp_password')
+                            ->label('SMTP Password')
+                            ->password()
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\Select::make('smtp_encryption')
+                            ->label('Enkripsi')
+                            ->options([
+                                'tls' => 'TLS',
+                                'ssl' => 'SSL',
+                                '' => 'None',
+                            ])
+                            ->default('tls')
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('smtp_from_address')
+                            ->label('Email Pengirim')
+                            ->placeholder('noreply@domain.com')
+                            ->email()
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\TextInput::make('smtp_from_name')
+                            ->label('Nama Pengirim')
+                            ->placeholder('Hello Store')
+                            ->columnSpan(1),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
+                Section::make('SEO & Analytics')
+                    ->description('Google Analytics, Facebook Pixel, SEO meta')
+                    ->schema([
+                        \Filament\Forms\Components\Textarea::make('google_analytics_id')
+                            ->label('Google Analytics ID')
+                            ->placeholder('G-XXXXXXXXXX')
+                            ->helperText('Masukkan Measurement ID Google Analytics 4')
+                            ->rows(2)
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\Textarea::make('facebook_pixel_id')
+                            ->label('Facebook Pixel ID')
+                            ->placeholder('1234567890')
+                            ->helperText('Masukkan Facebook Pixel ID')
+                            ->rows(2)
+                            ->columnSpan(1),
+                        \Filament\Forms\Components\Textarea::make('head_scripts')
+                            ->label('Kode Head Script')
+                            ->placeholder('<meta name="custom" content="...">')
+                            ->helperText('Kode yang akan dimasukkan di bagian <head>')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                        \Filament\Forms\Components\Textarea::make('body_scripts')
+                            ->label('Kode Body Script')
+                            ->placeholder('<script>console.log("custom script")</script>')
+                            ->helperText('Kode yang akan dimasukkan sebelum </body>')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
             ])
             ->statePath('data');
     }

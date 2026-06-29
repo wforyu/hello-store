@@ -23,4 +23,18 @@ class EditOrder extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        if ($this->record->wasChanged('status') && $this->record->status === 'shipped') {
+            \App\Models\Notification::createForUser(
+                $this->record->user_id,
+                'order',
+                'Pesanan #'.$this->record->order_number.' telah dikirim',
+                'Nomor resi: '.($this->record->shipping_tracking_number ?? '-'),
+                null,
+                route('orders.show', $this->record)
+            );
+        }
+    }
 }

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AddressController;
+use App\Http\Controllers\BarcodeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -18,6 +20,9 @@ Route::get('/cart', [StoreController::class, 'cartIndex'])->name('cart.index');
 Route::post('/cart/add/{product}', [StoreController::class, 'cartAdd'])->name('cart.add');
 Route::post('/cart/update', [StoreController::class, 'cartUpdate'])->name('cart.update');
 Route::post('/cart/remove/{productId}', [StoreController::class, 'cartRemove'])->name('cart.remove');
+
+Route::post('/compare/toggle/{product}', [StoreController::class, 'compareToggle'])->name('products.compare.toggle');
+Route::get('/compare', [StoreController::class, 'compareIndex'])->name('products.compare');
 
 Route::middleware('auth')->group(function () {
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');
@@ -36,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/orders/{order}/cancel', [StoreController::class, 'cancelOrder'])->name('orders.cancel');
     Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->name('orders.print');
     Route::post('/orders/{order}/reorder', [StoreController::class, 'reorder'])->name('orders.reorder');
+    Route::get('/orders/{order}/download/{product}', [StoreController::class, 'downloadDigital'])->name('orders.download');
 
     Route::post('/product/{product}/review', [StoreController::class, 'reviewStore'])->name('products.review');
 
@@ -44,6 +50,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('addresses', AddressController::class)->except(['show']);
+
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread');
+        Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+        Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+        Route::post('/{notification}/read-json', [NotificationController::class, 'markAsReadJson'])->name('read-json');
+    });
 });
 
 Route::middleware(['auth', 'can:access-pos'])->group(function () {
@@ -61,6 +75,8 @@ Route::middleware(['auth', 'can:access-pos'])->group(function () {
     Route::post('/pos/scan', [PosController::class, 'scanBarcode'])->name('pos.scan');
     Route::get('/pos/history', [PosController::class, 'history'])->name('pos.history');
     Route::get('/pos/print/{order}', [PosController::class, 'printReceipt'])->name('pos.print');
+    Route::post('/pos/shift/expense', [PosController::class, 'addExpense'])->name('pos.shift.expense');
+    Route::delete('/pos/shift/expense/{shiftExpense}', [PosController::class, 'deleteExpense'])->name('pos.shift.expense-delete');
     Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
     Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
     Route::get('/pos/shift/history', [PosController::class, 'shiftHistory'])->name('pos.shift.history');
@@ -71,6 +87,11 @@ Route::middleware(['auth', 'can:access-pos'])->group(function () {
 Route::middleware(['auth', 'can:admin'])->group(function () {
     Route::get('/admin/reports/export', [ReportController::class, 'export'])
         ->name('admin.reports.export');
+    Route::get('/admin/barcode', [BarcodeController::class, 'index'])->name('barcode.index');
+    Route::post('/admin/barcode/generate', [BarcodeController::class, 'generate'])->name('barcode.generate');
+    Route::get('/admin/barcode/product/{product}', [BarcodeController::class, 'generateForProduct'])->name('barcode.product');
+
+    Route::post('/orders/{order}/refund', [StoreController::class, 'processRefund'])->name('orders.refund');
 });
 
 require __DIR__.'/auth.php';

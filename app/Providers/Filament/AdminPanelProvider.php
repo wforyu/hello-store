@@ -8,6 +8,7 @@ use App\Filament\Widgets\FinanceOverview;
 use App\Filament\Widgets\RecentOrdersWidget;
 use App\Filament\Widgets\RevenueChart;
 use App\Filament\Widgets\RevenueChartWidget;
+use App\Filament\Widgets\TopProductsWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -58,6 +59,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 EnhancedStatsOverviewWidget::class,
+                TopProductsWidget::class,
                 FinanceOverview::class,
                 RevenueChart::class,
                 RevenueChartWidget::class,

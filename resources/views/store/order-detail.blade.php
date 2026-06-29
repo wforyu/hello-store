@@ -26,8 +26,9 @@
                     @elseif($order->status === 'processing') bg-cyan-50 text-cyan-700 border border-cyan-200
                     @elseif($order->status === 'shipped') bg-purple-50 text-purple-700 border border-purple-200
                     @elseif($order->status === 'delivered') bg-emerald-50 text-emerald-700 border border-emerald-200
-                    @else bg-red-50 text-red-700 border border-red-200 @endif">
-                    {{ ucfirst($order->status) }}
+                    @elseif($order->status === 'refunded') bg-red-50 text-red-700 border border-red-200
+                    @else bg-gray-50 text-gray-700 border border-gray-200 @endif">
+                    {{ $order->status === 'refunded' ? 'Diretur' : ucfirst($order->status) }}
                 </span>
 
                 @if($order->status === 'delivered')
@@ -155,6 +156,24 @@
             </div>
         @endif
 
+        @can('admin')
+            @if(in_array($order->status, ['processing', 'shipped', 'delivered']) && $order->payment_status === 'paid')
+                <div class="mt-6 p-5 bg-red-50 border-2 border-red-200 rounded-2xl text-center">
+                    <svg class="w-10 h-10 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                    <p class="text-sm font-semibold text-red-800 mb-3">Retur pesanan ini? Stok barang akan dikembalikan.</p>
+                    <form action="{{ route('orders.refund', $order) }}" method="POST"
+                        onsubmit="return confirm('Yakin ingin meretur pesanan ini? Stok barang akan dikembalikan.');">
+                        @csrf
+                        <button type="submit"
+                            class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-600 transition shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                            Retur Pesanan
+                        </button>
+                    </form>
+                </div>
+            @endif
+        @endcan
+
         @if($order->notes)
             <div class="mt-4 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm text-amber-800 flex items-start gap-2">
                 <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -175,6 +194,15 @@
                     <div>
                         <p class="text-sm font-semibold text-gray-900">{{ $item->product_name }}</p>
                         <p class="text-xs text-gray-400 mt-0.5">{{ $item->quantity }} × Rp{{ number_format($item->product_price, 0, ',', '.') }}</p>
+                        @if($item->product && $item->product->is_digital && $order->payment_status === 'paid')
+                            <a href="{{ route('orders.download', [$order, $item->product]) }}"
+                                class="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium mt-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                Download
+                            </a>
+                        @endif
                         @if($order->status === 'delivered' && $item->product)
                             @php
                                 $userReviewed = auth()->user()->reviews()->where('product_id', $item->product_id)->exists();

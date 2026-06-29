@@ -40,6 +40,7 @@ class OrdersTable
                         'shipped' => 'primary',
                         'delivered' => 'success',
                         'cancelled' => 'danger',
+                        'refunded' => 'danger',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
@@ -48,6 +49,7 @@ class OrdersTable
                         'shipped' => 'Shipped',
                         'delivered' => 'Delivered',
                         'cancelled' => 'Cancelled',
+                        'refunded' => 'Diretur',
                         default => $state,
                     })
                     ->sortable(),

@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Shift;
+use App\Models\ShiftExpense;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -470,7 +471,8 @@ class PosController extends Controller
         ]);
 
         $totalRevenue = $shift->totalRevenue();
-        $expectedBalance = (float) $shift->opening_balance + $totalRevenue;
+        $totalExpenses = (float) $shift->expenses()->sum('amount');
+        $expectedBalance = (float) $shift->opening_balance + $totalRevenue - $totalExpenses;
 
         $shift->update([
             'closed_at' => now(),
@@ -491,6 +493,44 @@ class PosController extends Controller
             ->paginate(20);
 
         return view('pos.shifts', compact('shifts'));
+    }
+
+    public function addExpense(Request $request)
+    {
+        $shift = Shift::where('user_id', auth()->id())
+            ->whereNull('closed_at')
+            ->first();
+
+        if (! $shift) {
+            return redirect()->route('pos.index')->with('error', 'Tidak ada shift yang aktif!');
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'description' => 'required|string|max:255',
+            'category' => 'nullable|string|max:50',
+        ]);
+
+        ShiftExpense::create([
+            'shift_id' => $shift->id,
+            'user_id' => auth()->id(),
+            'amount' => $validated['amount'],
+            'description' => $validated['description'],
+            'category' => $validated['category'] ?? 'operasional',
+        ]);
+
+        return redirect()->route('pos.index')->with('success', 'Kas keluar berhasil dicatat');
+    }
+
+    public function deleteExpense(ShiftExpense $shiftExpense)
+    {
+        if ($shiftExpense->shift->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $shiftExpense->delete();
+
+        return redirect()->route('pos.index')->with('success', 'Catatan kas keluar dihapus');
     }
 
     public function printReceipt(Order $order)

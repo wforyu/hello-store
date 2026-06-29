@@ -19,6 +19,7 @@
                             <th class="text-left py-4 px-6 font-semibold text-gray-500">Kasir</th>
                             <th class="text-right py-4 px-6 font-semibold text-gray-500">Saldo Awal</th>
                             <th class="text-right py-4 px-6 font-semibold text-gray-500">Saldo Akhir</th>
+                            <th class="text-right py-4 px-6 font-semibold text-gray-500">Pengeluaran</th>
                             <th class="text-right py-4 px-6 font-semibold text-gray-500">Selisih</th>
                             <th class="text-center py-4 px-6 font-semibold text-gray-500">Status</th>
                         </tr>
@@ -33,6 +34,7 @@
                                 <td class="py-4 px-6 text-gray-700">{{ $shift->user->name }}</td>
                                 <td class="py-4 px-6 text-right font-medium">Rp {{ number_format($shift->opening_balance, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-medium">Rp {{ number_format($shift->closing_balance ?? 0, 0, ',', '.') }}</td>
+                                <td class="py-4 px-6 text-right font-medium text-red-600">Rp {{ number_format($shift->expenses->sum('amount'), 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right">
                                     @if($shift->difference !== null)
                                         <span class="font-bold {{ $shift->difference >= 0 ? 'text-emerald-600' : 'text-red-600' }}">

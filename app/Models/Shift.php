@@ -30,6 +30,11 @@ class Shift extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(ShiftExpense::class);
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);

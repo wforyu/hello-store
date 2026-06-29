@@ -109,6 +109,26 @@
                     @endif
                 </div>
 
+                {{-- Product Attributes --}}
+                @if($product->attributes->count() > 0)
+                    <div class="border-t border-gray-100 pt-4 mt-4 space-y-3">
+                        @foreach($product->attributes->groupBy('type') as $type => $attrs)
+                            <div>
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                    {{ ['color' => 'Warna', 'size' => 'Ukuran', 'material' => 'Bahan'][$type] ?? $type }}
+                                </span>
+                                <div class="flex flex-wrap gap-1.5 mt-1.5">
+                                    @foreach($attrs as $attr)
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+                                            {{ $attr->label ?? $attr->value }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 {{-- Description --}}
                 <div class="prose prose-sm text-gray-600 mb-6 max-w-none border-t border-gray-100 pt-5">
                     <h4 class="text-sm font-semibold text-gray-900 mb-2">Deskripsi Produk</h4>

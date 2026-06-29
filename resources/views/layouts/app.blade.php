@@ -7,7 +7,12 @@
 
         <title>{{ config('app.name', 'Hello Store') }}</title>
 
-        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+        @php $favicon = \App\Models\Setting::get('favicon'); @endphp
+        @if($favicon)
+            <link rel="icon" type="image/png" href="{{ asset('storage/'.$favicon) }}">
+        @else
+            <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+        @endif
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

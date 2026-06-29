@@ -11,6 +11,8 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\Setting;
+use App\Models\StockHistory;
+use App\Models\OrderDownload;
 use App\Models\Wishlist;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
@@ -301,6 +303,23 @@ class StoreController extends Controller
             return $order;
         });
 
+        \App\Models\Notification::createForUser(
+            auth()->id(),
+            'order',
+            'Pesanan #'.$order->order_number.' berhasil dibuat',
+            'Status: Menunggu pembayaran. Silakan lakukan pembayaran.',
+            null,
+            route('orders.show', $order)
+        );
+
+        \App\Models\Notification::createForAdmins(
+            'order',
+            'Pesanan Baru #'.$order->order_number,
+            'Pesanan baru dari '.auth()->user()->name,
+            null,
+            route('orders.show', $order)
+        );
+
         session()->forget('cart');
 
         return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan berhasil dibuat!');
@@ -364,6 +383,15 @@ class StoreController extends Controller
             'status' => 'processing',
         ]);
 
+        \App\Models\Notification::createForUser(
+            $order->user_id,
+            'order',
+            'Pembayaran Pesanan #'.$order->order_number.' diterima',
+            'Pesanan sedang diproses.',
+            null,
+            route('orders.show', $order)
+        );
+
         return redirect()->route('orders.show', $order->id)->with('success', 'Bukti pembayaran berhasil diupload!');
     }
 
@@ -382,6 +410,15 @@ class StoreController extends Controller
             'delivered_at' => now(),
             'payment_status' => 'paid',
         ]);
+
+        \App\Models\Notification::createForUser(
+            $order->user_id,
+            'order',
+            'Pesanan #'.$order->order_number.' telah diterima',
+            'Terima kasih telah berbelanja! Jangan lupa beri ulasan.',
+            null,
+            route('orders.show', $order)
+        );
 
         return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan telah diterima. Terima kasih!');
     }
@@ -420,6 +457,53 @@ class StoreController extends Controller
         });
 
         return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan berhasil dibatalkan.');
+    }
+
+    public function processRefund(Order $order)
+    {
+        if (! in_array($order->status, ['processing', 'shipped', 'delivered'])) {
+            return back()->with('error', 'Pesanan tidak dapat diretur dengan status saat ini.');
+        }
+
+        if ($order->payment_status !== 'paid') {
+            return back()->with('error', 'Pesanan belum dibayar.');
+        }
+
+        DB::transaction(function () use ($order) {
+            $order->items()->with('product')->each(function ($item) {
+                if ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+
+                    StockHistory::create([
+                        'product_id' => $item->product_id,
+                        'user_id' => auth()->id(),
+                        'type' => 'refund',
+                        'reference_type' => 'order',
+                        'reference_id' => $order->id,
+                        'quantity_change' => $item->quantity,
+                        'stock_before' => $item->product->stock - $item->quantity,
+                        'stock_after' => $item->product->stock,
+                        'notes' => 'Retur pesanan #'.$order->order_number,
+                    ]);
+                }
+            });
+
+            $order->update([
+                'status' => 'refunded',
+                'payment_status' => 'refunded',
+            ]);
+        });
+
+        \App\Models\Notification::createForUser(
+            $order->user_id,
+            'order',
+            'Pesanan #'.$order->order_number.' telah diretur',
+            'Dana akan dikembalikan. Stok barang sudah dikembalikan.',
+            null,
+            route('orders.show', $order)
+        );
+
+        return back()->with('success', 'Retur berhasil. Stok barang telah dikembalikan.');
     }
 
     public function printReceipt(Order $order)
@@ -599,6 +683,61 @@ class StoreController extends Controller
         ]);
     }
 
+    public function compareToggle(Product $product)
+    {
+        $compare = session('compare', collect());
+
+        if ($compare->has($product->id)) {
+            $compare->forget($product->id);
+            $message = 'dihapus dari';
+        } else {
+            if ($compare->count() >= 4) {
+                if (request()->wantsJson()) {
+                    return response()->json(['error' => 'Maksimal 4 produk untuk dibandingkan']);
+                }
+                return back()->with('error', 'Maksimal 4 produk untuk dibandingkan');
+            }
+            $compare->put($product->id, [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'price' => $product->price,
+                'compare_price' => $product->compare_price,
+                'image' => $product->main_image,
+                'stock' => $product->stock,
+                'sku' => $product->sku,
+                'weight' => $product->weight,
+                'rating' => $product->approvedReviews()->avg('rating'),
+                'review_count' => $product->approvedReviews()->count(),
+                'description' => $product->description,
+                'category' => $product->category?->name,
+                'attributes' => $product->attributes->groupBy('type')->map(fn($items, $type) => $items->pluck('label')->implode(', ')),
+            ]);
+            $message = 'ditambahkan ke';
+        }
+
+        session(['compare' => $compare]);
+
+        $count = $compare->count();
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Produk {$message} perbandingan",
+                'count' => $count,
+            ]);
+        }
+
+        return back();
+    }
+
+    public function compareIndex()
+    {
+        $products = session('compare', collect());
+
+        return view('store.compare', compact('products'));
+    }
+
     protected function getCartWeight($cart): int
     {
         $productIds = $cart->pluck('product_id');
@@ -611,5 +750,43 @@ class StoreController extends Controller
         }
 
         return (int) ($totalWeight > 0 ? $totalWeight : 1000);
+    }
+
+    public function downloadDigital(Order $order, Product $product)
+    {
+        if ($order->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $orderItem = $order->items()->where('product_id', $product->id)->first();
+        if (! $orderItem) {
+            abort(404, 'Produk tidak ditemukan di pesanan ini');
+        }
+
+        if (! $product->is_digital || ! $product->digital_file) {
+            abort(404, 'Produk ini bukan produk digital');
+        }
+
+        if ($order->payment_status !== 'paid') {
+            return back()->with('error', 'Pesanan belum dibayar');
+        }
+
+        $download = OrderDownload::firstOrCreate([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'user_id' => auth()->id(),
+        ]);
+
+        if (! $download->canDownload()) {
+            return back()->with('error', 'Batas download habis (maks 5 kali)');
+        }
+
+        $download->recordDownload();
+
+        if (! Storage::disk('public')->exists($product->digital_file)) {
+            return back()->with('error', 'File tidak ditemukan');
+        }
+
+        return Storage::disk('public')->download($product->digital_file, $product->sku.'-'.$product->slug.'.'.pathinfo($product->digital_file, PATHINFO_EXTENSION));
     }
 }

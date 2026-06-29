@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class ProductForm
@@ -90,6 +92,68 @@ class ProductForm
                     ->maxLength(160)
                     ->columnSpanFull()
                     ->helperText('Deskripsi untuk SEO (max 160 karakter). Muncul di hasil pencarian Google.'),
+                Section::make('Produk Digital')
+                    ->description('Untuk produk digital seperti ebook, software, license key')
+                    ->schema([
+                        Toggle::make('is_digital')
+                            ->label('Produk Digital')
+                            ->helperText('Aktifkan jika produk ini adalah file digital (PDF, ZIP, gambar)')
+                            ->live()
+                            ->columnSpanFull(),
+                        FileUpload::make('digital_file')
+                            ->label('File Digital')
+                            ->acceptedFileTypes(['application/pdf', 'application/zip', 'application/x-rar-compressed', 'image/*'])
+                            ->maxSize(102400)
+                            ->directory('digital-products')
+                            ->helperText('Upload file produk digital (maks 100MB)')
+                            ->visible(fn ($get) => $get('is_digital'))
+                            ->columnSpanFull(),
+                        Textarea::make('license_key')
+                            ->label('License Key')
+                            ->helperText('Serial number atau license key (akan dikirim ke customer setelah pembelian)')
+                            ->rows(2)
+                            ->visible(fn ($get) => $get('is_digital'))
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+                Section::make('Atribut Produk')
+                    ->description('Warna, Ukuran, Bahan, dll.')
+                    ->schema([
+                        Repeater::make('attributes')
+                            ->label('')
+                            ->relationship()
+                            ->schema([
+                                Select::make('type')
+                                    ->label('Tipe')
+                                    ->options([
+                                        'color' => 'Warna',
+                                        'size' => 'Ukuran',
+                                        'material' => 'Bahan',
+                                    ])
+                                    ->required()
+                                    ->columnSpan(1),
+                                TextInput::make('value')
+                                    ->label('Nilai')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->columnSpan(1),
+                                TextInput::make('label')
+                                    ->label('Label')
+                                    ->maxLength(100)
+                                    ->columnSpan(1),
+                                TextInput::make('sort_order')
+                                    ->label('Urutan')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->columnSpan(1),
+                            ])
+                            ->columns(4)
+                            ->defaultItems(0)
+                            ->addActionLabel('Tambah Atribut'),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 }

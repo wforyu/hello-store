@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 
 class Setting extends Model
 {
@@ -13,7 +14,15 @@ class Setting extends Model
 
     public static function get(string $key, mixed $default = null): mixed
     {
-        $setting = static::where('key', $key)->first();
+        try {
+            $setting = static::where('key', $key)->first();
+        } catch (QueryException) {
+            if ($key === 'bank_accounts') {
+                return $default ?? [];
+            }
+
+            return $default;
+        }
 
         if (! $setting) {
             if ($key === 'bank_accounts') {

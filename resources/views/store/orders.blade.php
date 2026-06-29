@@ -35,8 +35,9 @@
                             @elseif($order->status === 'processing') bg-cyan-50 text-cyan-700 border border-cyan-200
                             @elseif($order->status === 'shipped') bg-purple-50 text-purple-700 border border-purple-200
                             @elseif($order->status === 'delivered') bg-emerald-50 text-emerald-700 border border-emerald-200
-                            @else bg-red-50 text-red-700 border border-red-200 @endif">
-                            {{ ucfirst($order->status) }}
+                            @elseif($order->status === 'refunded') bg-red-50 text-red-700 border border-red-200
+                            @else bg-gray-50 text-gray-700 border border-gray-200 @endif">
+                            {{ $order->status === 'refunded' ? 'Diretur' : ucfirst($order->status) }}
                         </span>
                     </a>
                     <a href="{{ route('orders.show', $order) }}" class="flex items-center justify-between">

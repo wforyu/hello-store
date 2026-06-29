@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -29,6 +30,11 @@ class ProductsTable
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable(),
+                TextColumn::make('attributes')
+                    ->label('Atribut')
+                    ->formatStateUsing(fn ($record) => $record->attributes->groupBy('type')->map(fn ($items, $type) => ucfirst($type).': '.$items->pluck('value')->implode(', '))->implode(' | '))
+                    ->wrap()
+                    ->limit(50),
                 TextColumn::make('slug')
                     ->label('Slug')
                     ->searchable(),
@@ -87,6 +93,12 @@ class ProductsTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('barcode')
+                    ->label('Barcode')
+                    ->icon('heroicon-o-qr-code')
+                    ->url(fn ($record) => route('barcode.product', $record))
+                    ->openUrlInNewTab()
+                    ->color('warning'),
                 RestoreAction::make(),
                 ForceDeleteAction::make(),
             ])

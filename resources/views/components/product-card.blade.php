@@ -12,6 +12,20 @@
         </button>
     @endauth
 
+    {{-- Compare Button --}}
+    <button type="button"
+        x-data
+        @click.prevent="fetch('{{ route('products.compare.toggle', $product) }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(d => { if(d.success) { window.dispatchEvent(new CustomEvent('compare-updated', {detail: d.count})) } })"
+        onclick="event.preventDefault(); event.stopPropagation();"
+        class="absolute top-12 right-2 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-white/80 hover:bg-white shadow-sm transition text-gray-400 hover:text-amber-500"
+        title="Bandingkan">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+    </button>
+
     {{-- Discount Badge --}}
     @if($product->compare_price && $product->compare_price > $product->price)
         <div class="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm">
