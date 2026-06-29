@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Address;
 use App\Models\Category;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\Setting;
+use App\Models\Wishlist;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -236,9 +238,19 @@ class StoreController extends Controller
         $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
         $ppnRate = (int) Setting::get('ppn_percentage', 11);
         $ppnAmount = $ppnEnabled ? round($subtotal * $ppnRate / 100) : 0;
-        $total = $subtotal + $shippingCost + $ppnAmount;
 
-        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts) {
+        $discountAmount = 0;
+        $coupon = null;
+        if ($request->filled('coupon_code')) {
+            $coupon = Coupon::where('code', $request->coupon_code)->first();
+            if ($coupon && $coupon->canUseBy(auth()->user())) {
+                $discountAmount = $coupon->calculateDiscount($subtotal);
+            }
+        }
+
+        $total = $subtotal + $shippingCost + $ppnAmount - $discountAmount;
+
+        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $coupon, $discountAmount) {
             $order = Order::create([
                 'user_id' => auth()->id(),
                 'order_number' => 'ORD-'.strtoupper(Str::random(8)),
@@ -251,6 +263,8 @@ class StoreController extends Controller
                 'payment_status' => 'unpaid',
                 'notes' => $validated['notes'].($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : ''),
                 'address_id' => $address->id,
+                'coupon_id' => $coupon?->id,
+                'discount' => $discountAmount,
             ]);
 
             foreach ($cart as $item) {
@@ -277,6 +291,11 @@ class StoreController extends Controller
                     'amount' => $total,
                     'status' => 'pending',
                 ]);
+            }
+
+            if ($coupon) {
+                $coupon->increment('used_count');
+                $coupon->users()->attach(auth()->id(), ['order_id' => $order->id]);
             }
 
             return $order;
@@ -447,6 +466,37 @@ class StoreController extends Controller
         return redirect()->back()->with('success', 'Ulasan berhasil dikirim dan menunggu persetujuan admin.');
     }
 
+    public function wishlistToggle(Product $product)
+    {
+        $wishlist = Wishlist::where('user_id', auth()->id())
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($wishlist) {
+            $wishlist->delete();
+
+            return response()->json(['status' => 'removed']);
+        }
+
+        Wishlist::create([
+            'user_id' => auth()->id(),
+            'product_id' => $product->id,
+        ]);
+
+        return response()->json(['status' => 'added']);
+    }
+
+    public function wishlistIndex()
+    {
+        $wishlists = auth()->user()->wishlistProducts()
+            ->with('productImages')
+            ->withCount('approvedReviews')
+            ->withAvg('approvedReviews', 'rating')
+            ->paginate(12);
+
+        return view('store.wishlist', compact('wishlists'));
+    }
+
     public function suggestions(Request $request)
     {
         $query = $request->get('q');
@@ -472,6 +522,81 @@ class StoreController extends Controller
             'price_formatted' => 'Rp'.number_format($p->price, 0, ',', '.'),
             'image' => $p->main_image,
         ]));
+    }
+
+    public function reorder(Request $request, Order $order)
+    {
+        if ($order->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $cart = collect(session('cart', []));
+
+        foreach ($order->items as $item) {
+            $product = Product::find($item->product_id);
+            if (! $product || ! $product->is_active || $product->stock < 1) {
+                continue;
+            }
+
+            $existing = $cart->firstWhere('product_id', $product->id);
+            if ($existing) {
+                $cart = $cart->map(function ($ci) use ($product, $item) {
+                    if ($ci['product_id'] === $product->id) {
+                        $ci['quantity'] = min($ci['quantity'] + $item->quantity, $product->stock);
+                    }
+
+                    return $ci;
+                });
+            } else {
+                $cart->push([
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => (float) $product->price,
+                    'image' => $product->main_image,
+                    'quantity' => min($item->quantity, $product->stock),
+                    'stock' => $product->stock,
+                ]);
+            }
+        }
+
+        session(['cart' => $cart]);
+
+        return redirect()->route('cart.index')->with('success', 'Produk dari pesanan #'.$order->order_number.' berhasil ditambahkan ke keranjang!');
+    }
+
+    public function applyCoupon(Request $request)
+    {
+        $code = $request->get('code');
+        $subtotal = (float) $request->get('subtotal', 0);
+
+        $coupon = Coupon::where('code', $code)->first();
+
+        if (! $coupon) {
+            return response()->json(['valid' => false, 'message' => 'Kode kupon tidak ditemukan.']);
+        }
+
+        if (! $coupon->isValid()) {
+            return response()->json(['valid' => false, 'message' => 'Kupon sudah tidak berlaku.']);
+        }
+
+        if (! $coupon->canUseBy(auth()->user())) {
+            return response()->json(['valid' => false, 'message' => 'Kupon sudah mencapai batas pemakaian.']);
+        }
+
+        if ($subtotal < $coupon->min_order) {
+            return response()->json(['valid' => false, 'message' => 'Minimal belanja Rp '.number_format($coupon->min_order, 0, ',', '.').' untuk menggunakan kupon ini.']);
+        }
+
+        $discount = $coupon->calculateDiscount($subtotal);
+
+        return response()->json([
+            'valid' => true,
+            'coupon' => $coupon,
+            'discount' => $discount,
+            'discount_formatted' => 'Rp '.number_format($discount, 0, ',', '.'),
+            'message' => 'Kupon berhasil diterapkan! Potongan Rp '.number_format($discount, 0, ',', '.'),
+        ]);
     }
 
     protected function getCartWeight($cart): int

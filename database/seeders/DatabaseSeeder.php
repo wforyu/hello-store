@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Coupon;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
 use App\Models\Review;
@@ -32,6 +34,14 @@ class DatabaseSeeder extends Seeder
             'role' => 'cashier',
         ]);
 
+        collect(['Samsung', 'Apple', 'Nike', 'Adidas', 'Sony', 'Xiaomi', 'H&M', 'Zara', 'UNIQLO'])->each(fn ($name) => Brand::create([
+            'name' => $name,
+            'slug' => str($name)->slug(),
+            'is_active' => true,
+        ]));
+
+        $brandIds = Brand::pluck('id')->toArray();
+
         $categories = [
             'Elektronik' => ['Smartphone', 'Laptop', 'Aksesoris Elektronik', 'Audio & Headset'],
             'Fashion Pria' => ['Kemeja', 'Celana', 'Jaket', 'Sepatu Pria'],
@@ -57,6 +67,7 @@ class DatabaseSeeder extends Seeder
 
                 Product::factory(rand(3, 6))->create([
                     'category_id' => $child->id,
+                    'brand_id' => $brandIds ? fake()->randomElement($brandIds) : null,
                 ]);
             }
         }
@@ -84,5 +95,49 @@ class DatabaseSeeder extends Seeder
 
         Setting::create(['key' => 'ppn_enabled', 'value' => '0']);
         Setting::create(['key' => 'ppn_percentage', 'value' => '11']);
+
+        Coupon::create([
+            'code' => 'HELLO10',
+            'name' => 'Diskon 10%',
+            'description' => 'Diskon 10% untuk semua produk',
+            'type' => 'percentage',
+            'value' => 10,
+            'min_order' => 50000,
+            'max_discount' => 50000,
+            'usage_limit' => 100,
+            'usage_per_user' => 1,
+            'starts_at' => now(),
+            'expires_at' => now()->addYear(),
+            'is_active' => true,
+        ]);
+
+        Coupon::create([
+            'code' => 'FLAT50',
+            'name' => 'Diskon Rp50.000',
+            'description' => 'Potongan Rp50.000 untuk belanja minimal Rp200.000',
+            'type' => 'nominal',
+            'value' => 50000,
+            'min_order' => 200000,
+            'usage_limit' => 50,
+            'usage_per_user' => 1,
+            'starts_at' => now(),
+            'expires_at' => now()->addYear(),
+            'is_active' => true,
+        ]);
+
+        Coupon::create([
+            'code' => 'GRATIS',
+            'name' => 'Belanja Gratis',
+            'description' => 'Gratis untuk pesanan pertama (maks Rp25.000)',
+            'type' => 'nominal',
+            'value' => 25000,
+            'min_order' => 0,
+            'max_discount' => 25000,
+            'usage_limit' => 10,
+            'usage_per_user' => 1,
+            'starts_at' => now(),
+            'expires_at' => now()->addMonth(),
+            'is_active' => true,
+        ]);
     }
 }

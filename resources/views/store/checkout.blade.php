@@ -8,7 +8,7 @@
         <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Checkout</h1>
     </div>
 
-    <form action="{{ route('checkout.place') }}" method="POST" x-data="checkoutForm()">
+    <form action="{{ route('checkout.place') }}" method="POST" x-data="checkoutForm()" x-init="subtotal = {{ $subtotal }}">
         @csrf
 
         <div class="grid lg:grid-cols-3 gap-6 lg:gap-8">
@@ -196,11 +196,36 @@
                                 </span>
                             </div>
                         @endif
+                        <template x-if="appliedCode">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-emerald-600">Diskon Kupon</span>
+                                <span class="text-emerald-600 font-medium" x-text="'- Rp ' + discountFormatted"></span>
+                            </div>
+                        </template>
                         <div class="flex justify-between text-lg font-extrabold border-t-2 border-gray-100 pt-3">
                             <span class="text-gray-900">Total</span>
                             <span class="text-amber-600" x-text="'Rp ' + total.toLocaleString('id-ID')">Rp{{ number_format($subtotal + (!empty($shippingRates) ? 0 : 15000) + ($ppnEnabled ? $ppnAmount : 0), 0, ',', '.') }}</span>
                         </div>
                     </div>
+                    {{-- Coupon --}}
+                    <div x-data="couponApp()" class="mt-5 pt-5 border-t-2 border-gray-100">
+                        <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            Kupon / Voucher
+                        </h3>
+                        <div class="flex gap-2">
+                            <input type="text" x-model="code" placeholder="Masukkan kode kupon"
+                                class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none">
+                            <button type="button" @click="apply" :disabled="loading"
+                                class="px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold text-sm hover:bg-amber-600 disabled:opacity-50 transition whitespace-nowrap"
+                                x-text="loading ? '...' : 'Pakai'"></button>
+                        </div>
+                        <template x-if="message">
+                            <p class="text-xs mt-2" :class="valid ? 'text-emerald-600' : 'text-red-500'" x-text="message"></p>
+                        </template>
+                        <input type="hidden" name="coupon_code" x-model="appliedCode">
+                    </div>
+
                     <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2"
                         {{ $addresses->isEmpty() ? 'disabled opacity-60 cursor-not-allowed' : '' }}>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -229,13 +254,48 @@
             },
 
             get total() {
-                return this.subtotal + this.selectedCost + this.ppnAmount;
+                return this.subtotal + this.selectedCost + this.ppnAmount - (parseInt(this.discount || 0));
             },
 
             selectShipping(courier, service, cost, description) {
                 this.selectedCourier = courier;
                 this.selectedService = service;
                 this.selectedCost = parseInt(cost);
+            }
+        }
+    }
+
+    function couponApp() {
+        return {
+            code: '',
+            appliedCode: '',
+            discount: 0,
+            discountFormatted: '0',
+            loading: false,
+            message: '',
+            valid: false,
+            apply() {
+                if (!this.code.trim()) return;
+                this.loading = true;
+                this.message = '';
+                fetch('{{ route("checkout.apply-coupon") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    body: JSON.stringify({ code: this.code, subtotal: {{ $subtotal }} })
+                }).then(r => r.json()).then(d => {
+                    this.loading = false;
+                    this.message = d.message;
+                    this.valid = d.valid;
+                    if (d.valid) {
+                        this.appliedCode = this.code;
+                        this.discount = d.discount;
+                        this.discountFormatted = d.discount_formatted.replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    } else {
+                        this.appliedCode = '';
+                        this.discount = 0;
+                        this.discountFormatted = '0';
+                    }
+                }).catch(() => { this.loading = false; this.message = 'Gagal memeriksa kupon.'; });
             }
         }
     }

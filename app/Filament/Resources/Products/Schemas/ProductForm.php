@@ -19,6 +19,13 @@ class ProductForm
                     ->relationship('category', 'name')
                     ->label('Kategori')
                     ->helperText('Pilih kategori yang sesuai. Produk akan muncul di halaman kategori tersebut.'),
+                Select::make('brand_id')
+                    ->relationship('brand', 'name')
+                    ->label('Brand')
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->helperText('Pilih brand produk (opsional).'),
                 TextInput::make('name')
                     ->label('Nama')
                     ->required()

@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StoreController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,10 +20,14 @@ Route::post('/cart/update', [StoreController::class, 'cartUpdate'])->name('cart.
 Route::post('/cart/remove/{productId}', [StoreController::class, 'cartRemove'])->name('cart.remove');
 
 Route::middleware('auth')->group(function () {
+    Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');
+    Route::get('/wishlist', [StoreController::class, 'wishlistIndex'])->name('wishlist.index');
+
     Route::get('/account', [AccountController::class, 'dashboard'])->name('account.dashboard');
 
     Route::get('/checkout', [StoreController::class, 'checkout'])->name('checkout');
     Route::post('/checkout/place-order', [StoreController::class, 'placeOrder'])->name('checkout.place');
+    Route::post('/checkout/apply-coupon', [StoreController::class, 'applyCoupon'])->name('checkout.apply-coupon');
 
     Route::get('/orders', [StoreController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order}', [StoreController::class, 'orderShow'])->name('orders.show');
@@ -30,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/orders/{order}/confirm-received', [StoreController::class, 'confirmReceived'])->name('orders.confirm-received');
     Route::post('/orders/{order}/cancel', [StoreController::class, 'cancelOrder'])->name('orders.cancel');
     Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->name('orders.print');
+    Route::post('/orders/{order}/reorder', [StoreController::class, 'reorder'])->name('orders.reorder');
 
     Route::post('/product/{product}/review', [StoreController::class, 'reviewStore'])->name('products.review');
 
@@ -52,10 +58,19 @@ Route::middleware(['auth', 'can:access-pos'])->group(function () {
     Route::get('/pos/holds', [PosController::class, 'recallOrders'])->name('pos.holds');
     Route::get('/pos/hold/{id}', [PosController::class, 'recallOrder'])->name('pos.recall');
     Route::delete('/pos/hold/{id}', [PosController::class, 'deleteHold'])->name('pos.hold-delete');
+    Route::post('/pos/scan', [PosController::class, 'scanBarcode'])->name('pos.scan');
     Route::get('/pos/history', [PosController::class, 'history'])->name('pos.history');
     Route::get('/pos/print/{order}', [PosController::class, 'printReceipt'])->name('pos.print');
+    Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
+    Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
+    Route::get('/pos/shift/history', [PosController::class, 'shiftHistory'])->name('pos.shift.history');
 
     Route::get('/orders/{order}/print-admin', [StoreController::class, 'printReceiptAdmin'])->name('orders.print-admin');
+});
+
+Route::middleware(['auth', 'can:admin'])->group(function () {
+    Route::get('/admin/reports/export', [ReportController::class, 'export'])
+        ->name('admin.reports.export');
 });
 
 require __DIR__.'/auth.php';

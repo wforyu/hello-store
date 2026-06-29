@@ -23,6 +23,9 @@ class ProductsTable
                 TextColumn::make('category.name')
                     ->label('Kategori')
                     ->searchable(),
+                TextColumn::make('brand.name')
+                    ->label('Brand')
+                    ->searchable(),
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable(),

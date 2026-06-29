@@ -23,8 +23,8 @@
     @else
         <div class="space-y-4">
             @foreach($orders as $order)
-                <a href="{{ route('orders.show', $order) }}" class="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-md transition-all duration-200 shadow-sm">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="block bg-white rounded-2xl border border-gray-100 p-5 hover:border-amber-200 hover:shadow-md transition-all duration-200 shadow-sm">
+                    <a href="{{ route('orders.show', $order) }}" class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                             <span class="text-sm font-mono font-semibold text-gray-800">{{ $order->order_number }}</span>
@@ -38,15 +38,27 @@
                             @else bg-red-50 text-red-700 border border-red-200 @endif">
                             {{ ucfirst($order->status) }}
                         </span>
-                    </div>
-                    <div class="flex items-center justify-between">
+                    </a>
+                    <a href="{{ route('orders.show', $order) }}" class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">{{ $order->items->count() }} item</p>
                             <p class="text-xs text-gray-400 mt-0.5">{{ $order->created_at->format('d M Y, H:i') }}</p>
                         </div>
                         <span class="text-xl font-extrabold text-amber-600">Rp{{ number_format($order->total, 0, ',', '.') }}</span>
-                    </div>
-                </a>
+                    </a>
+                    @if($order->status === 'delivered')
+                        <div class="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+                            <form action="{{ route('orders.reorder', $order) }}" method="POST">
+                                @csrf
+                                <button type="submit"
+                                    class="inline-flex items-center gap-2 bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-600 shadow-sm hover:shadow transition text-xs">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                                    Beli Lagi
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
             @endforeach
         </div>
         <div class="mt-8">

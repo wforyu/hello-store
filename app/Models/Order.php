@@ -16,10 +16,11 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'order_number', 'status', 'subtotal', 'shipping_cost', 'total',
+        'user_id', 'shift_id', 'order_number', 'status', 'subtotal', 'shipping_cost', 'total',
         'payment_method', 'payment_status', 'notes', 'admin_notes',
         'address_id', 'shipping_courier', 'shipping_tracking_number',
         'shipped_at', 'delivered_at', 'cancelled_at',
+        'coupon_id', 'discount',
     ];
 
     protected function casts(): array
@@ -52,5 +53,15 @@ class Order extends Model
     public function address(): BelongsTo
     {
         return $this->belongsTo(Address::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
     }
 }

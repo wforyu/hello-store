@@ -236,6 +236,12 @@
                 <span>+Rp{{ number_format($ppnFromReceipt, 0, ',', '.') }}</span>
             </div>
         @endif
+        @if($order->discount > 0)
+            <div class="row" style="color:#059669;">
+                <span class="label">Diskon Kupon</span>
+                <span>-Rp{{ number_format($order->discount, 0, ',', '.') }}</span>
+            </div>
+        @endif
         <div class="row total-row">
             <span>TOTAL</span>
             <span>Rp{{ number_format($order->total, 0, ',', '.') }}</span>

@@ -30,6 +30,16 @@
                     {{ ucfirst($order->status) }}
                 </span>
 
+                @if($order->status === 'delivered')
+                    <form action="{{ route('orders.reorder', $order) }}" method="POST">
+                        @csrf
+                        <button type="submit"
+                            class="inline-flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-600 shadow-sm hover:shadow transition text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                            Beli Lagi
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
 
@@ -212,6 +222,12 @@
                 <div class="flex justify-between">
                     <span class="text-gray-500">PPN {{ $ppnRateOrder }}%</span>
                     <span class="text-gray-900 font-medium">Rp{{ number_format($ppnFromOrder, 0, ',', '.') }}</span>
+                </div>
+            @endif
+            @if($order->discount > 0)
+                <div class="flex justify-between">
+                    <span class="text-emerald-600">Diskon Kupon</span>
+                    <span class="text-emerald-600 font-medium">-Rp{{ number_format($order->discount, 0, ',', '.') }}</span>
                 </div>
             @endif
             <div class="flex justify-between text-lg font-extrabold border-t-2 border-gray-100 pt-3">

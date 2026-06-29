@@ -2,6 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Reports;
+use App\Filament\Widgets\EnhancedStatsOverviewWidget;
+use App\Filament\Widgets\FinanceOverview;
+use App\Filament\Widgets\RecentOrdersWidget;
+use App\Filament\Widgets\RevenueChart;
+use App\Filament\Widgets\RevenueChartWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -47,10 +53,15 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                Reports::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
+                EnhancedStatsOverviewWidget::class,
+                FinanceOverview::class,
+                RevenueChart::class,
+                RevenueChartWidget::class,
+                RecentOrdersWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -73,6 +84,7 @@ class AdminPanelProvider extends PanelProvider
     var tips = {
         'Dashboard': 'Ikhtisar penjualan & statistik toko',
         'Product': 'Kelola daftar produk toko',
+        'Brand': 'Kelola brand / merek produk',
         'Category': 'Atur kelompok kategori produk',
         'Order': 'Lihat & kelola pesanan pelanggan',
         'Payment': 'Konfirmasi & kelola pembayaran',
@@ -81,11 +93,12 @@ class AdminPanelProvider extends PanelProvider
         'Expense Category': 'Atur jenis-jenis kategori pengeluaran',
         'Banner': 'Atur banner promosi & pengumuman toko',
         'Review': 'Kelola ulasan produk dari pelanggan',
+        'Coupon': 'Kelola kupon & voucher diskon',
         'Tampilan': 'Atur tampilan & konten promosi toko',
         'Keuangan': 'Kelola keuangan & pengeluaran toko',
         'Pengaturan': 'Atur informasi toko, kontak & media sosial',
         'Pengaturan Toko': 'Atur informasi toko, kontak & media sosial',
-        'Produk': 'Kelola produk & kategori toko',
+        'Produk': 'Kelola produk, brand & kategori toko',
         'Pesanan': 'Kelola semua pesanan & pembayaran',
         'Pengguna': 'Kelola data pengguna & staf toko',
     };

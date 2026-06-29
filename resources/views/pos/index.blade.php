@@ -58,6 +58,28 @@
             <div class="w-1 h-7 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
             <h1 class="text-xl font-bold text-gray-900">POS Kasir</h1>
 
+            {{-- Shift Status --}}
+            <div class="flex items-center gap-2 ml-2">
+                @if($activeShift)
+                    <div class="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Shift: {{ $activeShift->opened_at->format('H:i') }}
+                    </div>
+                    <button type="button" @click="showCloseShift = true"
+                        class="text-xs bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-full hover:bg-red-100 transition">
+                        Tutup Shift
+                    </button>
+                @else
+                    <button type="button" @click="showOpenShift = true"
+                        class="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full hover:bg-amber-100 transition font-medium">
+                        Buka Shift
+                    </button>
+                @endif
+                <a href="{{ route('pos.shift.history') }}" class="text-xs text-gray-500 hover:text-amber-600 transition ml-1">
+                    Riwayat Shift
+                </a>
+            </div>
+
             <div class="flex gap-1 ml-2">
                 <div class="order-type-pill" :class="{ active: orderType === 'dine_in' }" @click="orderType = 'dine_in'">Dine-in</div>
                 <div class="order-type-pill" :class="{ active: orderType === 'takeaway' }" @click="orderType = 'takeaway'">Takeaway</div>
@@ -81,6 +103,30 @@
             <button @click="showHistory = !showHistory" class="text-gray-400 hover:text-amber-600 transition p-1" title="Riwayat Hari Ini">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
             </button>
+        </div>
+
+        {{-- Barcode Scanner --}}
+        <div class="mb-3 flex-shrink-0">
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="barcode-input" x-ref="barcodeInput"
+                        placeholder="Scan barcode / masukkan SKU..."
+                        @keydown.enter.prevent="scanBarcode"
+                        class="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none bg-white"
+                        autofocus>
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+                <button type="button" @click="scanBarcode"
+                    class="px-4 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition whitespace-nowrap cursor-pointer">
+                    Cari
+                </button>
+            </div>
+            <div x-show="barcodeMessage" x-cloak>
+                <p class="text-xs mt-1.5" :class="barcodeSuccess ? 'text-emerald-600' : 'text-red-500'" x-text="barcodeMessage"></p>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Fokus: scan barcode otomatis, atau ketik SKU manual (Ctrl+B)</p>
         </div>
 
         {{-- Category pills --}}
@@ -314,6 +360,61 @@
         </div>
     </div>
 
+    {{-- Open Shift Modal --}}
+    <div x-cloak x-show="showOpenShift" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        @keydown.escape.window="showOpenShift = false">
+        <div @click.outside="showOpenShift = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Buka Shift</h3>
+            <p class="text-sm text-gray-500 mb-5">Masukkan saldo awal untuk membuka shift.</p>
+            <form action="{{ route('pos.shift.open') }}" method="POST">
+                @csrf
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Saldo Awal (Rp)</label>
+                    <input type="number" name="opening_balance" x-model="openingBalance" min="0" value="0"
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none">
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" @click="showOpenShift = false"
+                        class="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition">Batal</button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition shadow-sm">
+                        Buka Shift
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- Close Shift Modal --}}
+    <div x-cloak x-show="showCloseShift" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        @keydown.escape.window="showCloseShift = false">
+        <div @click.outside="showCloseShift = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Tutup Shift</h3>
+            <p class="text-sm text-gray-500 mb-5">Masukkan saldo akhir untuk menutup shift.</p>
+            <form action="{{ route('pos.shift.close') }}" method="POST">
+                @csrf
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Saldo Akhir (Rp)</label>
+                    <input type="number" name="closing_balance" x-model="closingBalance" min="0" required
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">Catatan</label>
+                    <textarea name="notes" x-model="shiftNotes" rows="2"
+                        class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" @click="showCloseShift = false"
+                        class="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition">Batal</button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 transition shadow-sm">
+                        Tutup Shift
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- Hold Orders Modal --}}
     <div x-show="showHoldModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @keydown.window.escape="showHoldModal = false" x-cloak>
         <div class="relative max-w-md w-full bg-white rounded-2xl shadow-2xl p-6" @click.outside="showHoldModal = false">
@@ -369,6 +470,13 @@
             holds: @json(session('pos_holds', [])),
             showHistory: false,
             history: [],
+            showOpenShift: false,
+            showCloseShift: false,
+            openingBalance: 0,
+            closingBalance: 0,
+            shiftNotes: '',
+            barcodeMessage: '',
+            barcodeSuccess: false,
             cartTab: 'cart',
             paymentMethods: [
                 { id: 'cash', label: 'Tunai' },
@@ -515,6 +623,11 @@
 
             // --- Keyboard ---
             handleKeydown(e) {
+                if (e.ctrlKey && e.key === 'b') {
+                    e.preventDefault();
+                    this.$refs.barcodeInput?.focus();
+                    return;
+                }
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
                 if (e.key === 'Enter' && this.cart.length > 0 && !this.checkoutResult) {
                     if (this.canCheckout) this.processCheckout();
@@ -713,6 +826,39 @@
                 if (this.lastOrderId) {
                     window.open('/pos/print/' + this.lastOrderId, '_blank');
                 }
+            },
+
+            // --- Barcode Scanner ---
+            scanBarcode() {
+                const input = this.$refs.barcodeInput;
+                if (!input || !input.value.trim()) return;
+
+                this.barcodeMessage = '';
+                this.barcodeSuccess = false;
+
+                fetch('{{ route("pos.scan") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ barcode: input.value.trim() })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.found) {
+                        window.location.reload();
+                    } else {
+                        this.barcodeSuccess = false;
+                        this.barcodeMessage = data.message;
+                        input.value = '';
+                        input.focus();
+                    }
+                })
+                .catch(() => {
+                    this.barcodeMessage = 'Gagal memindai barcode.';
+                    input.focus();
+                });
             },
 
             // --- Reset ---

@@ -18,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('access-pos', fn ($user) => in_array($user->role, ['admin', 'cashier']));
+        Gate::define('admin', fn ($user) => $user->role === 'admin');
 
         View::composer('layouts.store', function ($view) {
             $view->with('announcements', Banner::active()->where('type', 'announcement')->get());

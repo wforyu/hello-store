@@ -41,7 +41,7 @@ class Product extends Model
     }
 
     protected $fillable = [
-        'category_id', 'name', 'slug', 'description', 'price', 'compare_price',
+        'category_id', 'brand_id', 'name', 'slug', 'description', 'price', 'compare_price',
         'stock', 'sku', 'weight', 'images', 'is_active', 'featured',
         'meta_title', 'meta_description',
     ];
@@ -61,6 +61,11 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function reviews(): HasMany

@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +31,9 @@ class PosController extends Controller
         $categories = Category::whereNull('parent_id')->where('is_active', true)->orderBy('sort_order')->get(['id', 'name']);
         $customers = User::where('role', 'customer')->orderBy('name')->get(['id', 'name', 'email']);
         $ppnRate = (int) Setting::get('ppn_percentage', 11);
+        $activeShift = Shift::where('user_id', auth()->id())->whereNull('closed_at')->first();
 
-        return view('pos.index', compact('products', 'cart', 'categories', 'customers', 'ppnRate'));
+        return view('pos.index', compact('products', 'cart', 'categories', 'customers', 'ppnRate', 'activeShift'));
     }
 
     public function search(Request $request)
@@ -234,6 +236,11 @@ class PosController extends Controller
                 'notes' => $notes,
             ]);
 
+            $activeShift = Shift::where('user_id', auth()->id())->whereNull('closed_at')->first();
+            if ($activeShift) {
+                $order->update(['shift_id' => $activeShift->id]);
+            }
+
             foreach ($cart as $item) {
                 $itemTotal = $item['price'] * $item['quantity'];
                 $itemDisc = $this->calcItemDiscount($item);
@@ -360,6 +367,130 @@ class PosController extends Controller
             'customer_name' => Str::of($o->notes)->after(' - ')->before(' | ')->toString() ?: ($o->notes ?: 'Umum'),
             'time' => $o->created_at->format('H:i'),
         ]));
+    }
+
+    public function scanBarcode(Request $request)
+    {
+        $request->validate(['barcode' => 'required|string|max:100']);
+
+        $barcode = trim($request->barcode);
+
+        $product = Product::with('productImages')->where('sku', $barcode)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $product) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Produk dengan kode "'.$barcode.'" tidak ditemukan!',
+            ]);
+        }
+
+        if ($product->stock < 1) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Stok produk "'.$product->name.'" habis!',
+            ]);
+        }
+
+        $cart = collect(session('pos_cart', []));
+        $existing = $cart->firstWhere('product_id', $product->id);
+
+        if ($existing) {
+            $cart = $cart->map(function ($item) use ($product) {
+                if ($item['product_id'] === $product->id) {
+                    $item['quantity'] = min($item['quantity'] + 1, $product->stock);
+                    $item['stock'] = $product->stock;
+                }
+
+                return $item;
+            });
+        } else {
+            $cart->push([
+                'product_id' => $product->id,
+                'name' => $product->name,
+                'price' => (float) $product->price,
+                'quantity' => 1,
+                'stock' => $product->stock,
+                'image' => $product->main_image,
+                'sku' => $product->sku,
+                'discount' => 0,
+                'discount_type' => 'nominal',
+            ]);
+        }
+
+        session(['pos_cart' => $cart]);
+
+        return response()->json([
+            'found' => true,
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => (float) $product->price,
+                'price_formatted' => 'Rp '.number_format($product->price, 0, ',', '.'),
+            ],
+            'message' => 'Produk "'.$product->name.'" berhasil ditambahkan!',
+            'cart' => $cart,
+            'subtotal' => $this->getSubtotal($cart),
+        ]);
+    }
+
+    public function openShift(Request $request)
+    {
+        $activeShift = Shift::where('user_id', auth()->id())
+            ->whereNull('closed_at')
+            ->first();
+
+        if ($activeShift) {
+            return redirect()->route('pos.index')->with('error', 'Kamu sudah memiliki shift yang aktif!');
+        }
+
+        Shift::create([
+            'user_id' => auth()->id(),
+            'opened_at' => now(),
+            'opening_balance' => $request->opening_balance ?? 0,
+        ]);
+
+        return redirect()->route('pos.index')->with('success', 'Shift berhasil dibuka!');
+    }
+
+    public function closeShift(Request $request)
+    {
+        $shift = Shift::where('user_id', auth()->id())
+            ->whereNull('closed_at')
+            ->first();
+
+        if (! $shift) {
+            return redirect()->route('pos.index')->with('error', 'Tidak ada shift yang aktif!');
+        }
+
+        $validated = $request->validate([
+            'closing_balance' => 'required|numeric|min:0',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $totalRevenue = $shift->totalRevenue();
+        $expectedBalance = (float) $shift->opening_balance + $totalRevenue;
+
+        $shift->update([
+            'closed_at' => now(),
+            'closing_balance' => $validated['closing_balance'],
+            'expected_balance' => $expectedBalance,
+            'difference' => $validated['closing_balance'] - $expectedBalance,
+            'notes' => $validated['notes'],
+        ]);
+
+        return redirect()->route('pos.index')->with('success', 'Shift berhasil ditutup!');
+    }
+
+    public function shiftHistory()
+    {
+        $shifts = Shift::with('user')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->paginate(20);
+
+        return view('pos.shifts', compact('shifts'));
     }
 
     public function printReceipt(Order $order)
