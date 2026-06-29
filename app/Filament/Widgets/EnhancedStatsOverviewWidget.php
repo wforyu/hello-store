@@ -103,7 +103,7 @@ class EnhancedStatsOverviewWidget extends BaseWidget
 
             Stat::make('Conversion Rate', $conversionRate.'%')
                 ->description('Pesanan per customer')
-                ->descriptionIcon('heroicon-o-trending-up')
+                ->descriptionIcon('heroicon-o-arrow-trending-up')
                 ->color('info'),
 
             Stat::make('Total Stok Gudang', number_format($totalStock, 0, ',', '.'))
