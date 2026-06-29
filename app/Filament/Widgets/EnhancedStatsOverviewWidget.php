@@ -6,7 +6,6 @@ use App\Filament\Resources\Orders\OrderResource;
 use App\Models\Expense;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;

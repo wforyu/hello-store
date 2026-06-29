@@ -4,7 +4,9 @@ namespace App\Filament\Pages;
 
 use App\Models\Setting;
 use BackedEnum;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -140,23 +142,23 @@ class ManageSettings extends Page
                 Section::make('Toko')
                     ->description('Logo, favicon, dan informasi toko')
                     ->schema([
-                        \Filament\Forms\Components\FileUpload::make('logo')
+                        FileUpload::make('logo')
                             ->label('Logo Toko')
                             ->image()
                             ->directory('settings')
                             ->imageEditor()
                             ->helperText('Upload logo toko (format: JPG, PNG, SVG)'),
-                        \Filament\Forms\Components\FileUpload::make('favicon')
+                        FileUpload::make('favicon')
                             ->label('Favicon')
                             ->image()
                             ->directory('settings')
                             ->helperText('Upload favicon (32x32px, format: ICO/PNG)'),
-                        \Filament\Forms\Components\TextInput::make('whatsapp')
+                        TextInput::make('whatsapp')
                             ->label('Nomor WhatsApp')
                             ->placeholder('6281234567890')
                             ->helperText('Format internasional tanpa +, contoh: 6281234567890')
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('whatsapp_text')
+                        TextInput::make('whatsapp_text')
                             ->label('Teks WhatsApp')
                             ->placeholder('Halo, saya ingin bertanya...')
                             ->columnSpan(1),
@@ -166,24 +168,24 @@ class ManageSettings extends Page
                 Section::make('SMTP / Email')
                     ->description('Konfigurasi email server')
                     ->schema([
-                        \Filament\Forms\Components\TextInput::make('smtp_host')
+                        TextInput::make('smtp_host')
                             ->label('SMTP Host')
                             ->placeholder('smtp.gmail.com')
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('smtp_port')
+                        TextInput::make('smtp_port')
                             ->label('SMTP Port')
                             ->placeholder('587')
                             ->numeric()
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('smtp_username')
+                        TextInput::make('smtp_username')
                             ->label('SMTP Username')
                             ->placeholder('email@domain.com')
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('smtp_password')
+                        TextInput::make('smtp_password')
                             ->label('SMTP Password')
                             ->password()
                             ->columnSpan(1),
-                        \Filament\Forms\Components\Select::make('smtp_encryption')
+                        Select::make('smtp_encryption')
                             ->label('Enkripsi')
                             ->options([
                                 'tls' => 'TLS',
@@ -192,12 +194,12 @@ class ManageSettings extends Page
                             ])
                             ->default('tls')
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('smtp_from_address')
+                        TextInput::make('smtp_from_address')
                             ->label('Email Pengirim')
                             ->placeholder('noreply@domain.com')
                             ->email()
                             ->columnSpan(1),
-                        \Filament\Forms\Components\TextInput::make('smtp_from_name')
+                        TextInput::make('smtp_from_name')
                             ->label('Nama Pengirim')
                             ->placeholder('Hello Store')
                             ->columnSpan(1),
@@ -208,25 +210,25 @@ class ManageSettings extends Page
                 Section::make('SEO & Analytics')
                     ->description('Google Analytics, Facebook Pixel, SEO meta')
                     ->schema([
-                        \Filament\Forms\Components\Textarea::make('google_analytics_id')
+                        Textarea::make('google_analytics_id')
                             ->label('Google Analytics ID')
                             ->placeholder('G-XXXXXXXXXX')
                             ->helperText('Masukkan Measurement ID Google Analytics 4')
                             ->rows(2)
                             ->columnSpan(1),
-                        \Filament\Forms\Components\Textarea::make('facebook_pixel_id')
+                        Textarea::make('facebook_pixel_id')
                             ->label('Facebook Pixel ID')
                             ->placeholder('1234567890')
                             ->helperText('Masukkan Facebook Pixel ID')
                             ->rows(2)
                             ->columnSpan(1),
-                        \Filament\Forms\Components\Textarea::make('head_scripts')
+                        Textarea::make('head_scripts')
                             ->label('Kode Head Script')
                             ->placeholder('<meta name="custom" content="...">')
                             ->helperText('Kode yang akan dimasukkan di bagian <head>')
                             ->rows(4)
                             ->columnSpanFull(),
-                        \Filament\Forms\Components\Textarea::make('body_scripts')
+                        Textarea::make('body_scripts')
                             ->label('Kode Body Script')
                             ->placeholder('<script>console.log("custom script")</script>')
                             ->helperText('Kode yang akan dimasukkan sebelum </body>')

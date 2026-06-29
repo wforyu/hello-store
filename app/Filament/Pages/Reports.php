@@ -12,13 +12,12 @@ use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use UnitEnum;
 
 class Reports extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-chart-bar';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-chart-bar';
 
     protected static string|UnitEnum|null $navigationGroup = 'Keuangan';
 
@@ -51,26 +50,23 @@ class Reports extends Page
     {
         return $schema
             ->components([
-                Section::make('Filter Laporan')
-                    ->schema([
-                        Select::make('period')
-                            ->label('Periode')
-                            ->options([
-                                'today' => 'Hari Ini',
-                                'week' => 'Minggu Ini',
-                                'month' => 'Bulan Ini',
-                                'year' => 'Tahun Ini',
-                                'custom' => 'Kustom',
-                            ])
-                            ->live()
-                            ->afterStateUpdated(fn () => $this->filterByPeriod()),
-                        DatePicker::make('startDate')
-                            ->label('Tanggal Mulai'),
-                        DatePicker::make('endDate')
-                            ->label('Tanggal Akhir'),
+                Select::make('period')
+                    ->label('Periode')
+                    ->options([
+                        'today' => 'Hari Ini',
+                        'week' => 'Minggu Ini',
+                        'month' => 'Bulan Ini',
+                        'year' => 'Tahun Ini',
+                        'custom' => 'Kustom',
                     ])
-                    ->columns(3),
+                    ->live()
+                    ->afterStateUpdated(fn () => $this->filterByPeriod()),
+                DatePicker::make('startDate')
+                    ->label('Tanggal Mulai'),
+                DatePicker::make('endDate')
+                    ->label('Tanggal Akhir'),
             ])
+            ->columns(3)
             ->statePath('data');
     }
 

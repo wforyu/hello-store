@@ -5,14 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\Coupon;
+use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderDownload;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\Setting;
 use App\Models\StockHistory;
-use App\Models\OrderDownload;
 use App\Models\Wishlist;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
@@ -303,7 +304,7 @@ class StoreController extends Controller
             return $order;
         });
 
-        \App\Models\Notification::createForUser(
+        Notification::createForUser(
             auth()->id(),
             'order',
             'Pesanan #'.$order->order_number.' berhasil dibuat',
@@ -312,7 +313,7 @@ class StoreController extends Controller
             route('orders.show', $order)
         );
 
-        \App\Models\Notification::createForAdmins(
+        Notification::createForAdmins(
             'order',
             'Pesanan Baru #'.$order->order_number,
             'Pesanan baru dari '.auth()->user()->name,
@@ -383,7 +384,7 @@ class StoreController extends Controller
             'status' => 'processing',
         ]);
 
-        \App\Models\Notification::createForUser(
+        Notification::createForUser(
             $order->user_id,
             'order',
             'Pembayaran Pesanan #'.$order->order_number.' diterima',
@@ -411,7 +412,7 @@ class StoreController extends Controller
             'payment_status' => 'paid',
         ]);
 
-        \App\Models\Notification::createForUser(
+        Notification::createForUser(
             $order->user_id,
             'order',
             'Pesanan #'.$order->order_number.' telah diterima',
@@ -494,7 +495,7 @@ class StoreController extends Controller
             ]);
         });
 
-        \App\Models\Notification::createForUser(
+        Notification::createForUser(
             $order->user_id,
             'order',
             'Pesanan #'.$order->order_number.' telah diretur',
@@ -695,6 +696,7 @@ class StoreController extends Controller
                 if (request()->wantsJson()) {
                     return response()->json(['error' => 'Maksimal 4 produk untuk dibandingkan']);
                 }
+
                 return back()->with('error', 'Maksimal 4 produk untuk dibandingkan');
             }
             $compare->put($product->id, [
@@ -711,7 +713,7 @@ class StoreController extends Controller
                 'review_count' => $product->approvedReviews()->count(),
                 'description' => $product->description,
                 'category' => $product->category?->name,
-                'attributes' => $product->attributes->groupBy('type')->map(fn($items, $type) => $items->pluck('label')->implode(', ')),
+                'attributes' => $product->attributes->groupBy('type')->map(fn ($items, $type) => $items->pluck('label')->implode(', ')),
             ]);
             $message = 'ditambahkan ke';
         }

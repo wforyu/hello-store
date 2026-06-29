@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Pages;
 
 use App\Filament\Resources\Orders\OrderResource;
+use App\Models\Notification;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -27,7 +28,7 @@ class EditOrder extends EditRecord
     protected function afterSave(): void
     {
         if ($this->record->wasChanged('status') && $this->record->status === 'shipped') {
-            \App\Models\Notification::createForUser(
+            Notification::createForUser(
                 $this->record->user_id,
                 'order',
                 'Pesanan #'.$this->record->order_number.' telah dikirim',
