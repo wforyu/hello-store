@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class TopProductsWidget extends Widget
 {
-    protected static string $view = 'filament.widgets.top-products-widget';
+    protected string $view = 'filament.widgets.top-products-widget';
 
     protected int|string|array $columnSpan = 'full';
 
