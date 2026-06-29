@@ -1,0 +1,243 @@
+@extends('layouts.store')
+
+@section('title', 'Checkout')
+
+@section('content')
+    <div class="flex items-center gap-3 mb-6">
+        <div class="w-1 h-7 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+        <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Checkout</h1>
+    </div>
+
+    <form action="{{ route('checkout.place') }}" method="POST" x-data="checkoutForm()">
+        @csrf
+
+        <div class="grid lg:grid-cols-3 gap-6 lg:gap-8">
+
+            {{-- Left Column --}}
+            <div class="lg:col-span-2 space-y-6">
+
+                {{-- Address --}}
+                <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Alamat Pengiriman
+                        </h2>
+                        <a href="{{ route('addresses.create') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                            Tambah
+                        </a>
+                    </div>
+
+                    @if($addresses->isEmpty())
+                        <div class="text-center py-10 text-gray-500">
+                            <svg class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <p class="mb-4">Belum ada alamat tersimpan</p>
+                            <a href="{{ route('addresses.create') }}" class="inline-flex items-center gap-2 bg-amber-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-amber-600 transition text-sm shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                Tambah Alamat Baru
+                            </a>
+                        </div>
+                    @else
+                        <div class="space-y-3">
+                            @foreach($addresses as $address)
+                                <label class="flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('address_id') == $address->id ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                                    <input type="radio" name="address_id" value="{{ $address->id }}"
+                                        {{ old('address_id') == $address->id || $loop->first ? 'checked' : '' }}
+                                        class="mt-0.5 text-amber-500 focus:ring-amber-500">
+                                    <div>
+                                        <p class="font-semibold text-gray-900">
+                                            {{ $address->label ? $address->label . ' - ' : '' }}{{ $address->recipient }}
+                                            @if($address->is_default)
+                                                <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded ml-1">UTAMA</span>
+                                            @endif
+                                        </p>
+                                        <p class="text-sm text-gray-500 mt-0.5">{{ $address->phone }}</p>
+                                        <p class="text-sm text-gray-400 mt-0.5">{{ $address->street }}, {{ $address->city }}, {{ $address->province }}</p>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('address_id')
+                            <p class="text-sm text-red-500 mt-2">{{ $message }}</p>
+                        @enderror
+                    @endif
+                </div>
+
+                {{-- Shipping Courier --}}
+                @if(!empty($shippingRates))
+                    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                        <h2 class="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1m4 0l2 1m4 0l2-1m4 0l2 1M4 20h16a1 1 0 001-1v-3a1 1 0 00-1-1H3a1 1 0 00-1 1v3a1 1 0 001 1z"/></svg>
+                            Pilih Kurir
+                        </h2>
+                        <p class="text-xs text-gray-400 mb-4">Total berat: <span class="font-semibold text-gray-600">{{ $totalWeight }} gr</span></p>
+
+                        <div class="space-y-4" x-ref="courierList">
+                            @foreach($shippingRates as $courier)
+                                <div class="border-2 border-gray-100 rounded-xl overflow-hidden">
+                                    <div class="bg-gray-50 px-4 py-3 font-bold text-gray-800 text-sm flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2-1m4 0l2 1m4 0l2-1m4 0l2-1M4 20h16a1 1 0 001-1v-3a1 1 0 00-1-1H3a1 1 0 00-1 1v3a1 1 0 001 1z"/></svg>
+                                        {{ $courier['name'] }}
+                                    </div>
+                                    <div class="divide-y divide-gray-50">
+                                        @foreach($courier['rates'] as $rate)
+                                            <label class="flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-amber-50/30">
+                                                <input type="radio" name="shipping_rate"
+                                                    value="{{ $courier['code'] }}|{{ $rate['service'] }}|{{ $rate['cost'] }}"
+                                                    @change="selectShipping('{{ $courier['name'] }}', '{{ $courier['code'] }} - {{ $rate['service'] }}', {{ $rate['cost'] }}, '{{ addslashes($rate['description']) }}')"
+                                                    class="text-amber-500 focus:ring-amber-500 shrink-0">
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-semibold text-gray-900">{{ $rate['service'] }}</p>
+                                                    <p class="text-xs text-gray-400 truncate">
+                                                        {{ $rate['description'] }}
+                                                        @if($rate['etd'] !== '-')
+                                                            · Estimasi {{ $rate['etd'] }} hari
+                                                        @endif
+                                                    </p>
+                                                </div>
+                                                <span class="text-sm font-bold text-amber-600 shrink-0">Rp{{ number_format($rate['cost'], 0, ',', '.') }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <input type="hidden" name="shipping_courier" x-model="selectedCourier">
+                        <input type="hidden" name="shipping_service" x-model="selectedService">
+                        <input type="hidden" name="shipping_cost" x-model="selectedCost">
+
+                        <template x-if="selectedCourier">
+                            <div class="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
+                                <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span x-text="'Dipilih: ' + selectedCourier + ' — Rp ' + selectedCost.toLocaleString('id-ID')"></span>
+                            </div>
+                        </template>
+
+                        @error('shipping_courier')
+                            <p class="text-sm text-red-500 mt-2">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @else
+                    <input type="hidden" name="shipping_courier" value="flat">
+                    <input type="hidden" name="shipping_service" value="Reguler">
+                    <input type="hidden" name="shipping_cost" value="15000">
+                @endif
+
+                {{-- Payment --}}
+                <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                    <h2 class="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        Metode Pembayaran
+                    </h2>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('payment_method', 'manual_transfer') === 'manual_transfer' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                            <input type="radio" name="payment_method" value="manual_transfer"
+                                {{ old('payment_method', 'manual_transfer') === 'manual_transfer' ? 'checked' : '' }}
+                                class="text-amber-500 focus:ring-amber-500">
+                            <div>
+                                <p class="font-semibold text-gray-900">Transfer Manual</p>
+                                <p class="text-sm text-gray-400">Bayar via transfer bank, upload bukti setelah pesan</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('payment_method') === 'cod' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                            <input type="radio" name="payment_method" value="cod"
+                                class="text-amber-500 focus:ring-amber-500">
+                            <div>
+                                <p class="font-semibold text-gray-900">COD (Bayar di Tempat)</p>
+                                <p class="text-sm text-gray-400">Bayar tunai saat barang diterima</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Notes --}}
+                <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Catatan (opsional)
+                    </h2>
+                    <textarea name="notes" rows="3" class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" placeholder="Catatan untuk pesanan...">{{ old('notes') }}</textarea>
+                </div>
+            </div>
+
+            {{-- Right Column --}}
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm sticky top-24">
+                    <h2 class="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        Ringkasan Belanja
+                    </h2>
+                    <div class="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                        @foreach($cart as $item)
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600 truncate mr-2">{{ $item['name'] }} <span class="text-gray-400">×{{ $item['quantity'] }}</span></span>
+                                <span class="text-gray-900 font-semibold shrink-0">Rp{{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="border-t-2 border-gray-100 pt-4 space-y-2.5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Subtotal</span>
+                            <span class="text-gray-900 font-medium">Rp{{ number_format($subtotal, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500">Ongkos Kirim</span>
+                            <span class="text-gray-900 font-medium">
+                                <span x-text="selectedCost ? 'Rp ' + selectedCost.toLocaleString('id-ID') : 'Rp15.000'">Rp{{ number_format(!empty($shippingRates) ? 0 : 15000, 0, ',', '.') }}</span>
+                            </span>
+                        </div>
+                        @if($ppnEnabled)
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-500">PPN {{ $ppnRate }}%</span>
+                                <span class="text-gray-900 font-medium">
+                                    <span x-text="'Rp ' + ppnAmount.toLocaleString('id-ID')">Rp{{ number_format($ppnAmount, 0, ',', '.') }}</span>
+                                </span>
+                            </div>
+                        @endif
+                        <div class="flex justify-between text-lg font-extrabold border-t-2 border-gray-100 pt-3">
+                            <span class="text-gray-900">Total</span>
+                            <span class="text-amber-600" x-text="'Rp ' + total.toLocaleString('id-ID')">Rp{{ number_format($subtotal + (!empty($shippingRates) ? 0 : 15000) + ($ppnEnabled ? $ppnAmount : 0), 0, ',', '.') }}</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2"
+                        {{ $addresses->isEmpty() ? 'disabled opacity-60 cursor-not-allowed' : '' }}>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Buat Pesanan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+@endsection
+
+@push('scripts')
+<script>
+    function checkoutForm() {
+        return {
+            selectedCourier: @json(old('shipping_courier', '')),
+            selectedService: @json(old('shipping_service', '')),
+            selectedCost: {{ old('shipping_cost', !empty($shippingRates) ? 0 : 15000) }},
+            subtotal: {{ $subtotal }},
+            ppnEnabled: @json($ppnEnabled),
+            ppnRate: {{ $ppnRate }},
+
+            get ppnAmount() {
+                if (!this.ppnEnabled) return 0;
+                return Math.round(this.subtotal * this.ppnRate / 100);
+            },
+
+            get total() {
+                return this.subtotal + this.selectedCost + this.ppnAmount;
+            },
+
+            selectShipping(courier, service, cost, description) {
+                this.selectedCourier = courier;
+                this.selectedService = service;
+                this.selectedCost = parseInt(cost);
+            }
+        }
+    }
+</script>
+@endpush
