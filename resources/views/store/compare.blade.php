@@ -26,7 +26,7 @@
                                             </svg>
                                         </button>
                                     </form>
-                                    <img src="{{ $product['image'] ? asset('storage/'.$product['image']) : 'https://placehold.co/200x200?text=No+Image' }}"
+                                    <img src="{{ $product['image'] ?: 'https://placehold.co/200x200?text=No+Image' }}"
                                         alt="{{ $product['name'] }}"
                                         class="w-32 h-32 object-cover rounded-xl mx-auto mb-3">
                                     <a href="{{ route('products.show', $product['slug']) }}" class="text-sm font-semibold text-gray-900 hover:text-amber-600 transition block">

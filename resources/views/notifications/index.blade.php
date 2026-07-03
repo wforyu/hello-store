@@ -2,7 +2,7 @@
 
 @section('title', 'Notifikasi')
 
-@section('account-content')
+@section('content')
 <div class="max-w-3xl">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-xl font-bold text-gray-900">Notifikasi</h1>
