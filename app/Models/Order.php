@@ -64,4 +64,14 @@ class Order extends Model
     {
         return $this->belongsTo(Shift::class);
     }
+
+    public function trackingEvents(): HasMany
+    {
+        return $this->hasMany(TrackingEvent::class)->latest('event_time');
+    }
+
+    public function orderDownloads(): HasMany
+    {
+        return $this->hasMany(OrderDownload::class);
+    }
 }

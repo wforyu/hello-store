@@ -81,6 +81,38 @@
                     @endif
                 </div>
             </div>
+
+            @if($order->trackingEvents->count() > 0)
+                <div class="mt-4">
+                    <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        Tracking Pengiriman
+                    </h3>
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        @foreach($order->trackingEvents as $event)
+                            <div class="flex gap-3 {{ !$loop->last ? 'pb-4' : '' }}">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 rounded-full {{ $loop->first ? 'bg-amber-500' : 'bg-gray-300' }} shrink-0 mt-1"></div>
+                                    @if(!$loop->last)
+                                        <div class="w-0.5 h-full bg-gray-200 mt-1"></div>
+                                    @endif
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900">{{ $event->status_label }}</p>
+                                    @if($event->location)
+                                        <p class="text-xs text-gray-500">{{ $event->location }}</p>
+                                    @endif
+                                    @if($event->description)
+                                        <p class="text-xs text-gray-400 mt-0.5">{{ $event->description }}</p>
+                                    @endif
+                                    <p class="text-xs text-gray-400 mt-0.5">{{ $event->event_time->format('d M Y, H:i') }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
         </div>
 
         @if($order->status === 'shipped')

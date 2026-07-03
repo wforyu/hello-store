@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Orders\Schemas;
 
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -98,6 +99,43 @@ class OrderForm
                 TextInput::make('shipping_tracking_number')
                     ->label('No. Resi')
                     ->helperText('Masukkan nomor resi setelah paket dikirim.'),
+                Section::make('Tracking Pengiriman')
+                    ->schema([
+                        Repeater::make('trackingEvents')
+                            ->relationship()
+                            ->columns(3)
+                            ->schema([
+                                Select::make('status')
+                                    ->label('Status')
+                                    ->options([
+                                        'pending' => 'Pending',
+                                        'picked_up' => 'Dijemput Kurir',
+                                        'in_transit' => 'Dalam Perjalanan',
+                                        'sorting' => 'Disortir',
+                                        'out_for_delivery' => 'Diantar Kurir',
+                                        'delivered' => 'Telah Sampai',
+                                        'failed' => 'Gagal Kirim',
+                                    ])
+                                    ->default('in_transit')
+                                    ->required(),
+                                TextInput::make('location')
+                                    ->label('Lokasi')
+                                    ->maxLength(255),
+                                DateTimePicker::make('event_time')
+                                    ->label('Waktu')
+                                    ->required()
+                                    ->default(now())
+                                    ->seconds(false),
+                                Textarea::make('description')
+                                    ->label('Deskripsi')
+                                    ->columnSpanFull()
+                                    ->maxLength(500),
+                            ])
+                            ->addActionLabel('Tambah Event Tracking')
+                            ->defaultItems(0),
+                    ])
+                    ->columnSpanFull()
+                    ->collapsible(),
                 DateTimePicker::make('shipped_at')
                     ->label('Dikirim Pada')
                     ->helperText('Isi saat paket sudah dikirim ke kurir.'),

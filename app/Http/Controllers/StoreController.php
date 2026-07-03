@@ -218,7 +218,14 @@ class StoreController extends Controller
             'shipping_courier' => 'required|string',
             'shipping_service' => 'required|string',
             'shipping_cost' => 'required|numeric|min:0',
+            'use_points' => 'nullable|integer|min:0',
         ]);
+
+        $usePoints = min((int) ($validated['use_points'] ?? 0), auth()->user()->points);
+        $pointDiscount = 0;
+        if ($usePoints > 0) {
+            $pointDiscount = floor($usePoints / 100) * 1000;
+        }
 
         $address = Address::where('id', $validated['address_id'])
             ->where('user_id', auth()->id())
@@ -251,9 +258,9 @@ class StoreController extends Controller
             }
         }
 
-        $total = $subtotal + $shippingCost + $ppnAmount - $discountAmount;
+        $total = $subtotal + $shippingCost + $ppnAmount - $discountAmount - $pointDiscount;
 
-        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $coupon, $discountAmount) {
+        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $coupon, $discountAmount, $usePoints, $pointDiscount) {
             $order = Order::create([
                 'user_id' => auth()->id(),
                 'order_number' => 'ORD-'.strtoupper(Str::random(8)),
@@ -264,7 +271,7 @@ class StoreController extends Controller
                 'total' => $total,
                 'payment_method' => $validated['payment_method'],
                 'payment_status' => 'unpaid',
-                'notes' => $validated['notes'].($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : ''),
+                'notes' => $validated['notes'].($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : ''),
                 'address_id' => $address->id,
                 'coupon_id' => $coupon?->id,
                 'discount' => $discountAmount,
@@ -299,6 +306,10 @@ class StoreController extends Controller
             if ($coupon) {
                 $coupon->increment('used_count');
                 $coupon->users()->attach(auth()->id(), ['order_id' => $order->id]);
+            }
+
+            if ($usePoints > 0) {
+                auth()->user()->redeemPoints($usePoints, 'Poin ditukar untuk pesanan #'.$order->order_number, $order);
             }
 
             return $order;
@@ -411,6 +422,11 @@ class StoreController extends Controller
             'delivered_at' => now(),
             'payment_status' => 'paid',
         ]);
+
+        $pointsEarned = (int) floor($order->total / 1000);
+        if ($pointsEarned > 0) {
+            auth()->user()->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
+        }
 
         Notification::createForUser(
             $order->user_id,

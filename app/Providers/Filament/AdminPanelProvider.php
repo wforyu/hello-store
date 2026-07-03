@@ -48,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Keuangan'),
                 NavigationGroup::make('Pengaturan'),
                 NavigationGroup::make('Produk'),
+                NavigationGroup::make('Rantai Pasok'),
                 NavigationGroup::make('Pesanan'),
                 NavigationGroup::make('Pengguna'),
             ])
@@ -104,6 +105,14 @@ class AdminPanelProvider extends PanelProvider
         'Pengaturan Toko': 'Atur informasi toko, kontak & media sosial',
         'Produk': 'Kelola produk, brand & kategori toko',
         'Pesanan': 'Kelola semua pesanan & pembayaran',
+        'Supplier': 'Kelola data pemasok / supplier produk',
+        'Rantai Pasok': 'Kelola supplier, PO, stok opname & retur',
+        'Purchase Order': 'Kelola pesanan pembelian ke supplier',
+        'Stock Opname': 'Kelola stok opname & penyesuaian stok',
+        'Purchase Return': 'Kelola retur barang ke supplier',
+        'Flash Sale': 'Atur promo flash sale diskon waktu terbatas',
+        'Product Bundle': 'Kelola bundle produk dengan harga spesial',
+        'Point Transaction': 'Riwayat transaksi poin pelanggan',
         'Pengguna': 'Kelola data pengguna & staf toko',
     };
     function formatRupiah(el) {

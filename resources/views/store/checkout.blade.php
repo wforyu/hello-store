@@ -226,6 +226,27 @@
                         <input type="hidden" name="coupon_code" x-model="appliedCode">
                     </div>
 
+                    {{-- Points --}}
+                    @auth
+                        @php $userPoints = auth()->user()->points ?? 0; @endphp
+                        @if($userPoints > 0)
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <h3 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+                                    Poin Saya
+                                    <span class="text-xs font-normal text-gray-400">({{ number_format($userPoints, 0, ',', '.') }} poin)</span>
+                                </h3>
+                                <div class="flex gap-2 items-center">
+                                    <input type="number" name="use_points" id="use_points" min="0" max="{{ $userPoints }}" value="0"
+                                        class="w-28 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                                        @input.debounce="pointsUsed = Math.min(parseInt($el.value) || 0, {{ $userPoints }})">
+                                    <span class="text-xs text-gray-400">= Rp <span x-text="Math.floor(pointsUsed / 100) * 1000">{{ 0 }}</span> diskon</span>
+                                    <span class="text-xs text-gray-400">(100 poin = Rp1.000)</span>
+                                </div>
+                            </div>
+                        @endif
+                    @endauth
+
                     <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2"
                         {{ $addresses->isEmpty() ? 'disabled opacity-60 cursor-not-allowed' : '' }}>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -247,14 +268,19 @@
             subtotal: {{ $subtotal }},
             ppnEnabled: @json($ppnEnabled),
             ppnRate: {{ $ppnRate }},
+            pointsUsed: 0,
 
             get ppnAmount() {
                 if (!this.ppnEnabled) return 0;
                 return Math.round(this.subtotal * this.ppnRate / 100);
             },
 
+            get pointDiscount() {
+                return Math.floor(this.pointsUsed / 100) * 1000;
+            },
+
             get total() {
-                return this.subtotal + this.selectedCost + this.ppnAmount - (parseInt(this.discount || 0));
+                return this.subtotal + this.selectedCost + this.ppnAmount - (parseInt(this.discount || 0)) - this.pointDiscount;
             },
 
             selectShipping(courier, service, cost, description) {
