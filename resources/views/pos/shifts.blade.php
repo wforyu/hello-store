@@ -31,7 +31,7 @@
                                     <p class="font-medium text-gray-900">{{ $shift->opened_at->format('d M Y') }}</p>
                                     <p class="text-xs text-gray-400">{{ $shift->opened_at->format('H:i') }} - {{ $shift->closed_at?->format('H:i') ?? 'Berlangsung' }}</p>
                                 </td>
-                                <td class="py-4 px-6 text-gray-700">{{ $shift->user->name }}</td>
+                                <td class="py-4 px-6 text-gray-700">{{ $shift->user?->name ?? 'Akun dihapus' }}</td>
                                 <td class="py-4 px-6 text-right font-medium">Rp {{ number_format($shift->opening_balance, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-medium">Rp {{ number_format($shift->closing_balance ?? 0, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-medium text-red-600">Rp {{ number_format($shift->expenses->sum('amount'), 0, ',', '.') }}</td>

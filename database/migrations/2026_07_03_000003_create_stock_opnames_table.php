@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('status')->default('draft');
             $table->text('notes')->nullable();
             $table->timestamp('completed_at')->nullable();
-            $table->foreignId('created_by')->constrained('users');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
         });

@@ -24,7 +24,7 @@ class StockOpnameResource extends Resource
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Rantai Pasok';
+        return 'Persediaan';
     }
 
     public static function form(Schema $schema): Schema

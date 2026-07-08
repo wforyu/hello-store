@@ -18,7 +18,7 @@ class PointTransactionResource extends Resource
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Keuangan';
+        return 'Pengguna';
     }
 
     public static function getPages(): array

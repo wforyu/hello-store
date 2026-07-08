@@ -5,9 +5,14 @@ namespace App\Filament\Resources\PurchaseOrders\Tables;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class PurchaseOrdersTable
@@ -76,13 +81,18 @@ class PurchaseOrdersTable
                         'received' => 'Diterima',
                         'cancelled' => 'Dibatalkan',
                     ]),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 EditAction::make()->icon(Heroicon::OutlinedPencilSquare),
+                RestoreAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
+                    ForceDeleteBulkAction::make(),
                 ]),
             ]);
     }

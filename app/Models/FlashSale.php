@@ -30,4 +30,12 @@ class FlashSale extends Model
             ->withPivot(['discount_type', 'discount_value', 'max_qty', 'sold_qty'])
             ->withTimestamps();
     }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true)
+            ->where('status', 'active')
+            ->where(fn ($q) => $q->whereNull('start_time')->orWhere('start_time', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', now()));
+    }
 }

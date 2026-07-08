@@ -172,7 +172,7 @@
                     <div class="space-y-3 mb-4 max-h-60 overflow-y-auto">
                         @foreach($cart as $item)
                             <div class="flex justify-between text-sm">
-                                <span class="text-gray-600 truncate mr-2">{{ $item['name'] }} <span class="text-gray-400">×{{ $item['quantity'] }}</span></span>
+                                <span class="text-gray-600 truncate mr-2">{{ $item['name'] }}@if(!empty($item['variant_name'])) <span class="text-gray-400 text-xs">({{ $item['variant_name'] }})</span>@endif <span class="text-gray-400">×{{ $item['quantity'] }}</span></span>
                                 <span class="text-gray-900 font-semibold shrink-0">Rp{{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }}</span>
                             </div>
                         @endforeach
@@ -208,7 +208,7 @@
                         </div>
                     </div>
                     {{-- Coupon --}}
-                    <div x-data="couponApp()" class="mt-5 pt-5 border-t-2 border-gray-100">
+                    <div class="mt-5 pt-5 border-t-2 border-gray-100">
                         <h3 class="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                             <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                             Kupon / Voucher
@@ -239,9 +239,9 @@
                                 <div class="flex gap-2 items-center">
                                     <input type="number" name="use_points" id="use_points" min="0" max="{{ $userPoints }}" value="0"
                                         class="w-28 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
-                                        @input.debounce="pointsUsed = Math.min(parseInt($el.value) || 0, {{ $userPoints }})">
-                                    <span class="text-xs text-gray-400">= Rp <span x-text="Math.floor(pointsUsed / 100) * 1000">{{ 0 }}</span> diskon</span>
-                                    <span class="text-xs text-gray-400">(100 poin = Rp1.000)</span>
+                                        @input.debounce="pointsUsed = Math.min(parseInt($el.value) || 0, {{ $userPoints }}, Math.floor((subtotal + selectedCost) * 0.5))">
+                                    <span class="text-xs text-gray-400">= Rp <span x-text="Math.floor(pointsUsed)">{{ 0 }}</span> diskon</span>
+                                    <span class="text-xs text-gray-400">(1 poin = Rp1, maks 50% total)</span>
                                 </div>
                             </div>
                         @endif
@@ -269,30 +269,6 @@
             ppnEnabled: @json($ppnEnabled),
             ppnRate: {{ $ppnRate }},
             pointsUsed: 0,
-
-            get ppnAmount() {
-                if (!this.ppnEnabled) return 0;
-                return Math.round(this.subtotal * this.ppnRate / 100);
-            },
-
-            get pointDiscount() {
-                return Math.floor(this.pointsUsed / 100) * 1000;
-            },
-
-            get total() {
-                return this.subtotal + this.selectedCost + this.ppnAmount - (parseInt(this.discount || 0)) - this.pointDiscount;
-            },
-
-            selectShipping(courier, service, cost, description) {
-                this.selectedCourier = courier;
-                this.selectedService = service;
-                this.selectedCost = parseInt(cost);
-            }
-        }
-    }
-
-    function couponApp() {
-        return {
             code: '',
             appliedCode: '',
             discount: 0,
@@ -300,6 +276,26 @@
             loading: false,
             message: '',
             valid: false,
+
+            get ppnAmount() {
+                if (!this.ppnEnabled) return 0;
+                return Math.round(Math.max(0, this.subtotal - this.discount) * this.ppnRate / 100);
+            },
+
+            get pointDiscount() {
+                return Math.floor(this.pointsUsed);
+            },
+
+            get total() {
+                return this.subtotal + this.selectedCost + this.ppnAmount - this.discount - this.pointDiscount;
+            },
+
+            selectShipping(courier, service, cost, description) {
+                this.selectedCourier = courier;
+                this.selectedService = service;
+                this.selectedCost = parseInt(cost);
+            },
+
             apply() {
                 if (!this.code.trim()) return;
                 this.loading = true;

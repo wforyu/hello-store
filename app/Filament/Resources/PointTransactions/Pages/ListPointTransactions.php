@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\PointTransactions\Pages;
 
 use App\Filament\Resources\PointTransactions\PointTransactionResource;
-use Filament\Resources\Pages\ListRecords;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Resources\Pages\ListRecords;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;

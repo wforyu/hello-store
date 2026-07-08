@@ -21,18 +21,16 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('admin', fn ($user) => $user->role === 'admin');
 
         View::composer('layouts.store', function ($view) {
+            $allSettings = Setting::pluck('value', 'key')->toArray();
+
+            if (isset($allSettings['bank_accounts'])) {
+                $decoded = json_decode($allSettings['bank_accounts'], true);
+                $allSettings['bank_accounts'] = is_array($decoded) ? $decoded : [];
+            }
+
             $view->with('announcements', Banner::active()->where('type', 'announcement')->get());
             $view->with('popups', Banner::active()->where('type', 'popup')->get());
-            $view->with('settings', [
-                'store_address' => Setting::get('store_address'),
-                'phone' => Setting::get('phone'),
-                'whatsapp' => Setting::get('whatsapp'),
-                'email' => Setting::get('email'),
-                'instagram' => Setting::get('instagram'),
-                'facebook' => Setting::get('facebook'),
-                'tiktok' => Setting::get('tiktok'),
-                'bank_accounts' => Setting::get('bank_accounts'),
-            ]);
+            $view->with('settings', $allSettings);
         });
     }
 }

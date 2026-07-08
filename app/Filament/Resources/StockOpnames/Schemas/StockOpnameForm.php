@@ -5,10 +5,10 @@ namespace App\Filament\Resources\StockOpnames\Schemas;
 use App\Models\Product;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class StockOpnameForm
@@ -89,8 +89,7 @@ class StockOpnameForm
                                     ->label('Selisih')
                                     ->numeric()
                                     ->disabled()
-                                    ->dehydrated()
-                                    ->color(fn ($state) => ($state ?? 0) !== 0 ? 'warning' : 'gray'),
+                                    ->dehydrated(),
                                 TextInput::make('notes')
                                     ->label('Catatan')
                                     ->columnSpanFull(),

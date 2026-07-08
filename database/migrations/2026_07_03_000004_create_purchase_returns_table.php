@@ -11,13 +11,13 @@ return new class extends Migration
         Schema::create('purchase_returns', function (Blueprint $table) {
             $table->id();
             $table->string('return_number')->unique();
-            $table->foreignId('supplier_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('supplier_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('purchase_order_id')->nullable()->constrained()->nullOnDelete();
             $table->string('status')->default('draft');
             $table->string('reason')->default('defective');
             $table->decimal('total_amount', 12, 2)->default(0);
             $table->text('notes')->nullable();
-            $table->foreignId('created_by')->constrained('users');
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
         });

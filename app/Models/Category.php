@@ -19,6 +19,13 @@ class Category extends Model
         'parent_id', 'name', 'slug', 'description', 'image', 'is_active', 'sort_order',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(__CLASS__, 'parent_id');

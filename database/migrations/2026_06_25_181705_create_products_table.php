@@ -23,6 +23,9 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->boolean('featured')->default(false);
             $table->timestamps();
+
+            $table->index('is_active');
+            $table->index('featured');
         });
     }
 

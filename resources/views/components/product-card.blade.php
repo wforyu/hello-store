@@ -1,4 +1,10 @@
-@props(['product', 'inWishlist' => false])
+@props(['product', 'inWishlist' => false, 'flashSaleMap' => null])
+
+@php
+    $flashData = $flashSaleMap?->get($product->id);
+    $displayPrice = $flashData ? $flashData['flash_price'] : $product->price;
+    $displayCompare = $flashData ? $product->price : ($product->compare_price ?? 0);
+@endphp
 
 <a href="{{ route('products.show', $product->slug) }}" class="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg hover:shadow-amber-100/30 transition-all duration-300">
     {{-- Wishlist Heart Button --}}
@@ -26,8 +32,13 @@
         </svg>
     </button>
 
-    {{-- Discount Badge --}}
-    @if($product->compare_price && $product->compare_price > $product->price)
+    {{-- Flash Sale Badge --}}
+    @if($flashData)
+        <div class="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-600 to-pink-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/></svg>
+            Flash Sale
+        </div>
+    @elseif($product->compare_price && $product->compare_price > $product->price)
         <div class="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm">
             -{{ round((1 - $product->price / $product->compare_price) * 100) }}%
         </div>
@@ -62,12 +73,15 @@
     {{-- Info --}}
     <div class="p-3.5 lg:p-4">
         <h3 class="text-sm font-medium text-gray-900 truncate group-hover:text-amber-700 transition-colors">{{ $product->name }}</h3>
+        @if($product->brand)
+            <p class="text-[11px] text-gray-400 truncate">{{ $product->brand->name }}</p>
+        @endif
 
         {{-- Price --}}
         <div class="flex items-baseline gap-1.5 mt-1.5">
-            <span class="text-amber-600 font-bold text-sm lg:text-base">Rp{{ number_format($product->price, 0, ',', '.') }}</span>
-            @if($product->compare_price && $product->compare_price > $product->price)
-                <span class="text-xs text-gray-400 line-through">Rp{{ number_format($product->compare_price, 0, ',', '.') }}</span>
+            <span class="text-amber-600 font-bold text-sm lg:text-base">Rp{{ number_format($displayPrice, 0, ',', '.') }}</span>
+            @if($displayCompare > $displayPrice)
+                <span class="text-xs text-gray-400 line-through">Rp{{ number_format($displayCompare, 0, ',', '.') }}</span>
             @endif
         </div>
 

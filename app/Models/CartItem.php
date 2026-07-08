@@ -9,6 +9,14 @@ class CartItem extends Model
 {
     protected $fillable = ['cart_id', 'product_id', 'quantity', 'price'];
 
+    protected function casts(): array
+    {
+        return [
+            'quantity' => 'integer',
+            'price' => 'decimal:2',
+        ];
+    }
+
     public function cart(): BelongsTo
     {
         return $this->belongsTo(Cart::class);

@@ -57,6 +57,9 @@ class Coupon extends Model
         if (! $this->isValid()) {
             return false;
         }
+        if ($this->usage_per_user === null) {
+            return true;
+        }
         $usageCount = $this->users()->where('user_id', $user->id)->count();
 
         return $usageCount < $this->usage_per_user;

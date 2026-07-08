@@ -3,9 +3,12 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Orders\OrderResource;
+use App\Filament\Resources\Products\ProductResource;
 use App\Models\Expense;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -51,6 +54,12 @@ class EnhancedStatsOverviewWidget extends BaseWidget
         $aov = $paidOrdersCount > 0 ? round($paidOrdersTotal / $paidOrdersCount) : 0;
         $conversionRate = $totalCustomers > 0 ? round(($totalOrders / $totalCustomers) * 100, 1) : 0;
 
+        // Stock alerts
+        $lowStockCount = Product::where('stock', '<=', 5)->where('stock', '>', 0)->count()
+            + ProductVariant::where('stock', '<=', 5)->where('stock', '>', 0)->count();
+        $outOfStockCount = Product::where('stock', 0)->count()
+            + ProductVariant::where('stock', 0)->count();
+
         return [
             // Row 1 — Hari Ini
             Stat::make('Pesanan Hari Ini', $todayOrders)
@@ -87,6 +96,18 @@ class EnhancedStatsOverviewWidget extends BaseWidget
                 ->description('Pesanan per customer')
                 ->descriptionIcon('heroicon-o-arrow-trending-up')
                 ->color('info'),
+
+            // Row 3 — Stok
+            Stat::make('Stok Menipis', $lowStockCount)
+                ->description($lowStockCount.' produk dengan stok ≤ 5')
+                ->descriptionIcon('heroicon-o-exclamation-triangle')
+                ->color('warning')
+                ->url(ProductResource::getUrl('index', ['tableFilters[stock][value]' => 'low'])),
+            Stat::make('Stok Habis', $outOfStockCount)
+                ->description($outOfStockCount.' produk dengan stok 0')
+                ->descriptionIcon('heroicon-o-x-circle')
+                ->color('danger')
+                ->url(ProductResource::getUrl('index', ['tableFilters[stock][value]' => 'out'])),
         ];
     }
 }

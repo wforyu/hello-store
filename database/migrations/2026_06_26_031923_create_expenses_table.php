@@ -16,6 +16,8 @@ return new class extends Migration
             $table->text('description');
             $table->timestamp('expense_date');
             $table->timestamps();
+
+            $table->index('expense_date');
         });
     }
 

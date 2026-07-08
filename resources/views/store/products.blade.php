@@ -7,29 +7,54 @@
 
         {{-- Sidebar --}}
         <aside class="lg:w-56 shrink-0">
-            <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm sticky top-24">
-                <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zm6 0a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4z"/></svg>
-                    Kategori
-                </h3>
-                <div class="space-y-0.5">
-                    <a href="{{ route('products.index') }}"
-                        class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ !request('category') ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
-                        <svg class="w-4 h-4 {{ !request('category') ? 'text-amber-500' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                        Semua Produk
-                    </a>
-                    @foreach($categories as $category)
-                        <a href="{{ route('products.index', ['category' => $category->slug, 'sort' => request('sort')]) }}"
-                            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ request('category') === $category->slug ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
-                            @php
-                                $icons = ['🛍️', '👔', '👗', '✏️'];
-                                $icon = $icons[$loop->index % count($icons)];
-                            @endphp
-                            <span class="text-base">{{ $icon }}</span>
-                            {{ $category->name }}
+            <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm sticky top-24 space-y-5">
+                {{-- Kategori --}}
+                <div>
+                    <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zm6 0a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4z"/></svg>
+                        Kategori
+                    </h3>
+                    <div class="space-y-0.5">
+                        <a href="{{ route('products.index') }}"
+                            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ !request('category') ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
+                            <svg class="w-4 h-4 {{ !request('category') ? 'text-amber-500' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                            Semua Produk
                         </a>
-                    @endforeach
+                        @foreach($categories as $category)
+                            <a href="{{ route('products.index', ['category' => $category->slug, 'sort' => request('sort'), 'search' => request('search'), 'brand' => request('brand')]) }}"
+                                class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ request('category') === $category->slug ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
+                                @php
+                                    $icons = ['🛍️', '👔', '👗', '✏️'];
+                                    $icon = $icons[$loop->index % count($icons)];
+                                @endphp
+                                <span class="text-base">{{ $icon }}</span>
+                                {{ $category->name }}
+                            </a>
+                        @endforeach
+                    </div>
                 </div>
+
+                {{-- Brand --}}
+                @if($brands->isNotEmpty())
+                    <div class="pt-4 border-t border-gray-100">
+                        <h3 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clip-rule="evenodd"/></svg>
+                            Merek
+                        </h3>
+                        <div class="space-y-0.5">
+                            <a href="{{ route('products.index', ['category' => request('category'), 'sort' => request('sort'), 'search' => request('search')]) }}"
+                                class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ !request('brand') ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
+                                Semua Merek
+                            </a>
+                            @foreach($brands as $brand)
+                                <a href="{{ route('products.index', ['brand' => $brand->slug, 'category' => request('category'), 'sort' => request('sort'), 'search' => request('search')]) }}"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition {{ request('brand') === $brand->slug ? 'bg-amber-50 text-amber-700 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800' }}">
+                                    {{ $brand->name }}
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
         </aside>
 
@@ -78,7 +103,7 @@
             @else
                 <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
                     @foreach($products as $product)
-                        <x-product-card :product="$product" />
+                        <x-product-card :product="$product" :flashSaleMap="$flashSaleMap" />
                     @endforeach
                 </div>
 

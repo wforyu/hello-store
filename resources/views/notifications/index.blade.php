@@ -54,7 +54,9 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             @if($notification->link_url)
-                                <a href="{{ route('notifications.read', $notification) }}" class="block">
+                                <form action="{{ route('notifications.read', $notification) }}" method="POST" class="block cursor-pointer">
+                                    @csrf
+                                    <button type="submit" class="w-full text-left">
                             @endif
                                 <p class="text-sm font-medium text-gray-900">{{ $notification->title }}</p>
                                 @if($notification->body)
@@ -62,7 +64,8 @@
                                 @endif
                                 <p class="text-xs text-gray-400 mt-1.5">{{ $notification->created_at->diffForHumans() }}</p>
                             @if($notification->link_url)
-                                </a>
+                                    </button>
+                                </form>
                             @endif
                         </div>
                         @if(!$notification->is_read)

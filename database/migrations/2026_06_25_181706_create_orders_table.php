@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->string('order_number')->unique();
             $table->string('status')->default('pending');
             $table->decimal('subtotal', 12, 2);
@@ -27,6 +27,9 @@ return new class extends Migration
             $table->timestamp('delivered_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->timestamps();
+
+            $table->index('status');
+            $table->index('created_at');
         });
     }
 

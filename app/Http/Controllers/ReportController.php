@@ -10,8 +10,13 @@ class ReportController extends Controller
 {
     public function export(Request $request)
     {
-        $start = $request->start ? Carbon::parse($request->start)->startOfDay() : now()->startOfMonth();
-        $end = $request->end ? Carbon::parse($request->end)->endOfDay() : now()->endOfDay();
+        $validated = $request->validate([
+            'start' => 'nullable|date',
+            'end' => 'nullable|date|after_or_equal:start',
+        ]);
+
+        $start = $validated['start'] ? Carbon::parse($validated['start'])->startOfDay() : now()->startOfMonth();
+        $end = $validated['end'] ? Carbon::parse($validated['end'])->endOfDay() : now()->endOfDay();
 
         $orders = Order::whereBetween('created_at', [$start, $end])
             ->where('payment_status', 'paid')

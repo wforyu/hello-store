@@ -32,6 +32,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
+            $table->unique(['coupon_id', 'user_id']);
         });
     }
 

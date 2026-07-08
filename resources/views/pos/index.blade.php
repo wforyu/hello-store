@@ -165,7 +165,7 @@
             <template x-for="product in products" :key="product.id">
                 <div class="pos-product-card" @click="addToCart(product)">
                     <div class="bg-gray-100 rounded-lg h-24 flex items-center justify-center mb-2 text-gray-400 text-xs overflow-hidden relative">
-                        <img x-show="product.image" :src="product.image" class="w-full h-full object-cover rounded-lg">
+                        <img x-show="product.image" :src="product.image" :alt="product.name + ' gambar'" class="w-full h-full object-cover rounded-lg">
                         <span x-show="!product.image">Gambar</span>
                         <span x-show="product.stock <= 5" class="stock-badge absolute top-1 right-1 bg-red-500 text-white">Habis</span>
                     </div>

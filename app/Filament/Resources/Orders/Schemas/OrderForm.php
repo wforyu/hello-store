@@ -149,20 +149,20 @@ class OrderForm
                     ->schema([
                         Placeholder::make('payment_bank')
                             ->label('Bank')
-                            ->content(fn ($record) => $record->payment?->bank_name ?? '-'),
+                            ->content(fn ($record) => $record?->payment?->bank_name ?? '-'),
                         Placeholder::make('payment_account_name')
                             ->label('Nama Rekening')
-                            ->content(fn ($record) => $record->payment?->account_name ?? '-'),
+                            ->content(fn ($record) => $record?->payment?->account_name ?? '-'),
                         Placeholder::make('payment_account_number')
                             ->label('No. Rekening')
-                            ->content(fn ($record) => $record->payment?->account_number ?? '-'),
+                            ->content(fn ($record) => $record?->payment?->account_number ?? '-'),
                         Placeholder::make('payment_paid_at')
                             ->label('Dibayar Pada')
-                            ->content(fn ($record) => $record->payment?->paid_at?->format('d M Y, H:i') ?? '-'),
+                            ->content(fn ($record) => $record?->payment?->paid_at?->format('d M Y, H:i') ?? '-'),
                         Placeholder::make('payment_proof_image')
                             ->label('Bukti Transfer')
-                            ->content(fn ($record) => $record->payment?->proof_image_url
-                                ? new HtmlString('<a href="'.$record->payment->proof_image_url.'" target="_blank"><img src="'.$record->payment->proof_image_url.'" style="max-width:250px;border-radius:12px;border:1px solid #d1d5db;box-shadow:0 1px 4px rgba(0,0,0,0.08)"></a>')
+                            ->content(fn ($record) => $record?->payment?->proof_image_url
+                                ? new HtmlString('<a href="'.$record?->payment?->proof_image_url.'" target="_blank"><img src="'.$record?->payment?->proof_image_url.'" style="max-width:250px;border-radius:12px;border:1px solid #d1d5db;box-shadow:0 1px 4px rgba(0,0,0,0.08)"></a>')
                                 : 'Belum ada bukti transfer')
                             ->columnSpanFull(),
                     ])

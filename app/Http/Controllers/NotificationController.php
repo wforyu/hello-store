@@ -21,11 +21,7 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->count();
 
-        if (request()->wantsJson()) {
-            return response()->json(['count' => $count]);
-        }
-
-        return $count;
+        return response()->json(['count' => $count]);
     }
 
     public function markAsRead(Notification $notification)

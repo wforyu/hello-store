@@ -2,14 +2,15 @@
 
 namespace App\Filament\Resources\FlashSales\Schemas;
 
+use App\Models\Product;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class FlashSaleForm
@@ -68,12 +69,11 @@ class FlashSaleForm
                 Section::make('Produk Flash Sale')
                     ->schema([
                         Repeater::make('products')
-                            ->relationship()
                             ->columns(3)
                             ->schema([
                                 Select::make('product_id')
                                     ->label('Produk')
-                                    ->relationship('product', 'name')
+                                    ->options(Product::where('is_active', true)->pluck('name', 'id'))
                                     ->searchable()
                                     ->preload()
                                     ->required(),

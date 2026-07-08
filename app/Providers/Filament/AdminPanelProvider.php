@@ -48,8 +48,9 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Keuangan'),
                 NavigationGroup::make('Pengaturan'),
                 NavigationGroup::make('Produk'),
-                NavigationGroup::make('Rantai Pasok'),
                 NavigationGroup::make('Pesanan'),
+                NavigationGroup::make('Persediaan'),
+                NavigationGroup::make('Pemasaran'),
                 NavigationGroup::make('Pengguna'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
@@ -123,10 +124,11 @@ class AdminPanelProvider extends PanelProvider
             el.value = formatted;
         }
     }
+    window.formatRupiah = formatRupiah;
     document.addEventListener('input', function(e) {
         var el = e.target;
         if (!el.matches('input.fi-input')) return;
-        var model = el.getAttribute('wire:model') || '';
+        var model = el.getAttribute('wire:model') || el.getAttribute('wire:model.blur') || el.getAttribute('wire:model.live') || '';
         if (!/price|subtotal|shipping|total|amount/i.test(model)) return;
         formatRupiah(el);
     }, true);

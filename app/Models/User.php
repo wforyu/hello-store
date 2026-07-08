@@ -44,6 +44,11 @@ class User extends Authenticatable
 
     public function redeemPoints(int $points, string $description, ?Model $reference = null): PointTransaction
     {
+        $points = min($points, $this->points);
+        if ($points <= 0) {
+            throw new \InvalidArgumentException('Poin tidak mencukupi untuk ditukarkan.');
+        }
+
         $this->decrement('points', $points);
 
         return $this->pointTransactions()->create([

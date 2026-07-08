@@ -109,7 +109,7 @@
                             } elseif ($type === 'code128') {
                                 $barcodeValue = preg_replace('/[^A-Za-z0-9\-_\/\s]/', '', substr($barcodeValue, 0, 20));
                             } elseif ($type === 'qr') {
-                                $barcodeValue = url('/product/' . $product->slug);
+                                $barcodeValue = route('products.show', $product->slug);
                             }
                         @endphp
 

@@ -9,8 +9,15 @@
 - **Three-role system**: `admin` (semua akses), `cashier` (POS only), `customer` (storefront only)
 - **POS**: Split layout — grid produk kiri + sidebar cart 420px kanan; dibuat dengan Alpine.js
 - **Storefront**: Layout publik dengan navbar, search suggestions, cart badge, user dropdown (Alpine.js, bukan group-hover agar works di touch)
-- **Admin Panel**: Filament dark mode, primary Amber, semua label Bahasa Indonesia, navigation groups (Tampilan, Keuangan, Pengaturan, Produk, Pesanan, Pengguna)
+- **Admin Panel**: Filament dark mode, primary Amber, semua label Bahasa Indonesia, navigation groups (Tampilan, Keuangan, Pengaturan, Produk, Pesanan, Persediaan, Pemasaran, Pengguna) — sudah sesuai dengan semua resource
 - **Flow pesanan**: Pending → upload payment → auto Processing → admin set Shipped → customer klik "Pesanan Diterima" → Delivered
+- **Points System**: Customer dapat poin dari order delivered (10% dari total); bisa redeem di checkout (1 poin = Rp1, maks 50% total)
+- **Flash Sale**: Diskon waktu terbatas per produk dengan stok kuota; berlaku di storefront
+- **Product Bundle**: Paket produk dengan harga khusus
+- **Supplier & Purchase Order**: Manajemen supplier, order barang, receiving
+- **Stock Opname**: Adjust stok fisik (berbeda dengan sistem), auto-record stock history
+- **Purchase Return**: Retur barang ke supplier, auto-restore stok
+- **Tracking Event**: Lacak status pengiriman per order
 - **PPN**: Bisa diaktifkan/dinonaktifkan dari admin settings; rate bisa diubah (default 11%); berlaku di POS (checkbox toggle per transaksi) dan storefront (otomatis)
 
 ---
@@ -20,6 +27,8 @@
 | Perintah | Fungsi |
 |---|---|
 | `composer test` | `config:clear` lalu `php artisan test` (Unit + Feature) |
+| `composer test:coverage` | Jalankan test dengan coverage report |
+| `composer test:coverage` | Jalankan test dengan coverage report |
 | `composer dev` | Jalankan server, queue, pail, dan Vite secara bersamaan |
 | `composer setup` | Setup lengkap: install, .env, key:generate, migrate, npm install, vite build |
 | `npm run build` | Build Vite production |
@@ -105,7 +114,7 @@
 
 ---
 
-## Database — 25 Migrations
+## Database — 31 Migrations
 
 | # | File | Fungsi |
 |---|---|---|
@@ -132,10 +141,24 @@
 | 23 | `migrate_product_images_data` | Migrasi JSON images → product_images, drop kolom images |
 | 24 | `create_stock_histories_table` | Stock history (product_id, user_id, type, reference, quantity_change, stock_before, stock_after, notes) |
 | 25 | `add_images_json_to_products_table` | Tambah kolom images JSON kembali (untuk Filament FileUpload compatibility) |
+| 26 | `create_suppliers_table` | Supplier (name, contact_person, phone, email, address) |
+| 27 | `create_purchase_orders_table` + `create_purchase_order_items_table` | PO (supplier_id, order_number, status, subtotal, tax, total, notes, created_by, ordered_at, received_at) + items (product_id, product_name, product_sku, quantity, unit_cost, subtotal) |
+| 28 | `create_stock_opnames_table` + `create_stock_opname_items_table` | Opname (opname_number, status, notes, created_by) + items (product_id, system_stock, physical_stock, difference, notes) |
+| 29 | `create_purchase_returns_table` + `create_purchase_return_items_table` | Retur (return_number, supplier_id, purchase_order_id, status, reason, notes, total_amount, created_by) + items (product_id, product_name, product_sku, quantity, unit_cost, subtotal, reason) |
+| 30 | `create_flash_sales_table` + `create_flash_sale_product_table` | Flash Sale (name, slug, description, start_time, end_time, status, is_active, banner_image) + pivot (flash_sale_id, product_id, discount_type, discount_value, max_qty, sold_count) |
+| 31 | `create_product_bundles_table` + `create_bundle_products_table` | Bundle (name, slug, description, bundle_price, total_original_price, image, is_active, start_time, end_time) + pivot (bundle_id, product_id, quantity) |
+| — | `create_tracking_events_table` | Tracking events (order_id, status, location, description, occurred_at) |
+| — | `create_point_transactions_table` | Point transactions (user_id, type, points, balance_before, balance_after, reference_type, reference_id, description) |
+| — | `add_points_to_users_table` | Tambah kolom points (default 0) ke users |
+| — | `create_brands_table` | Brand (name, slug, description, logo, website, is_active) |
+| — | `create_product_variants_table` | Product Variant (product_id, name, price, stock, weight, image, sku, is_active, sort_order) |
+| — | `create_product_variant_attributes_table` | Variant Attributes (product_variant_id, type, value, label, sort_order) |
+| — | `add_variant_id_to_cart_items_table` | Add product_variant_id nullable ke cart_items |
+| — | `add_variant_fields_to_orders` | Add product_variant_id + variant_name ke order_items |
 
 ---
 
-## Models (20+ total)
+## Models (27+ total)
 
 | Model | File | Fillable | Casts | Relasi Utama |
 |---|---|---|---|---|
@@ -146,6 +169,9 @@
 | **StockHistory** | `Models/StockHistory.php` | product_id, user_id, type, reference_type, reference_id, quantity_change, stock_before, stock_after, notes | — | belongsTo(Product), belongsTo(User) |
 | **Category** | `Models/Category.php` | parent_id, name, slug, description, image, is_active, sort_order | — | parent(), children(), products(); SoftDeletes |
 | **Brand** | `Models/Brand.php` | name, slug, description, logo, website, is_active | — | products() |
+| **ProductVariant** | `Models/ProductVariant.php` | product_id, name, price, stock, weight, image, sku, is_active, sort_order | `price/weight => decimal:2`, `is_active => boolean` | product(), attributes() |
+| **ProductVariantAttribute** | `Models/ProductVariantAttribute.php` | product_variant_id, type, value, label, sort_order | — | variant() |
+| **FlashSaleProduct** | `Models/FlashSaleProduct.php` | flash_sale_id, product_id, discount_type, discount_value, max_qty, sold_count | — | — |
 | **Order** | `Models/Order.php` | user_id, order_number, status, subtotal, shipping_cost, total, payment_method, payment_status, notes, admin_notes, address_id, shipping_courier, shipping_tracking_number, coupon_id, discount, shipped_at, delivered_at, cancelled_at | `subtotal/shipping_cost/total/discount => decimal:2`, `shipped_at/delivered_at/cancelled_at => datetime` | user(), items(), payment(), address(), coupon() |
 | **OrderItem** | `Models/OrderItem.php` | order_id, product_id, product_name, product_price, quantity, subtotal | `product_price/subtotal => decimal:2` | order(), product() |
 | **OrderDownload** | `Models/OrderDownload.php` | order_id, product_id, user_id, download_count | — | belongsTo(Order), belongsTo(Product); canDownload() max 5 |
@@ -163,10 +189,26 @@
 | **Shift** | `Models/Shift.php` | user_id, opened_at, closed_at, opening_balance, closing_balance, expected_balance, status | `opened_at/closed_at => datetime`, `opening_balance/closing_balance/expected_balance => decimal:2` | user(), orders(), expenses(); isOpen(), totalOrders(), totalRevenue() |
 | **ShiftExpense** | `Models/ShiftExpense.php` | shift_id, expense_category_id, amount, description, user_id | `amount => decimal:2` | belongsTo(Shift), belongsTo(ExpenseCategory), belongsTo(User) |
 | **Notification** | `Models/Notification.php` | user_id, type, title, message, data, is_read, read_at | `data => array`, `is_read => boolean`, `read_at => datetime` | createForUser(), createForAdmins(), markAsRead(), scopeUnread() |
+| **Supplier** | `Models/Supplier.php` | name, contact_person, phone, email, address | — | purchaseOrders() HasMany; SoftDeletes |
+| **PurchaseOrder** | `Models/PurchaseOrder.php` | supplier_id, order_number, status, subtotal, tax, total, notes, created_by, ordered_at, received_at | `subtotal/tax/total => decimal:2`, `ordered_at/received_at => datetime` | supplier(), items(), creator() |
+| **PurchaseOrderItem** | `Models/PurchaseOrderItem.php` | purchase_order_id, product_id, product_name, product_sku, quantity, unit_cost, subtotal | `quantity/unit_cost/subtotal => decimal:2` | purchaseOrder(), product() |
+| **StockOpname** | `Models/StockOpname.php` | opname_number, status, notes, created_by | — | items(), creator() |
+| **StockOpnameItem** | `Models/StockOpnameItem.php` | stock_opname_id, product_id, system_stock, physical_stock, difference, notes | `system_stock/physical_stock/difference => integer` | stockOpname(), product() |
+| **PurchaseReturn** | `Models/PurchaseReturn.php` | return_number, supplier_id, purchase_order_id, status, reason, notes, total_amount, created_by | `total_amount => decimal:2` | supplier(), purchaseOrder(), items(), creator() |
+| **PurchaseReturnItem** | `Models/PurchaseReturnItem.php` | purchase_return_id, product_id, product_name, product_sku, quantity, unit_cost, subtotal, reason | `quantity/unit_cost/subtotal => decimal:2` | purchaseReturn(), product() |
+| **FlashSale** | `Models/FlashSale.php` | name, slug, description, start_time, end_time, status, is_active, banner_image | `start_time/end_time => datetime`, `is_active => boolean` | products() BelongsToMany (flash_sale_products pivot with discount_type, discount_value, max_qty, sold_count) |
+| **ProductBundle** | `Models/ProductBundle.php` | name, slug, description, bundle_price, total_original_price, image, is_active, start_time, end_time | `bundle_price/total_original_price => decimal:2`, `start_time/end_time => datetime`, `is_active => boolean` | products() BelongsToMany (bundle_products pivot with quantity) |
+| **TrackingEvent** | `Models/TrackingEvent.php` | order_id, status, location, description, occurred_at | `occurred_at => datetime` | belongsTo(Order); `$appends=['status_label']` dengan getStatusLabelAttribute() |
+| **PointTransaction** | `Models/PointTransaction.php` | user_id, type, points, balance_before, balance_after, reference_type, reference_id, description | `points/balance_before/balance_after => integer` | user(), reference() MorphTo |
 
 ---
 
-## Controllers (6 custom + Auth bawaan)
+## Controllers (6 custom + Auth bawaan + Phase 2)
+
+### Phase 2 Modifications on StoreController
+- **checkout()**: Added points display + points redeem checkbox (max 50% total)
+- **placeOrder()**: Deducts redeemed points if `use_points` is set; adds earned points (10% of total) on confirmed received
+- **confirmReceived()**: Added `auth()->user()->addPoints(floor($order->total * 0.1))` untuk earned points
 
 ### StoreController (`app/Http/Controllers/StoreController.php`)
 - **home()**: Ambil categories tree, featured + latest products (8 each) with avg rating + count
@@ -251,7 +293,7 @@
 - Widgets auto-discovered
 - **`formatRupiah` JS** — IIFE mendefinisikan fungsi global + capture-phase `document.addEventListener('input', ...)` untuk auto-dot formatting pada input dengan `wire:model` mengandung `price|subtotal|shipping|total|amount` (menggunakan `.fi-input` selector). Dipanggil via event delegation, bukan `extraInputAttributes`.
 
-### Resources (10)
+### Resources (16)
 
 | Group | Resource | Model | Icon |
 |---|---|---|---|
@@ -264,6 +306,12 @@
 | Produk | Riwayat Stok | StockHistory | `ClipboardDocumentList` |
 | Pesanan | Orders | Order | `Truck` |
 | Pesanan | Payments | Payment | `CreditCard` |
+| Persediaan | Suppliers | Supplier | `Truck` |
+| Persediaan | Purchase Orders | PurchaseOrder | `ClipboardDocumentCheck` |
+| Persediaan | Stock Opnames | StockOpname | `ClipboardDocumentList` |
+| Persediaan | Purchase Returns | PurchaseReturn | `ArrowUturnLeft` |
+| Pemasaran | Flash Sales | FlashSale | `Bolt` |
+| Pemasaran | Product Bundles | ProductBundle | `Gift` |
 | Pengguna | Users | User | `Users` |
 
 ### Widgets (9)
@@ -282,6 +330,14 @@
 ### Custom Table Filters
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)" dan "Habis (0)" dengan custom `query()` callback
 - **OrdersTable**: `Filter::make('hari_ini')` (`whereDate('created_at', today())`) dan `Filter::make('menunggu')` (`whereIn('status', ['pending','processing'])`) — toggle filter
+
+### Phase 2 Resource Notes
+- **Suppliers**: `SupplierForm` → TextInput fields (name, contact_person, phone, email, address); `SuppliersTable` → name, contact person, phone, active orders count
+- **Purchase Orders**: `PurchaseOrderForm` → Select supplier (relationship), order_number, status, ordered_at, received_at, notes; **Repeater items** → Select product (via `->options()` NOT `->relationship()`), product_name hidden, SKU disabled, qty, unit_cost, subtotal disabled; Ringkasan section → subtotal, tax, total (disabled/dehydrated, auto-calculated in `mutateFormDataBeforeCreate/Save`)
+- **Stock Opname**: `StockOpnameForm` → opname_number (auto-generated), status (draft/completed), notes; Repeater items → Select product (via `->options()`), system_stock disabled (filled on select via `afterStateUpdated`), physical_stock input, difference disabled/color-coded; `EditStockOpname::afterSave()` adjusts stock only when status completed + wasChanged, uses `saveQuietly()` to avoid double history
+- **Purchase Returns**: `PurchaseReturnForm` → return_number, supplier, PO (nullable), status, reason, notes; Repeater items → same pattern as PO; Ringkasan → total_amount disabled/dehydrated; `EditPurchaseReturn::afterSave()` restores stock when completed/received, uses `saveQuietly()`
+- **Flash Sales**: `FlashSaleForm` → name, slug (auto), desc, start/end time, status, is_active, banner; Repeater products → Select product (via `->options()`, NOT `->relationship()`), discount_type, discount_value, max_qty
+- **Product Bundles**: `ProductBundleForm` → name, slug (auto), desc, bundle_price, is_active, start/end time, image; Repeater products → Select product (via `->options()`), quantity
 
 ### Catatan Penting Filament
 - `form()` menerima `Schema $schema`, mengembalikan `Schema $schema` — BUKAN `Form $form`
@@ -700,6 +756,65 @@
 - Menggunakan Eloquent grouped queries (bukan `->data()` — method tidak ada di Filament 5)
 - Wajib include `MAX(table.id) as id` di SELECT untuk record key (`getTableRecordKey()` expects string)
 
+### 44. Supplier & Purchase Order (PO)
+- Model `Supplier` + migration (SoftDeletes) dengan Filament resource CRUD
+- Model `PurchaseOrder` + `PurchaseOrderItem` dengan Repeater items
+- PO status: draft → ordered → partial → received → cancelled
+- Auto-calculate subtotal/total via `mutateFormDataBeforeCreate/Save`
+- History stok tercatat via Product `recordStockHistory()` saat PO diterima
+- Navigation group: Persediaan
+
+### 45. Stock Opname
+- Model `StockOpname` + `StockOpnameItem` dengan Repeater items
+- System stock diisi otomatis saat pilih produk (via `afterStateUpdated`)
+- Difference dihitung otomatis (system - physical) dengan color-coded display
+- `EditStockOpname::afterSave()`: hanya adjust stok saat status berubah jadi completed
+- Menggunakan `saveQuietly()` + explicit `recordStockHistory()` (type `opname`) untuk mencegah double entry
+- Navigation group: Persediaan
+
+### 46. Purchase Return (Retur ke Supplier)
+- Model `PurchaseReturn` + `PurchaseReturnItem` dengan Repeater items
+- Relasi ke `Supplier` + optional `PurchaseOrder`
+- Status: draft → submitted → received → completed / rejected
+- `EditPurchaseReturn::afterSave()`: restore stok saat status jadi completed/received
+- Sama seperti Stock Opname: `saveQuietly()` + explicit `recordStockHistory()` (type `return`)
+- Navigation group: Persediaan
+
+### 47. Flash Sale
+- Model `FlashSale` + pivot `flash_sale_products` (BelongsToMany)
+- Discount per produk: persen atau nominal; max_qty (kuota) + sold_count tracking
+- CRUD via Filament: Repeater products (Select pakai `->options()`, BUKAN `->relationship()`)
+- Discount logic di storefront: otomatis terapkan di product detail / product-card
+- Navigation group: Pemasaran
+
+### 48. Product Bundle
+- Model `ProductBundle` + pivot `bundle_products` (BelongsToMany)
+- Harga bundle khusus + total original price (auto-calc)
+- CRUD via Filament: Repeater products dengan quantity
+- Display di storefront: card bundle dengan daftar produk + total hemat
+- Navigation group: Pemasaran
+
+### 49. Tracking Event (Lacak Pengiriman)
+- Model `TrackingEvent` dengan `$appends=['status_label']`
+- Order `trackingEvents()` HasMany
+- Filament Repeater di OrderForm: status, location, description, occurred_at
+- Tampil di order detail storefront sebagai timeline
+- Status labels: pending → diproses → dikirim → sampai tujuan → delivered
+
+### 50. Points System
+- Kolom `points` (default 0) di users table
+- Model `PointTransaction` dengan MorphTo relasi (reference → order/review/etc)
+- Methods di User: `addPoints()`, `redeemPoints()`, `getPointsBalance()`
+- StoreController checkout(): display points + redeem checkbox (max 50% total)
+- StoreController placeOrder(): deduct redeemed points, add earned points (10% of total, via confirmReceived)
+- StoreController confirmReceived(): `auth()->user()->addPoints(floor($order->total * 0.1))`
+- PointTransaction history di admin via Filament resource (ListPointTransactions, read-only)
+- Navigation group: Pengguna
+- Old custom `TopProductsWidget.php` + Blade view **dihapus**
+- Diganti 3 `TableWidget` classes: TopProductsTableWidget, TopCategoriesTableWidget, TopCashiersTableWidget
+- Menggunakan Eloquent grouped queries (bukan `->data()` — method tidak ada di Filament 5)
+- Wajib include `MAX(table.id) as id` di SELECT untuk record key (`getTableRecordKey()` expects string)
+
 ---
 
 ## Gate & Middleware
@@ -734,6 +849,7 @@
 - **`@json()` di Blade**: Aman di `<script>` context; menghasilkan double-quotes di HTML attributes (break syntax).
 - **FileUpload inside Repeater with `->relationship()`**: TIDAK bekerja di Filament 5.6 — file tidak tersimpan. Pakai `FileUpload::make()->multiple()` langsung di parent model + sync via model event.
 - **`$product->images` vs `$product->productImages`**: `images` = JSON column (return array/null), `productImages` = HasMany relationship (return Collection). Mereka BERBEDA.
+- **`$product->stock += X; $product->saveQuietly()`**: Untuk menghindari double stock history di manual stock adjustment, gunakan `saveQuietly()` (tidak trigger saved event) diikuti `recordStockHistory()` eksplisit. Pattern ini dipakai di Stock Opname dan Purchase Return afterSave.
 - **PHP property type**: Override parent static properties membutuhkan exact type match (`string | BackedEnum | null` untuk `$navigationIcon`, `bool` untuk `$shouldRegisterNavigation`, `?int` untuk `$sort`).
 - **XSS safety**: Semua `old()` values di Alpine.js pakai `@json()` (bukan raw Blade).
 - **`isRecentlyCreated` TIDAK valid** — properti Eloquent yang benar adalah `wasRecentlyCreated`.
@@ -742,6 +858,12 @@
 - **Auto-dot via event delegation**: `extraInputAttributes(['oninput' => 'formatRupiah(this)'])` gagal karena fungsi tidak global. Solusi: capture-phase `document.addEventListener('input', ...)` dengan filter `wire:model` regex. JANGAN dispatch `input` event dari handler (avoid recursion dengan `wire:model`).
 - **Boolean settings**: Di `ManageSettings::save()`, `Toggle` mengembalikan `bool` PHP. Konversi manual ke `"1"`/`"0"` via `is_bool($value)` sebelum `updateOrCreate`.
 - **PPN notes parsing**: Format `PPN {rate}%: Rp {amount}` — parse via regex `/^PPN (\d+)%: Rp ([\d.]+)$/` di receipt views (POS + storefront).
+- **`(int) "3.250.000"` returns `3`**: PHP stops parsing integer at the first non-digit character. Always strip dots before cast: `(int) str_replace('.', '', $value)`.
+- **`$get()` returns dotted string** during real-time typing in Filament callbacks (from formatRupiah JS). Strip dots before any numeric operation.
+- **PPN tax base**: Indonesian PPN is on DPP (Dasar Pengenaan Pajak = price after ALL discounts). Use `max(0, $subtotal - $discountAmount)`, NOT just `$subtotal`.
+- **BelongsToMany Repeaters**: `->relationship()` does NOT work in Filament 5.6. Use `->options()` on Select + manual sync in `mutateFormDataBeforeCreate/Save`/after hooks.
+- **FK cascadeOnDelete**: Deleting a parent (user, supplier) cascades to orders, shifts, expenses, purchase records. Use `nullOnDelete` + nullable FK for business-critical data.
+- **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
 
 ---
 
@@ -759,5 +881,52 @@
 - Feature tests: `Tests\TestCase` (full app boot), SQLite `:memory:`
 - Semua feature tests pakai `RefreshDatabase` (kecuali ExampleTest)
 - 25 tests, 61 assertions — semuanya pass
-- Pint clean: 195 files, 0 issues
+- Pint clean: 265 files, 0 issues
 - Command: `composer test` (config:clear lalu artisan test)
+
+---
+
+## Bug Fixes & Code Audit (2026-07-08)
+
+Total **16 bugs** ditemukan dan diperbaiki dalam audit kode menyeluruh:
+
+### StoreController — 3 Fixes
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 1 | `StoreController.php:271` | PPN checkout preview mismatch — Alpine.js `ppnAmount` getter pakai `subtotal` tanpa diskon, beda sama `placeOrder()` yg pake `subtotal - discount` (DPP) | Medium |
+| 2 | `StoreController.php:685,693` | `$validated['comment']` undefined key risk pas API request tanpa field `comment` | Low |
+| 3 | `StoreController.php:303` | `(int)` truncate shipping cost (RajaOngkir kadang ada decimal) jadi pake `(float)` | Low |
+
+### PosController — 8 Fixes
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 4 | `PosController.php:95` | `add()` gak update `stock` field pas re-add item existing (stale stock display) | Medium |
+| 5 | `PosController.php:184` | `ppn_enabled` admin setting gak dicek server-side — client kirim `ppn: true` tetap diproses walau setting disabled | Medium |
+| 6 | `PosController.php:186` | PPN base kurang `max(0, ...)` guard (defensive) | Low |
+| 7 | `PosController.php:207` | `$activeShift` double query di dalam DB transaction | Low |
+| 8 | `PosController.php:300` | Hold ID confusing `$holds->max('id') + 1 ?: 1` diganti `($holds->max('id') ?? 0) + 1` | Low |
+| 9 | `PosController.php:439` | `openShift()` gak validasi input `opening_balance` — nambah `$request->validate(...)` | Medium |
+| 10 | `PosController.php:527` | **`$shiftExpense->shift->user_id` crash** — shift pake `nullOnDelete`, kalo user dihapus `->shift` jadi null | **High** |
+| 11 | `PosController.php:80` | `add()` gak validasi request — nambah validation `product_id` + `quantity` | Low |
+
+### Models — 3 Fixes
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 12 | `Coupon.php:62` | **`usage_per_user = null` bikin kupon gak pernah bisa dipake** — `$usageCount < null` selalu false. Nambah guard `if ($this->usage_per_user === null) return true` | **High** |
+| 13 | `User.php:47` | `redeemPoints()` gak guard negative balance — nambah `min($points, $this->points)` + throw exception | Medium |
+| 14 | `Product.php:129` | Missing `flashSales()` dan `bundles()` BelongsToMany relationships — nambah relasi inverse | Medium |
+
+### Blade Views — 1 Fix
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 15 | `shifts.blade.php:34` | `$shift->user->name` crash kalo user dihapus (FK `nullOnDelete`) — pake `$shift->user?->name ?? 'Akun dihapus'` | Medium |
+
+### Frontend — 1 Fix
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 16 | `checkout.blade.php:280` | Alpine.js `ppnAmount` getter pake `this.subtotal` bukan `this.subtotal - this.discount` — PPN preview overestimate pas ada kupon | Medium |
+
+### Catatan Penting
+- **Config cache**: Jangan `config:cache` pas running tests — cached config override env testing (SQLite in-memory). Always `config:clear` before `php artisan test`.
+- **DB seeder**: `DatabaseSeeder` bisa dimodif sementara (comment product seeding) kalo mau reset DB tanpa produk — tinggal `migrate:fresh --seed`. Jangan lupa direstore setelahnya.
+- **`php artisan optimize`** udah jalan — config, events, routes, views, blade-icons, filament all cached.

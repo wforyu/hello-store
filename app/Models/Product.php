@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -116,6 +117,11 @@ class Product extends Model
         return $this->attributes->where('type', $type)->values();
     }
 
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order');
+    }
+
     public function orderDownloads(): HasMany
     {
         return $this->hasMany(OrderDownload::class);
@@ -124,5 +130,19 @@ class Product extends Model
     public function getMainImageAttribute(): ?string
     {
         return $this->productImages->first()?->url;
+    }
+
+    public function flashSales(): BelongsToMany
+    {
+        return $this->belongsToMany(FlashSale::class, 'flash_sale_products')
+            ->withPivot(['discount_type', 'discount_value', 'max_qty', 'sold_qty'])
+            ->withTimestamps();
+    }
+
+    public function bundles(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductBundle::class, 'bundle_products')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 }

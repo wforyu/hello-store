@@ -79,6 +79,11 @@ class PosController extends Controller
 
     public function add(Request $request)
     {
+        $request->validate([
+            'product_id' => 'required|integer|exists:products,id',
+            'quantity' => 'nullable|integer|min:1',
+        ]);
+
         $product = Product::with('productImages')->findOrFail($request->product_id);
 
         if ($product->stock < 1) {
@@ -93,6 +98,7 @@ class PosController extends Controller
             $cart = $cart->map(function ($item) use ($product, $qty) {
                 if ($item['product_id'] === $product->id) {
                     $item['quantity'] = min($item['quantity'] + $qty, $product->stock);
+                    $item['stock'] = $product->stock;
                 }
 
                 return $item;
@@ -181,9 +187,10 @@ class PosController extends Controller
         ]);
 
         $globalDiscount = (float) ($validated['discount'] ?? 0);
-        $ppn = $validated['ppn'] ? true : false;
+        $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
+        $ppn = $ppnEnabled && (bool) ($validated['ppn'] ?? false);
         $ppnRate = (int) Setting::get('ppn_percentage', 11);
-        $ppnAmount = $ppn ? round(($afterItemDiscount - $globalDiscount) * $ppnRate / 100) : 0;
+        $ppnAmount = $ppn ? round(max(0, $afterItemDiscount - $globalDiscount) * $ppnRate / 100) : 0;
         $total = max(0, $afterItemDiscount - $globalDiscount + $ppnAmount);
 
         if ($validated['payment_method'] === 'cash') {
@@ -204,7 +211,7 @@ class PosController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($cart, $itemSubtotal, $globalDiscount, $ppn, $ppnAmount, $ppnRate, $total, $validated, $liveProducts) {
+        $order = DB::transaction(function () use ($cart, $itemSubtotal, $globalDiscount, $ppn, $ppnAmount, $ppnRate, $total, $validated, $liveProducts, $activeShift) {
             $paymentMethodMap = [
                 'cash' => 'cash',
                 'qris' => 'qris',
@@ -237,7 +244,6 @@ class PosController extends Controller
                 'notes' => $notes,
             ]);
 
-            $activeShift = Shift::where('user_id', auth()->id())->whereNull('closed_at')->first();
             if ($activeShift) {
                 $order->update(['shift_id' => $activeShift->id]);
             }
@@ -297,7 +303,7 @@ class PosController extends Controller
         }
 
         $holds = collect(session('pos_holds', []));
-        $id = $holds->max('id') + 1 ?: 1;
+        $id = ($holds->max('id') ?? 0) + 1;
 
         $holds->push([
             'id' => $id,
@@ -438,6 +444,10 @@ class PosController extends Controller
 
     public function openShift(Request $request)
     {
+        $validated = $request->validate([
+            'opening_balance' => 'nullable|numeric|min:0',
+        ]);
+
         $activeShift = Shift::where('user_id', auth()->id())
             ->whereNull('closed_at')
             ->first();
@@ -449,7 +459,7 @@ class PosController extends Controller
         Shift::create([
             'user_id' => auth()->id(),
             'opened_at' => now(),
-            'opening_balance' => $request->opening_balance ?? 0,
+            'opening_balance' => $validated['opening_balance'] ?? 0,
         ]);
 
         return redirect()->route('pos.index')->with('success', 'Shift berhasil dibuka!');
@@ -479,7 +489,7 @@ class PosController extends Controller
             'closing_balance' => $validated['closing_balance'],
             'expected_balance' => $expectedBalance,
             'difference' => $validated['closing_balance'] - $expectedBalance,
-            'notes' => $validated['notes'],
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         return redirect()->route('pos.index')->with('success', 'Shift berhasil ditutup!');
@@ -524,7 +534,7 @@ class PosController extends Controller
 
     public function deleteExpense(ShiftExpense $shiftExpense)
     {
-        if ($shiftExpense->shift->user_id !== auth()->id()) {
+        if ($shiftExpense->shift?->user_id !== auth()->id()) {
             abort(403);
         }
 

@@ -154,6 +154,59 @@ class ProductForm
                     ])
                     ->collapsible()
                     ->collapsed(),
+                Section::make('Varian Produk')
+                    ->description('Kombinasi atribut dengan stok & harga sendiri (contoh: Merah - XL, Biru - M)')
+                    ->schema([
+                        Repeater::make('variants')
+                            ->label('')
+                            ->relationship()
+                            ->schema([
+                                TextInput::make('name')
+                                    ->label('Nama Varian')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->helperText('Contoh: "Merah - XL", "Biru - M"')
+                                    ->columnSpan(2),
+                                TextInput::make('sku')
+                                    ->label('SKU')
+                                    ->maxLength(100)
+                                    ->columnSpan(1),
+                                TextInput::make('price')
+                                    ->label('Harga (opsional)')
+                                    ->prefix('Rp')
+                                    ->helperText('Kosongkan = pakai harga produk')
+                                    ->formatStateUsing(fn ($state): string => $state !== null && $state !== '' ? number_format((float) $state, 0, ',', '.') : '')
+                                    ->dehydrateStateUsing(fn ($state): ?int => $state !== null && $state !== '' ? (int) str_replace('.', '', $state) : null)
+                                    ->columnSpan(1),
+                                TextInput::make('stock')
+                                    ->label('Stok')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->required()
+                                    ->columnSpan(1),
+                                TextInput::make('weight')
+                                    ->label('Berat (kg)')
+                                    ->numeric()
+                                    ->helperText('Kosongkan = pakai berat produk')
+                                    ->columnSpan(1),
+                                FileUpload::make('image')
+                                    ->label('Gambar Varian')
+                                    ->image()
+                                    ->disk('public')
+                                    ->directory('variant-images')
+                                    ->columnSpan(2)
+                                    ->helperText('Upload gambar khusus untuk varian ini (opsional)'),
+                                Toggle::make('is_active')
+                                    ->label('Aktif')
+                                    ->default(true)
+                                    ->columnSpan(1),
+                            ])
+                            ->columns(4)
+                            ->defaultItems(0)
+                            ->addActionLabel('Tambah Varian'),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 }

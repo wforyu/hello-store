@@ -10,6 +10,15 @@ class EditPurchaseReturn extends EditRecord
 {
     protected static string $resource = PurchaseReturnResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (isset($data['items'])) {
+            $data['total_amount'] = collect($data['items'])->sum('subtotal');
+        }
+
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         $record = $this->record;
@@ -19,13 +28,18 @@ class EditPurchaseReturn extends EditRecord
                 DB::transaction(function () use ($record) {
                     foreach ($record->items as $item) {
                         $product = $item->product;
+
+                        if (! $product) {
+                            continue;
+                        }
+
                         $product->stock -= $item->quantity;
-                        $product->save();
+                        $product->saveQuietly();
 
                         $product->recordStockHistory(
                             -$item->quantity,
                             'return',
-                            'Retur ke supplier: ' . ($item->reason ?? $record->reason),
+                            'Retur ke supplier: '.($item->reason ?? $record->reason),
                             'PurchaseReturn',
                             $record->id
                         );

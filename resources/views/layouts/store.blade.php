@@ -6,9 +6,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('app.name')) - Hello Store</title>
     @stack('meta')
-    @php $favicon = \App\Models\Setting::get('favicon'); @endphp
-    @if($favicon)
-        <link rel="icon" type="image/png" href="{{ asset('storage/'.$favicon) }}">
+    @php $favicon = $settings['favicon'] ?? null; @endphp
+    @if ($favicon)
+        <link rel="icon" type="image/svg+xml" href="{{ Storage::url($favicon) }}">
     @else
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @endif
@@ -16,7 +16,7 @@
     @stack('styles')
 
     {{-- Google Analytics --}}
-    @php $gaId = \App\Models\Setting::get('google_analytics_id'); @endphp
+    @php $gaId = $settings['google_analytics_id'] ?? null; @endphp
     @if($gaId)
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
         <script>
@@ -28,7 +28,7 @@
     @endif
 
     {{-- Facebook Pixel --}}
-    @php $fbPixel = \App\Models\Setting::get('facebook_pixel_id'); @endphp
+    @php $fbPixel = $settings['facebook_pixel_id'] ?? null; @endphp
     @if($fbPixel)
         <script>
             !function(f,b,e,v,n,t,s)
@@ -47,7 +47,7 @@
     @endif
 
     {{-- Custom Head Scripts --}}
-    @php $headScripts = \App\Models\Setting::get('head_scripts'); @endphp
+    @php $headScripts = $settings['head_scripts'] ?? null; @endphp
     @if($headScripts)
         {!! $headScripts !!}
     @endif
@@ -73,7 +73,7 @@
 
                 {{-- Logo --}}
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5 group shrink-0">
-                    @php $logo = \App\Models\Setting::get('logo'); @endphp
+                    @php $logo = $settings['logo'] ?? null; @endphp
                     @if($logo)
                         <img src="{{ asset('storage/'.$logo) }}" alt="Hello Store" class="h-8 w-auto">
                     @else
@@ -127,6 +127,12 @@
 
                 {{-- Right Actions --}}
                 <div class="flex items-center gap-3 lg:gap-5">
+
+                    {{-- Bundle Link --}}
+                    <a href="{{ route('products.bundles') }}" class="hidden sm:flex items-center gap-1 text-sm font-medium text-amber-600 hover:text-amber-700 transition" title="Paket Produk">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        <span class="hidden lg:inline">Paket</span>
+                    </a>
 
                     {{-- Mobile Search Trigger --}}
                     <button type="button" onclick="this.closest('nav').querySelector('.mobile-search').classList.toggle('hidden')" class="sm:hidden text-gray-500 hover:text-amber-600 transition p-1">
@@ -323,6 +329,7 @@
                     <h4 class="font-semibold text-gray-900 text-sm mb-4">Belanja</h4>
                     <ul class="space-y-2.5 text-sm text-gray-500">
                         <li><a href="{{ route('products.index') }}" class="hover:text-amber-600 transition">Semua Produk</a></li>
+                        <li><a href="{{ route('products.bundles') }}" class="hover:text-amber-600 transition">Paket Produk</a></li>
                         <li><a href="{{ route('products.index', ['category' => 'elektronik']) }}" class="hover:text-amber-600 transition">Elektronik</a></li>
                         <li><a href="{{ route('products.index', ['category' => 'fashion-pria']) }}" class="hover:text-amber-600 transition">Fashion Pria</a></li>
                         <li><a href="{{ route('products.index', ['category' => 'fashion-wanita']) }}" class="hover:text-amber-600 transition">Fashion Wanita</a></li>
@@ -379,7 +386,10 @@
             <div class="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden"
                  @click.outside="show = false; document.body.style.overflow = ''; sessionStorage.setItem('popup_closed_{{ $popup->id }}', '1')">
                 @if($popup->image)
-                    <img src="{{ Storage::url($popup->image) }}" alt="{{ $popup->title }}" class="w-full h-48 sm:h-56 object-cover">
+                    @php $popupImgUrl = str_starts_with($popup->image, 'http') ? $popup->image : Storage::url($popup->image); @endphp
+                    <div class="w-full h-48 sm:h-56 bg-gray-900">
+                        <img src="{{ $popupImgUrl }}" alt="{{ $popup->title }}" class="w-full h-full object-contain">
+                    </div>
                 @endif
                 <div class="p-6">
                     @if($popup->title)
@@ -434,9 +444,9 @@
     </script>
 
     {{-- WhatsApp Floating Button --}}
-    @php $wa = \App\Models\Setting::get('whatsapp'); @endphp
+    @php $wa = $settings['whatsapp'] ?? null; @endphp
     @if($wa)
-        @php $waText = \App\Models\Setting::get('whatsapp_text', 'Halo, saya ingin bertanya...'); @endphp
+        @php $waText = $settings['whatsapp_text'] ?? 'Halo, saya ingin bertanya...'; @endphp
         <a href="https://wa.me/{{ $wa }}?text={{ urlencode($waText) }}"
             target="_blank"
             class="fixed bottom-6 right-6 z-40 w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 hover:scale-110 transition-all duration-200"
@@ -448,7 +458,7 @@
     @endif
 
     {{-- Custom Body Scripts --}}
-    @php $bodyScripts = \App\Models\Setting::get('body_scripts'); @endphp
+    @php $bodyScripts = $settings['body_scripts'] ?? null; @endphp
     @if($bodyScripts)
         {!! $bodyScripts !!}
     @endif

@@ -23,8 +23,9 @@
     @else
         <form action="{{ route('cart.update') }}" method="POST">
             @csrf
-            <div class="space-y-3 lg:space-y-4">
+                    <div class="space-y-3 lg:space-y-4">
                 @foreach($cart as $item)
+                    @php $key = $item['key'] ?? $item['product_id']; @endphp
                     <div class="bg-white rounded-2xl border border-gray-100 p-4 lg:p-5 flex items-center gap-4 shadow-sm hover:shadow transition">
                         {{-- Image --}}
                         <div class="w-16 h-16 lg:w-20 lg:h-20 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
@@ -42,6 +43,9 @@
                             <a href="{{ route('products.show', $item['slug']) }}" class="text-sm lg:text-base font-semibold text-gray-900 hover:text-amber-600 truncate block transition">
                                 {{ $item['name'] }}
                             </a>
+                            @if(!empty($item['variant_name']))
+                                <p class="text-xs text-gray-400 mt-0.5">{{ $item['variant_name'] }}</p>
+                            @endif
                             <p class="text-sm text-amber-600 font-bold mt-0.5">Rp{{ number_format($item['price'], 0, ',', '.') }}</p>
                         </div>
 
@@ -49,7 +53,7 @@
                         <div class="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden">
                             <button type="button" onclick="this.parentElement.querySelector('input').stepDown(); this.parentElement.querySelector('input').dispatchEvent(new Event('change'))"
                                 class="px-2.5 py-2 text-gray-500 hover:bg-gray-100 transition text-sm leading-none">−</button>
-                            <input type="number" name="quantity_{{ $item['product_id'] }}" value="{{ $item['quantity'] }}"
+                            <input type="number" name="quantity_{{ $key }}" value="{{ $item['quantity'] }}"
                                 min="1" max="{{ $item['stock'] }}"
                                 class="w-10 lg:w-12 text-center border-x-2 border-gray-200 py-2 text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 onchange="this.form.submit()">
@@ -60,7 +64,7 @@
                         {{-- Total --}}
                         <div class="text-right lg:min-w-[110px]">
                             <p class="text-sm lg:text-base font-bold text-gray-900">Rp{{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }}</p>
-                            <form action="{{ route('cart.remove', $item['product_id']) }}" method="POST" class="inline">
+                            <form action="{{ route('cart.remove', $key) }}" method="POST" class="inline">
                                 @csrf
                                 <button type="submit" class="text-xs font-medium text-red-400 hover:text-red-600 transition mt-1 flex items-center justify-end gap-0.5">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>

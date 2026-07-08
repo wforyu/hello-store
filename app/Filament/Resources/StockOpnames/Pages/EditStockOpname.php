@@ -17,13 +17,18 @@ class EditStockOpname extends EditRecord
             foreach ($record->items as $item) {
                 if ($item->difference !== 0) {
                     $product = $item->product;
+
+                    if (! $product) {
+                        continue;
+                    }
+
                     $product->stock += $item->difference;
-                    $product->save();
+                    $product->saveQuietly();
 
                     $product->recordStockHistory(
                         $item->difference,
                         'opname',
-                        'Stok opname: ' . ($item->notes ?? 'Penyesuaian stok'),
+                        'Stok opname: '.($item->notes ?? 'Penyesuaian stok'),
                         'StockOpname',
                         $record->id
                     );

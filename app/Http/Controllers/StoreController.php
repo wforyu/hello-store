@@ -3,20 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\Address;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Coupon;
+use App\Models\FlashSale;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderDownload;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductBundle;
+use App\Models\ProductVariant;
 use App\Models\Review;
 use App\Models\Setting;
-use App\Models\StockHistory;
+use App\Models\Slider;
 use App\Models\Wishlist;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -26,21 +31,26 @@ class StoreController extends Controller
     public function home()
     {
         $categories = Category::whereNull('parent_id')->with('children')->get();
-        $featuredProducts = Product::with('productImages')->where('featured', true)->where('is_active', true)
+        $featuredProducts = Product::with('productImages', 'brand')->where('featured', true)->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
             ->latest()->take(8)->get();
-        $latestProducts = Product::with('productImages')->where('is_active', true)
+        $latestProducts = Product::with('productImages', 'brand')->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
             ->latest()->take(8)->get();
 
-        return view('store.home', compact('categories', 'featuredProducts', 'latestProducts'));
+        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
+
+        $sliders = Slider::active()->get();
+
+        return view('store.home', compact('categories', 'featuredProducts', 'latestProducts', 'activeFlashSale', 'flashSaleMap', 'sliders'));
     }
 
     public function products(Request $request)
     {
-        $query = Product::with('productImages')->where('is_active', true)
+        $query = Product::with('productImages', 'brand')->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating');
 
@@ -59,6 +69,13 @@ class StoreController extends Controller
             }
         }
 
+        if ($request->filled('brand')) {
+            $brand = Brand::where('slug', $request->brand)->first();
+            if ($brand) {
+                $query->where('brand_id', $brand->id);
+            }
+        }
+
         $sort = $request->get('sort', 'terbaru');
         match ($sort) {
             'termurah' => $query->orderBy('price'),
@@ -69,17 +86,21 @@ class StoreController extends Controller
 
         $products = $query->paginate(12);
         $categories = Category::whereNull('parent_id')->with('children')->get();
+        $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
-        return view('store.products', compact('products', 'categories'));
+        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
+
+        return view('store.products', compact('products', 'categories', 'brands', 'flashSaleMap'));
     }
 
     public function productDetail($slug)
     {
-        $product = Product::with('productImages')->where('slug', $slug)->where('is_active', true)
+        $product = Product::with(['productImages', 'variants', 'brand'])->where('slug', $slug)->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
             ->firstOrFail();
-        $relatedProducts = Product::with('productImages')->where('category_id', $product->category_id)
+        $relatedProducts = Product::with('productImages', 'brand')->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->where('is_active', true)
             ->withCount('approvedReviews')
@@ -101,7 +122,10 @@ class StoreController extends Controller
             ->toArray();
         session(['recently_viewed' => $recentlyViewed]);
 
-        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview'));
+        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
+
+        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview', 'flashSaleMap', 'activeFlashSale'));
     }
 
     public function cartIndex()
@@ -113,31 +137,63 @@ class StoreController extends Controller
 
     public function cartAdd(Request $request, Product $product)
     {
-        if ($product->stock < 1) {
-            return redirect()->back()->with('error', 'Stok produk habis!');
+        $variantId = $request->integer('variant_id');
+        $qty = (int) ($request->quantity ?? 1);
+        $variant = null;
+
+        if ($variantId) {
+            $variant = $product->variants()->where('is_active', true)->find($variantId);
+            if (! $variant) {
+                return redirect()->back()->with('error', 'Varian tidak ditemukan!');
+            }
+
+            if ($variant->stock < 1) {
+                return redirect()->back()->with('error', 'Stok varian habis!');
+            }
+
+            $effectiveStock = $variant->stock;
+            $price = $variant->price ?? $product->price;
+            $weight = $variant->weight ?? $product->weight;
+            $image = $variant->image
+                ? (str_starts_with($variant->image, 'http') ? $variant->image : Storage::url($variant->image))
+                : $product->main_image;
+        } else {
+            if ($product->stock < 1) {
+                return redirect()->back()->with('error', 'Stok produk habis!');
+            }
+
+            $effectiveStock = $product->stock;
+            $price = $product->price;
+            $weight = $product->weight;
+            $image = $product->main_image;
         }
 
         $cart = collect(session('cart', []));
-        $existing = $cart->firstWhere('product_id', $product->id);
-        $qty = $request->quantity ?? 1;
+        $key = $variantId ? "{$product->id}_v{$variantId}" : (string) $product->id;
 
-        if ($existing) {
-            $cart = $cart->map(function ($item) use ($product, $qty) {
-                if ($item['product_id'] === $product->id) {
-                    $item['quantity'] = min($item['quantity'] + $qty, $product->stock);
+        // Check for existing item with same key
+        $existingIndex = $cart->search(fn ($item) => ($item['key'] ?? $item['product_id']) == $key);
+
+        if ($existingIndex !== false) {
+            $cart = $cart->map(function ($item, $index) use ($qty, $effectiveStock, $existingIndex) {
+                if ($index === $existingIndex) {
+                    $item['quantity'] = min($item['quantity'] + $qty, $effectiveStock);
                 }
 
                 return $item;
             });
         } else {
             $cart->push([
+                'key' => $key,
                 'product_id' => $product->id,
+                'variant_id' => $variantId ?: null,
                 'name' => $product->name,
+                'variant_name' => $variant?->name,
                 'slug' => $product->slug,
-                'price' => $product->price,
-                'image' => $product->main_image,
-                'quantity' => min($qty, $product->stock),
-                'stock' => $product->stock,
+                'price' => (float) $price,
+                'image' => $image,
+                'quantity' => min($qty, $effectiveStock),
+                'stock' => $effectiveStock,
             ]);
         }
 
@@ -150,14 +206,36 @@ class StoreController extends Controller
     {
         $cart = collect(session('cart', []));
 
+        $variantsToLoad = [];
+        foreach ($cart as $item) {
+            if (! empty($item['variant_id'])) {
+                $variantsToLoad[] = $item['variant_id'];
+            }
+        }
+
+        $liveVariants = ! empty($variantsToLoad)
+            ? ProductVariant::whereIn('id', $variantsToLoad)->get()->keyBy('id')
+            : collect();
+
         $productIds = $cart->pluck('product_id');
         $liveProducts = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
-        $cart = $cart->map(function ($item) use ($request, $liveProducts) {
-            if ($request->has('quantity_'.$item['product_id'])) {
-                $liveStock = $liveProducts->get($item['product_id'])?->stock ?? $item['stock'];
-                $item['quantity'] = max(1, min($liveStock, (int) $request->input('quantity_'.$item['product_id'])));
+        $cart = $cart->map(function ($item) use ($request, $liveProducts, $liveVariants) {
+            $key = $item['key'] ?? $item['product_id'];
+
+            if ($request->has("quantity_{$key}")) {
+                if (! empty($item['variant_id'])) {
+                    $variant = $liveVariants->get($item['variant_id']);
+                    $liveStock = $variant ? $variant->stock : 0;
+                    $livePrice = $variant && $variant->price !== null ? $variant->price : ($liveProducts->get($item['product_id'])?->price ?? $item['price']);
+                } else {
+                    $liveStock = $liveProducts->get($item['product_id'])?->stock ?? $item['stock'];
+                    $livePrice = $liveProducts->get($item['product_id'])?->price ?? $item['price'];
+                }
+
+                $item['quantity'] = max(1, min($liveStock, (int) $request->input("quantity_{$key}")));
                 $item['stock'] = $liveStock;
+                $item['price'] = (float) $livePrice;
             }
 
             return $item;
@@ -168,10 +246,10 @@ class StoreController extends Controller
         return redirect()->route('cart.index')->with('success', 'Keranjang diperbarui!');
     }
 
-    public function cartRemove($productId)
+    public function cartRemove($key)
     {
         $cart = collect(session('cart', []));
-        $cart = $cart->where('product_id', '!=', (int) $productId)->values();
+        $cart = $cart->reject(fn ($item) => ($item['key'] ?? $item['product_id']) == $key)->values();
         session(['cart' => $cart]);
 
         return redirect()->route('cart.index')->with('success', 'Produk dihapus dari keranjang!');
@@ -221,10 +299,15 @@ class StoreController extends Controller
             'use_points' => 'nullable|integer|min:0',
         ]);
 
+        $subtotal = $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
+        $shippingCost = (float) $validated['shipping_cost'];
+
         $usePoints = min((int) ($validated['use_points'] ?? 0), auth()->user()->points);
         $pointDiscount = 0;
         if ($usePoints > 0) {
-            $pointDiscount = floor($usePoints / 100) * 1000;
+            $maxPointDiscount = (int) floor(($subtotal + $shippingCost) * 0.5);
+            $usePoints = min($usePoints, $maxPointDiscount);
+            $pointDiscount = $usePoints;
         }
 
         $address = Address::where('id', $validated['address_id'])
@@ -233,21 +316,28 @@ class StoreController extends Controller
 
         $productIds = $cart->pluck('product_id');
         $liveProducts = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        $variantIds = $cart->pluck('variant_id')->filter();
+        $liveVariants = $variantIds->isNotEmpty()
+            ? ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id')
+            : collect();
 
         foreach ($cart as $item) {
-            $product = $liveProducts->get($item['product_id']);
-            if (! $product || $product->stock < $item['quantity']) {
-                $availableStock = $product ? $product->stock : 0;
+            if (! empty($item['variant_id'])) {
+                $variant = $liveVariants->get($item['variant_id']);
+                if (! $variant || $variant->stock < $item['quantity']) {
+                    $availableStock = $variant ? $variant->stock : 0;
 
-                return redirect()->route('cart.index')->with('error', "Stok '{$item['name']}' tidak mencukupi (tersedia: {$availableStock})!");
+                    return redirect()->route('cart.index')->with('error', "Stok varian '{$item['name']}' tidak mencukupi (tersedia: {$availableStock})!");
+                }
+            } else {
+                $product = $liveProducts->get($item['product_id']);
+                if (! $product || $product->stock < $item['quantity']) {
+                    $availableStock = $product ? $product->stock : 0;
+
+                    return redirect()->route('cart.index')->with('error', "Stok '{$item['name']}' tidak mencukupi (tersedia: {$availableStock})!");
+                }
             }
         }
-
-        $subtotal = $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
-        $shippingCost = (int) $validated['shipping_cost'];
-        $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
-        $ppnRate = (int) Setting::get('ppn_percentage', 11);
-        $ppnAmount = $ppnEnabled ? round($subtotal * $ppnRate / 100) : 0;
 
         $discountAmount = 0;
         $coupon = null;
@@ -258,9 +348,14 @@ class StoreController extends Controller
             }
         }
 
-        $total = $subtotal + $shippingCost + $ppnAmount - $discountAmount - $pointDiscount;
+        $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
+        $ppnRate = (int) Setting::get('ppn_percentage', 11);
+        $ppnBase = max(0, $subtotal - $discountAmount);
+        $ppnAmount = $ppnEnabled ? round($ppnBase * $ppnRate / 100) : 0;
 
-        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $coupon, $discountAmount, $usePoints, $pointDiscount) {
+        $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount;
+
+        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $liveVariants, $coupon, $discountAmount, $usePoints, $pointDiscount) {
             $order = Order::create([
                 'user_id' => auth()->id(),
                 'order_number' => 'ORD-'.strtoupper(Str::random(8)),
@@ -271,7 +366,7 @@ class StoreController extends Controller
                 'total' => $total,
                 'payment_method' => $validated['payment_method'],
                 'payment_status' => 'unpaid',
-                'notes' => $validated['notes'].($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : ''),
+                'notes' => ($validated['notes'] ?? '').($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : ''),
                 'address_id' => $address->id,
                 'coupon_id' => $coupon?->id,
                 'discount' => $discountAmount,
@@ -281,16 +376,30 @@ class StoreController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
-                    'product_name' => $item['name'],
+                    'product_variant_id' => ! empty($item['variant_id']) ? $item['variant_id'] : null,
+                    'product_name' => $item['variant_name']
+                        ? $item['name'].' - '.$item['variant_name']
+                        : $item['name'],
                     'product_price' => $item['price'],
                     'quantity' => $item['quantity'],
                     'subtotal' => $item['price'] * $item['quantity'],
                 ]);
 
-                $p = $liveProducts->get($item['product_id']);
-                if ($p) {
-                    $p->decrement('stock', $item['quantity']);
-                    $p->recordStockHistory(-$item['quantity'], 'order', null, Order::class, $order->id);
+                if (! empty($item['variant_id'])) {
+                    $v = $liveVariants->get($item['variant_id']);
+                    if ($v) {
+                        $v->decrement('stock', $item['quantity']);
+                        $p = $liveProducts->get($item['product_id']);
+                        if ($p) {
+                            $p->recordStockHistory(-$item['quantity'], 'order', 'Varian: '.$v->name, Order::class, $order->id);
+                        }
+                    }
+                } else {
+                    $p = $liveProducts->get($item['product_id']);
+                    if ($p) {
+                        $p->decrement('stock', $item['quantity']);
+                        $p->recordStockHistory(-$item['quantity'], 'order', null, Order::class, $order->id);
+                    }
                 }
             }
 
@@ -353,7 +462,7 @@ class StoreController extends Controller
             abort(403);
         }
 
-        $order->load(['items', 'payment', 'address']);
+        $order->load(['items.variant', 'payment', 'address']);
 
         return view('store.order-detail', compact('order'));
     }
@@ -387,7 +496,8 @@ class StoreController extends Controller
         $payment->bank_name = $validated['bank_name'];
         $payment->account_name = $validated['account_name'];
         $payment->account_number = $validated['account_number'];
-        $payment->proof_image = $request->file('proof_image')->store('payments', 'public');
+        $uploadedFile = $request->file('proof_image');
+        $payment->proof_image = $uploadedFile ? $uploadedFile->store('payments', 'public') : $payment->proof_image;
         $payment->save();
 
         $order->update([
@@ -417,16 +527,18 @@ class StoreController extends Controller
             return back()->with('error', 'Pesanan tidak dalam status dikirim.');
         }
 
-        $order->update([
-            'status' => 'delivered',
-            'delivered_at' => now(),
-            'payment_status' => 'paid',
-        ]);
+        DB::transaction(function () use ($order) {
+            $order->update([
+                'status' => 'delivered',
+                'delivered_at' => now(),
+                'payment_status' => 'paid',
+            ]);
 
-        $pointsEarned = (int) floor($order->total / 1000);
-        if ($pointsEarned > 0) {
-            auth()->user()->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
-        }
+            $pointsEarned = (int) floor($order->total * 0.1);
+            if ($pointsEarned > 0) {
+                auth()->user()->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
+            }
+        });
 
         Notification::createForUser(
             $order->user_id,
@@ -451,7 +563,7 @@ class StoreController extends Controller
         }
 
         DB::transaction(function () use ($order) {
-            $order->load('items.product');
+            $order->load(['items.product', 'items.variant']);
 
             $order->update([
                 'status' => 'cancelled',
@@ -460,7 +572,18 @@ class StoreController extends Controller
             ]);
 
             foreach ($order->items as $item) {
-                if ($item->product) {
+                if ($item->product_variant_id && $item->variant) {
+                    $item->variant->increment('stock', $item->quantity);
+                    if ($item->product) {
+                        $item->product->recordStockHistory(
+                            $item->quantity,
+                            'order',
+                            'Varian: '.$item->variant->name.' | Pembatalan #'.$order->order_number,
+                            Order::class,
+                            $order->id
+                        );
+                    }
+                } elseif ($item->product) {
                     $item->product->increment('stock', $item->quantity);
                     $item->product->recordStockHistory(
                         $item->quantity,
@@ -487,23 +610,31 @@ class StoreController extends Controller
         }
 
         DB::transaction(function () use ($order) {
-            $order->items()->with('product')->each(function ($item) {
-                if ($item->product) {
-                    $item->product->increment('stock', $item->quantity);
+            $order->load(['items.product', 'items.variant']);
 
-                    StockHistory::create([
-                        'product_id' => $item->product_id,
-                        'user_id' => auth()->id(),
-                        'type' => 'refund',
-                        'reference_type' => 'order',
-                        'reference_id' => $order->id,
-                        'quantity_change' => $item->quantity,
-                        'stock_before' => $item->product->stock - $item->quantity,
-                        'stock_after' => $item->product->stock,
-                        'notes' => 'Retur pesanan #'.$order->order_number,
-                    ]);
+            foreach ($order->items as $item) {
+                if ($item->product_variant_id && $item->variant) {
+                    $item->variant->increment('stock', $item->quantity);
+                    if ($item->product) {
+                        $item->product->recordStockHistory(
+                            $item->quantity,
+                            'refund',
+                            'Varian: '.$item->variant->name.' | Retur #'.$order->order_number,
+                            Order::class,
+                            $order->id
+                        );
+                    }
+                } elseif ($item->product) {
+                    $item->product->increment('stock', $item->quantity);
+                    $item->product->recordStockHistory(
+                        $item->quantity,
+                        'refund',
+                        'Retur pesanan #'.$order->order_number,
+                        Order::class,
+                        $order->id
+                    );
                 }
-            });
+            }
 
             $order->update([
                 'status' => 'refunded',
@@ -551,7 +682,7 @@ class StoreController extends Controller
         if ($existing) {
             $existing->update([
                 'rating' => $validated['rating'],
-                'comment' => $validated['comment'],
+                'comment' => $validated['comment'] ?? null,
                 'is_approved' => false,
             ]);
         } else {
@@ -559,7 +690,7 @@ class StoreController extends Controller
                 'product_id' => $product->id,
                 'user_id' => auth()->id(),
                 'rating' => $validated['rating'],
-                'comment' => $validated['comment'],
+                'comment' => $validated['comment'] ?? null,
                 'is_approved' => false,
             ]);
         }
@@ -633,31 +764,78 @@ class StoreController extends Controller
 
         $cart = collect(session('cart', []));
 
+        $variantIds = $order->items->whereNotNull('product_variant_id')->pluck('product_variant_id');
+        $variants = ProductVariant::with('product')->whereIn('id', $variantIds)->get()->keyBy('id');
+
+        $productIds = $order->items->whereNull('product_variant_id')->pluck('product_id');
+        $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
         foreach ($order->items as $item) {
-            $product = Product::find($item->product_id);
-            if (! $product || ! $product->is_active || $product->stock < 1) {
-                continue;
-            }
+            if ($item->product_variant_id) {
+                $variant = $variants->get($item->product_variant_id);
+                if (! $variant || ! $variant->is_active || ! $variant->product?->is_active || $variant->stock < 1) {
+                    continue;
+                }
 
-            $existing = $cart->firstWhere('product_id', $product->id);
-            if ($existing) {
-                $cart = $cart->map(function ($ci) use ($product, $item) {
-                    if ($ci['product_id'] === $product->id) {
-                        $ci['quantity'] = min($ci['quantity'] + $item->quantity, $product->stock);
-                    }
+                $product = $variant->product;
+                $key = $product->id.'_v'.$variant->id;
+                $existingIndex = $cart->search(fn ($ci) => ($ci['key'] ?? $ci['product_id']) == $key);
 
-                    return $ci;
-                });
+                if ($existingIndex !== false) {
+                    $cart = $cart->map(function ($ci, $i) use ($item, $variant, $existingIndex) {
+                        if ($i === $existingIndex) {
+                            $ci['quantity'] = min($ci['quantity'] + $item->quantity, $variant->stock);
+                        }
+
+                        return $ci;
+                    });
+                } else {
+                    $cart->push([
+                        'key' => $key,
+                        'product_id' => $product->id,
+                        'variant_id' => $variant->id,
+                        'name' => $product->name,
+                        'variant_name' => $variant->name,
+                        'slug' => $product->slug,
+                        'price' => (float) ($variant->price ?? $product->price),
+                        'image' => $variant->image
+                            ? (str_starts_with($variant->image, 'http') ? $variant->image : Storage::url($variant->image))
+                            : $product->main_image,
+                        'quantity' => min($item->quantity, $variant->stock),
+                        'stock' => $variant->stock,
+                    ]);
+                }
             } else {
-                $cart->push([
-                    'product_id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'price' => (float) $product->price,
-                    'image' => $product->main_image,
-                    'quantity' => min($item->quantity, $product->stock),
-                    'stock' => $product->stock,
-                ]);
+                $product = $products->get($item->product_id);
+                if (! $product || ! $product->is_active || $product->stock < 1) {
+                    continue;
+                }
+
+                $key = (string) $product->id;
+                $existingIndex = $cart->search(fn ($ci) => ($ci['key'] ?? $ci['product_id']) == $key);
+
+                if ($existingIndex !== false) {
+                    $cart = $cart->map(function ($ci, $i) use ($product, $item, $existingIndex) {
+                        if ($i === $existingIndex) {
+                            $ci['quantity'] = min($ci['quantity'] + $item->quantity, $product->stock);
+                        }
+
+                        return $ci;
+                    });
+                } else {
+                    $cart->push([
+                        'key' => $key,
+                        'product_id' => $product->id,
+                        'variant_id' => null,
+                        'name' => $product->name,
+                        'variant_name' => null,
+                        'slug' => $product->slug,
+                        'price' => (float) $product->price,
+                        'image' => $product->main_image,
+                        'quantity' => min($item->quantity, $product->stock),
+                        'stock' => $product->stock,
+                    ]);
+                }
             }
         }
 
@@ -702,6 +880,7 @@ class StoreController extends Controller
 
     public function compareToggle(Product $product)
     {
+        $product->load('approvedReviews', 'attributes', 'category');
         $compare = session('compare', collect());
 
         if ($compare->has($product->id)) {
@@ -756,15 +935,63 @@ class StoreController extends Controller
         return view('store.compare', compact('products'));
     }
 
+    protected function getFlashSaleMap(?FlashSale $activeFlashSale): Collection
+    {
+        if (! $activeFlashSale) {
+            return collect();
+        }
+
+        $map = [];
+        foreach ($activeFlashSale->products as $product) {
+            $pivot = $product->pivot;
+            $price = (float) $product->price;
+            if ($pivot->discount_type === 'percentage') {
+                $flashPrice = max(0, $price - ($price * $pivot->discount_value / 100));
+            } else {
+                $flashPrice = max(0, $price - (float) $pivot->discount_value);
+            }
+            $map[$product->id] = [
+                'flash_sale_id' => $activeFlashSale->id,
+                'flash_sale_name' => $activeFlashSale->name,
+                'discount_type' => $pivot->discount_type,
+                'discount_value' => $pivot->discount_value,
+                'flash_price' => round($flashPrice),
+            ];
+        }
+
+        return collect($map);
+    }
+
+    public function bundles()
+    {
+        $bundles = ProductBundle::with(['products.productImages'])
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('start_time')->orWhere('start_time', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', now()))
+            ->latest()
+            ->paginate(12);
+
+        return view('store.bundles', compact('bundles'));
+    }
+
     protected function getCartWeight($cart): int
     {
         $productIds = $cart->pluck('product_id');
         $products = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        $variantIds = $cart->pluck('variant_id')->filter();
+        $variants = $variantIds->isNotEmpty()
+            ? ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id')
+            : collect();
         $totalWeight = 0;
 
         foreach ($cart as $item) {
-            $product = $products->get($item['product_id']);
-            $totalWeight += ($product?->weight ?? 200) * $item['quantity'];
+            if (! empty($item['variant_id'])) {
+                $variant = $variants->get($item['variant_id']);
+                $totalWeight += ($variant?->weight ?? ($products->get($item['product_id'])?->weight ?? 200)) * $item['quantity'];
+            } else {
+                $product = $products->get($item['product_id']);
+                $totalWeight += ($product?->weight ?? 200) * $item['quantity'];
+            }
         }
 
         return (int) ($totalWeight > 0 ? $totalWeight : 1000);

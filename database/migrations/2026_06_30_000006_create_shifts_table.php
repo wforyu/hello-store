@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('shifts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->dateTime('opened_at');
             $table->dateTime('closed_at')->nullable();
             $table->decimal('opening_balance', 15, 2)->default(0);

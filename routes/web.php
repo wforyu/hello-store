@@ -19,10 +19,12 @@ Route::get('/products/suggestions', [StoreController::class, 'suggestions'])->na
 Route::get('/cart', [StoreController::class, 'cartIndex'])->name('cart.index');
 Route::post('/cart/add/{product}', [StoreController::class, 'cartAdd'])->name('cart.add');
 Route::post('/cart/update', [StoreController::class, 'cartUpdate'])->name('cart.update');
-Route::post('/cart/remove/{productId}', [StoreController::class, 'cartRemove'])->name('cart.remove');
+Route::post('/cart/remove/{key}', [StoreController::class, 'cartRemove'])->name('cart.remove');
 
 Route::post('/compare/toggle/{product}', [StoreController::class, 'compareToggle'])->name('products.compare.toggle');
 Route::get('/compare', [StoreController::class, 'compareIndex'])->name('products.compare');
+
+Route::get('/bundles', [StoreController::class, 'bundles'])->name('products.bundles');
 
 Route::middleware('auth')->group(function () {
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');

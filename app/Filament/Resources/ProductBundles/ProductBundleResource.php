@@ -24,7 +24,7 @@ class ProductBundleResource extends Resource
 
     public static function getNavigationGroup(): string|\UnitEnum|null
     {
-        return 'Produk';
+        return 'Pemasaran';
     }
 
     public static function form(Schema $schema): Schema
