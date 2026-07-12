@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView,
+  View, Text, TouchableOpacity, ScrollView, Image,
   StyleSheet, Alert, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,7 @@ import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function CheckoutScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, refreshCartCount } = useAuth();
 
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,7 @@ export default function CheckoutScreen({ navigation }) {
         setCart(response.data.data);
       }
     } catch (e) {
+      // silent
     } finally {
       setLoading(false);
     }
@@ -68,18 +69,24 @@ export default function CheckoutScreen({ navigation }) {
       if (response.data?.success) {
         const list = response.data.data;
         setAddresses(list);
-        const defaultAddr = list.find((a) => a.is_default);
-        if (defaultAddr) setSelectedAddress(defaultAddr);
+        if (!selectedAddress) {
+          const defaultAddr = list.find((a) => a.is_default);
+          if (defaultAddr) setSelectedAddress(defaultAddr);
+        }
       }
     } catch (e) {
+      // silent
     }
   };
 
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
+  const formatPrice = (p) => `Rp${Number(p || 0).toLocaleString('id-ID')}`;
 
   const subtotal = cart ? cart.subtotal : 0;
   const discountAmount = couponDiscount || 0;
-  const grandTotal = subtotal - discountAmount;
+  const dpp = Math.max(0, subtotal - discountAmount);
+  const grandTotal = usePoints
+    ? Math.max(0, dpp - Math.min(user.points || 0, Math.floor(dpp * 0.5)))
+    : dpp;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -112,6 +119,9 @@ export default function CheckoutScreen({ navigation }) {
     setCouponName('');
   };
 
+  const maxRedeemable = Math.floor(dpp * 0.5);
+  const pointsToRedeem = usePoints ? Math.min(user.points || 0, maxRedeemable) : 0;
+
   const placeOrder = async () => {
     if (!selectedAddress) {
       Alert.alert('Alamat', 'Silakan pilih alamat pengiriman terlebih dahulu.');
@@ -131,12 +141,13 @@ export default function CheckoutScreen({ navigation }) {
         address_id: selectedAddress.id,
         payment_method: 'manual_transfer',
         notes,
-        ...(usePoints ? { use_points: user?.points || 0 } : {}),
+        use_points: usePoints ? 1 : 0,
         ...(couponDiscount ? { coupon_code: couponCode.trim() } : {}),
       };
 
       const response = await api.post('/api/orders', payload);
       if (response.data?.success) {
+        refreshCartCount();
         Alert.alert('Berhasil', `Pesanan #${response.data.data.order_number} berhasil dibuat!`, [
           { text: 'OK', onPress: () => navigation.navigate('Orders') },
         ]);
@@ -160,7 +171,11 @@ export default function CheckoutScreen({ navigation }) {
   if (!cart || !cart.items?.length) {
     return (
       <View style={styles.center}>
+        <Text style={styles.emptyIcon}>🛒</Text>
         <Text style={styles.emptyText}>Keranjang kosong.</Text>
+        <TouchableOpacity style={styles.shopBtn} onPress={() => navigation.navigate('Home')}>
+          <Text style={styles.shopBtnText}>Mulai Belanja</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -169,9 +184,17 @@ export default function CheckoutScreen({ navigation }) {
     <ScrollView style={styles.container}>
       {/* Address Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Alamat Pengiriman</Text>
+        <Text style={styles.sectionTitle}>📍 Alamat Pengiriman</Text>
         {selectedAddress ? (
           <View style={styles.addressCard}>
+            <View style={styles.addressHeader}>
+              <Text style={styles.addressLabel}>{selectedAddress.label || 'Alamat'}</Text>
+              {selectedAddress.is_default && (
+                <View style={styles.defaultBadge}>
+                  <Text style={styles.defaultBadgeText}>Utama</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.addressName}>{selectedAddress.recipient || user.name}</Text>
             <Text style={styles.addressDetail}>
               {selectedAddress.street}{selectedAddress.city ? `, ${selectedAddress.city}` : ''}
@@ -179,7 +202,7 @@ export default function CheckoutScreen({ navigation }) {
               {selectedAddress.postal_code ? ` ${selectedAddress.postal_code}` : ''}
             </Text>
             {selectedAddress.phone ? (
-              <Text style={styles.addressPhone}>{selectedAddress.phone}</Text>
+              <Text style={styles.addressPhone}>📱 {selectedAddress.phone}</Text>
             ) : null}
             <TouchableOpacity onPress={() => setSelectedAddress(null)} style={styles.addressChange}>
               <Text style={styles.addressChangeText}>Ganti Alamat</Text>
@@ -197,34 +220,42 @@ export default function CheckoutScreen({ navigation }) {
 
       {/* Order Items */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ringkasan Belanja</Text>
+        <Text style={styles.sectionTitle}>🛒 Ringkasan Belanja ({cart.items.length} item)</Text>
         {cart.items.map((item, idx) => (
           <View key={idx} style={styles.itemRow}>
             <View style={styles.itemImageWrap}>
-              <View style={styles.itemImagePlaceholder}>
-                <Text style={styles.itemImageText}>{item.name?.charAt(0) || '?'}</Text>
-              </View>
+              {item.image ? (
+                <Image
+                  source={{ uri: getImageUrl(item.image) }}
+                  style={styles.itemImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.itemImagePlaceholder}>
+                  <Text style={styles.itemImageText}>{item.name?.charAt(0) || '?'}</Text>
+                </View>
+              )}
             </View>
             <View style={styles.itemInfo}>
-              <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
+              <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.itemQty}>x{item.quantity}</Text>
             </View>
-            <Text style={styles.itemPrice}>{formatPrice(item.subtotal)}</Text>
+            <Text style={styles.itemPrice}>{formatPrice(item.subtotal || item.price * item.quantity)}</Text>
           </View>
         ))}
       </View>
 
       {/* Coupon Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Kode Kupon</Text>
+        <Text style={styles.sectionTitle}>🏷️ Kode Kupon</Text>
         {couponDiscount ? (
           <View style={styles.couponApplied}>
             <View style={styles.couponInfo}>
-              <Text style={styles.couponLabel}>Kupon: {couponName}</Text>
+              <Text style={styles.couponLabel}>✅ {couponName}</Text>
               <Text style={styles.couponDiscount}>-{formatPrice(couponDiscount)}</Text>
             </View>
             <TouchableOpacity onPress={removeCoupon}>
-              <Text style={styles.couponRemove}>Hapus</Text>
+              <Text style={styles.couponRemove}>✕</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -252,9 +283,33 @@ export default function CheckoutScreen({ navigation }) {
         )}
       </View>
 
+      {/* Points */}
+      {user.points > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⭐ Gunakan Poin</Text>
+          <View style={styles.pointsRow}>
+            <View style={styles.pointsInfo}>
+              <Text style={styles.pointsAvailable}>Poin tersedia: {user.points}</Text>
+              <Text style={styles.pointsNote}>Maksimal 50% total ({formatPrice(maxRedeemable)})</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.pointsToggle, usePoints && styles.pointsToggleActive]}
+              onPress={() => setUsePoints(!usePoints)}
+            >
+              <Text style={[styles.pointsToggleText, usePoints && styles.pointsToggleTextActive]}>
+                {usePoints ? '✓' : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {usePoints && pointsToRedeem > 0 && (
+            <Text style={styles.pointsRedeemed}>Menggunakan {pointsToRedeem} poin (-{formatPrice(pointsToRedeem)})</Text>
+          )}
+        </View>
+      )}
+
       {/* Notes */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Catatan</Text>
+        <Text style={styles.sectionTitle}>📝 Catatan</Text>
         <TextInput
           style={styles.notesInput}
           placeholder="Catatan untuk penjual (opsional)"
@@ -268,15 +323,19 @@ export default function CheckoutScreen({ navigation }) {
 
       {/* Payment Method */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Metode Pembayaran</Text>
+        <Text style={styles.sectionTitle}>💳 Metode Pembayaran</Text>
         <View style={styles.paymentBox}>
-          <Text style={styles.paymentText}>Transfer Manual (BCA/Mandiri/BNI/BRI)</Text>
+          <Text style={styles.paymentIcon}>🏦</Text>
+          <View style={styles.paymentInfo}>
+            <Text style={styles.paymentText}>Transfer Manual (BCA / Mandiri / BNI / BRI)</Text>
+            <Text style={styles.paymentNote}>Upload bukti transfer setelah pesanan dibuat</Text>
+          </View>
         </View>
       </View>
 
       {/* Order Summary */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ringkasan Pembayaran</Text>
+        <Text style={styles.sectionTitle}>💰 Ringkasan Pembayaran</Text>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
           <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
@@ -287,17 +346,18 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(couponDiscount)}</Text>
           </View>
         )}
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>PPN</Text>
-          <Text style={[styles.summaryValue, { color: COLORS.textLight, fontSize: 12 }]}>
-            PPN akan dihitung otomatis
-          </Text>
-        </View>
+        {usePoints && pointsToRedeem > 0 && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Poin Digunakan</Text>
+            <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(pointsToRedeem)}</Text>
+          </View>
+        )}
         <View style={styles.summaryDivider} />
         <View style={styles.summaryRow}>
           <Text style={styles.grandTotalLabel}>Total Bayar</Text>
           <Text style={styles.grandTotalValue}>{formatPrice(grandTotal)}</Text>
         </View>
+        <Text style={styles.summaryNote}>* PPN akan dihitung otomatis oleh sistem</Text>
       </View>
 
       {/* Submit Button */}
@@ -324,15 +384,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white, marginHorizontal: 12, marginTop: 12,
     borderRadius: 12, padding: 16,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 12 },
 
   // Address
   addressCard: {
-    backgroundColor: COLORS.background, borderRadius: 10, padding: 12, borderLeftWidth: 3, borderLeftColor: COLORS.primary,
+    backgroundColor: COLORS.background, borderRadius: 10, padding: 12,
+    borderLeftWidth: 3, borderLeftColor: COLORS.primary,
   },
+  addressHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  addressLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, textTransform: 'uppercase' },
+  defaultBadge: {
+    backgroundColor: COLORS.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 8,
+  },
+  defaultBadgeText: { fontSize: 10, fontWeight: '600', color: COLORS.primary },
   addressName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  addressDetail: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4 },
-  addressPhone: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  addressDetail: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2, lineHeight: 18 },
+  addressPhone: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
   addressChange: { marginTop: 8 },
   addressChangeText: { fontSize: 13, color: COLORS.primary, fontWeight: '500' },
   addressBtn: {
@@ -342,17 +409,21 @@ const styles = StyleSheet.create({
   addressBtnText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
 
   // Items
-  itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  itemImageWrap: { width: 44, height: 44, borderRadius: 8, overflow: 'hidden', marginRight: 10 },
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', marginBottom: 10,
+    paddingBottom: 10, borderBottomWidth: 0.5, borderBottomColor: COLORS.border,
+  },
+  itemImageWrap: { width: 50, height: 50, borderRadius: 8, overflow: 'hidden', marginRight: 10 },
+  itemImage: { width: 50, height: 50, backgroundColor: COLORS.border },
   itemImagePlaceholder: {
-    width: 44, height: 44, borderRadius: 8, backgroundColor: COLORS.border,
+    width: 50, height: 50, borderRadius: 8, backgroundColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
-  itemImageText: { fontSize: 16, fontWeight: '700', color: COLORS.textSecondary },
+  itemImageText: { fontSize: 18, fontWeight: '700', color: COLORS.textSecondary },
   itemInfo: { flex: 1 },
-  itemName: { fontSize: 14, fontWeight: '500', color: COLORS.text },
+  itemName: { fontSize: 13, fontWeight: '500', color: COLORS.text, lineHeight: 17 },
   itemQty: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  itemPrice: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginLeft: 12 },
+  itemPrice: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginLeft: 8 },
 
   // Coupon
   couponRow: { flexDirection: 'row', alignItems: 'center' },
@@ -373,7 +444,21 @@ const styles = StyleSheet.create({
   couponInfo: { flex: 1 },
   couponLabel: { fontSize: 14, fontWeight: '500', color: COLORS.text },
   couponDiscount: { fontSize: 14, fontWeight: '700', color: COLORS.success, marginTop: 2 },
-  couponRemove: { fontSize: 13, color: COLORS.error, fontWeight: '500', marginLeft: 12 },
+  couponRemove: { fontSize: 18, color: COLORS.error, fontWeight: '600', marginLeft: 12, padding: 4 },
+
+  // Points
+  pointsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pointsInfo: { flex: 1 },
+  pointsAvailable: { fontSize: 14, fontWeight: '500', color: COLORS.text },
+  pointsNote: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  pointsToggle: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: COLORS.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  pointsToggleActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  pointsToggleText: { fontSize: 14, color: COLORS.border },
+  pointsToggleTextActive: { color: '#fff', fontWeight: '700' },
+  pointsRedeemed: { fontSize: 13, color: COLORS.success, fontWeight: '500', marginTop: 8 },
 
   // Notes
   notesInput: {
@@ -382,25 +467,37 @@ const styles = StyleSheet.create({
   },
 
   // Payment
-  paymentBox: { padding: 12, backgroundColor: '#FEF3C7', borderRadius: 10 },
+  paymentBox: {
+    flexDirection: 'row', alignItems: 'center', padding: 12,
+    backgroundColor: '#FEF3C7', borderRadius: 10,
+  },
+  paymentIcon: { fontSize: 24, marginRight: 10 },
+  paymentInfo: { flex: 1 },
   paymentText: { fontSize: 14, color: COLORS.text, fontWeight: '500' },
+  paymentNote: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
 
   // Summary
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   summaryLabel: { fontSize: 14, color: COLORS.textSecondary },
   summaryValue: { fontSize: 14, color: COLORS.text, fontWeight: '500' },
   summaryDivider: { borderTopWidth: 1, borderTopColor: COLORS.border, marginVertical: 8 },
   grandTotalLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   grandTotalValue: { fontSize: 18, fontWeight: '700', color: COLORS.primary },
+  summaryNote: { fontSize: 11, color: COLORS.textLight, marginTop: 4 },
 
   // Submit
   orderBtn: {
     backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 16,
-    alignItems: 'center', marginHorizontal: 12, marginTop: 20,
+    alignItems: 'center', marginHorizontal: 12, marginTop: 20, elevation: 2,
   },
   orderBtnDisabled: { opacity: 0.5 },
   orderBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emptyText: { fontSize: 16, color: COLORS.textSecondary },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 16, color: COLORS.textSecondary, marginBottom: 16 },
+  shopBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12,
+  },
+  shopBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

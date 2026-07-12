@@ -8,12 +8,15 @@ import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS } from '../config';
 
-const TYPE_COLORS = {
-  order: '#3B82F6',
-  promo: '#EC4899',
-  voucher: '#8B5CF6',
-  review: '#10B981',
-  stock: '#F97316',
+const TYPE_CONFIG = {
+  order: { color: '#3B82F6', icon: '📦' },
+  promo: { color: '#EC4899', icon: '🎉' },
+  voucher: { color: '#8B5CF6', icon: '🎫' },
+  review: { color: '#10B981', icon: '⭐' },
+  stock: { color: '#F97316', icon: '🔔' },
+  payment: { color: '#6366F1', icon: '💳' },
+  shipping: { color: '#14B8A6', icon: '🚚' },
+  refund: { color: '#EF4444', icon: '↩️' },
 };
 
 export default function NotificationScreen({ navigation }) {
@@ -26,8 +29,14 @@ export default function NotificationScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData(1);
-    }, [])
+      if (user) {
+        setLoading(true);
+        setPage(1);
+        fetchData(1);
+      } else {
+        setLoading(false);
+      }
+    }, [user])
   );
 
   const fetchData = async (pageNum = 1) => {
@@ -39,6 +48,7 @@ export default function NotificationScreen({ navigation }) {
       setPage(meta.current_page || 1);
       setLastPage(meta.last_page || 1);
     } catch (e) {
+      // silent
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -47,6 +57,7 @@ export default function NotificationScreen({ navigation }) {
 
   const onRefresh = () => {
     setRefreshing(true);
+    setPage(1);
     fetchData(1);
   };
 
@@ -57,22 +68,23 @@ export default function NotificationScreen({ navigation }) {
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       );
     } catch (e) {
+      // silent
     }
   };
 
   const renderNotification = ({ item }) => {
-    const color = TYPE_COLORS[item.type] || COLORS.textSecondary;
+    const config = TYPE_CONFIG[item.type] || { color: COLORS.textSecondary, icon: '📌' };
     return (
       <TouchableOpacity
         style={[styles.card, !item.is_read && styles.unread]}
         onPress={() => markAsRead(item.id)}
         activeOpacity={0.7}
       >
-        <View style={[styles.icon, { backgroundColor: color + '20' }]}>
-          <View style={[styles.iconDot, { backgroundColor: color }]} />
+        <View style={[styles.icon, { backgroundColor: config.color + '15' }]}>
+          <Text style={styles.iconEmoji}>{config.icon}</Text>
         </View>
         <View style={styles.content}>
-          <Text style={[styles.title, !item.is_read && styles.titleUnread]}>
+          <Text style={[styles.title, !item.is_read && styles.titleUnread]} numberOfLines={1}>
             {item.title}
           </Text>
           {item.body && (
@@ -112,7 +124,9 @@ export default function NotificationScreen({ navigation }) {
           onEndReachedThreshold={0.5}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.emptyText}>Tidak ada notifikasi.</Text>
+              <Text style={styles.emptyIcon}>🔔</Text>
+              <Text style={styles.emptyTitle}>Belum Ada Notifikasi</Text>
+              <Text style={styles.emptyText}>Notifikasi akan muncul di sini</Text>
             </View>
           }
         />
@@ -131,14 +145,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 3,
   },
   unread: { borderLeftWidth: 3, borderLeftColor: COLORS.primary },
-  icon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  iconDot: { width: 12, height: 12, borderRadius: 6 },
+  icon: {
+    width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  iconEmoji: { fontSize: 20 },
   content: { flex: 1 },
   title: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 2 },
   titleUnread: { fontWeight: '600', color: COLORS.text },
-  body: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 4 },
+  body: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 4, lineHeight: 17 },
   time: { fontSize: 11, color: COLORS.textLight },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginLeft: 8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emptyText: { fontSize: 16, color: COLORS.textSecondary },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
+  emptyText: { fontSize: 14, color: COLORS.textSecondary },
 });

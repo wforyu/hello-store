@@ -13,9 +13,19 @@ const BANNER_WIDTH = SCREEN_WIDTH - 24;
 const FLASH_ICONS = ['⚡', '🔥', '💥', '🎯', '🏷️', '💰', '🎁', '🛒'];
 
 const CATEGORY_ICONS = {
-  'Elektronik': '📱', 'Fashion': '👕', 'Makanan': '🍔', 'Minuman': '☕',
-  'Kecantikan': '💄', 'Kesehatan': '💊', 'Rumah Tangga': '🏠', 'Olahraga': '⚽',
-  'Mainan': '🎮', 'Buku': '📚', 'Otomotif': '🚗', 'Aksesoris': '⌚',
+  'Elektronik': { emoji: '📱', bg: '#EFF6FF', color: '#3B82F6' },
+  'Fashion': { emoji: '👕', bg: '#FDF2F8', color: '#EC4899' },
+  'Makanan': { emoji: '🍔', bg: '#FEF3C7', color: '#F59E0B' },
+  'Minuman': { emoji: '☕', bg: '#F0FDF4', color: '#22C55E' },
+  'Kecantikan': { emoji: '💄', bg: '#FDF2F8', color: '#EC4899' },
+  'Kesehatan': { emoji: '💊', bg: '#ECFDF5', color: '#10B981' },
+  'Rumah Tangga': { emoji: '🏠', bg: '#FEF9C3', color: '#CA8A04' },
+  'Olahraga': { emoji: '⚽', bg: '#F0FDF4', color: '#16A34A' },
+  'Mainan': { emoji: '🎮', bg: '#F3E8FF', color: '#9333EA' },
+  'Buku': { emoji: '📚', bg: '#FFF7ED', color: '#EA580C' },
+  'Otomotif': { emoji: '🚗', bg: '#F0F9FF', color: '#0284C7' },
+  'Aksesoris': { emoji: '⌚', bg: '#F5F3FF', color: '#7C3AED' },
+  'default': { emoji: '📦', bg: '#F3F4F6', color: '#6B7280' },
 };
 
 export default function HomeScreen({ navigation }) {
@@ -214,15 +224,28 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <TouchableOpacity
-        style={styles.searchBar}
-        onPress={() => navigation.navigate('Search')}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.searchIcon}>🔍</Text>
-        <Text style={styles.searchPlaceholder}>Cari produk di Hello Store...</Text>
-      </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View style={styles.brandRow}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoText}>HS</Text>
+            </View>
+            <View>
+              <Text style={styles.brandName}>Hello Store</Text>
+              <Text style={styles.brandTagline}>Belanja Mudah & Terpercaya</Text>
+            </View>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.searchBar}
+          onPress={() => navigation.navigate('Search')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.searchIcon}>🔍</Text>
+          <Text style={styles.searchPlaceholder}>Cari produk di Hello Store...</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={products}
@@ -284,24 +307,27 @@ export default function HomeScreen({ navigation }) {
                     onPress={() => handleCategoryPress('')}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.categoryIconWrap, !selectedCategory && styles.categoryIconWrapActive]}>
+                    <View style={[styles.categoryIconWrap, { backgroundColor: '#FEF3C7' }, !selectedCategory && styles.categoryIconWrapActive]}>
                       <Text style={styles.categoryEmoji}>🏪</Text>
                     </View>
                     <Text style={[styles.categoryLabel, !selectedCategory && styles.categoryLabelActive]} numberOfLines={1}>Semua</Text>
                   </TouchableOpacity>
-                  {categories.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[styles.categoryItem, selectedCategory === cat.slug && styles.categoryItemActive]}
-                      onPress={() => handleCategoryPress(cat.slug)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.categoryIconWrap, selectedCategory === cat.slug && styles.categoryIconWrapActive]}>
-                        <Text style={styles.categoryEmoji}>{CATEGORY_ICONS[cat.name] || '📦'}</Text>
-                      </View>
-                      <Text style={[styles.categoryLabel, selectedCategory === cat.slug && styles.categoryLabelActive]} numberOfLines={1}>{cat.name}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  {categories.map((cat) => {
+                    const catStyle = CATEGORY_ICONS[cat.name] || CATEGORY_ICONS.default;
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[styles.categoryItem, selectedCategory === cat.slug && styles.categoryItemActive]}
+                        onPress={() => handleCategoryPress(cat.slug)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.categoryIconWrap, { backgroundColor: catStyle.bg }, selectedCategory === cat.slug && styles.categoryIconWrapActive]}>
+                          <Text style={styles.categoryEmoji}>{catStyle.emoji}</Text>
+                        </View>
+                        <Text style={[styles.categoryLabel, selectedCategory === cat.slug && styles.categoryLabelActive]} numberOfLines={1}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -448,14 +474,29 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
-    marginHorizontal: 12, marginTop: 8, marginBottom: 4, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: COLORS.border,
-    elevation: 1,
+
+  // Header
+  header: {
+    backgroundColor: COLORS.white, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10,
+    borderBottomLeftRadius: 16, borderBottomRightRadius: 16, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
-  searchIcon: { fontSize: 16, marginRight: 10 },
-  searchPlaceholder: { fontSize: 14, color: COLORS.textLight },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  logoMark: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginRight: 10,
+  },
+  logoText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  brandName: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  brandTagline: { fontSize: 11, color: COLORS.textSecondary },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.background,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border,
+  },
+  searchIcon: { fontSize: 14, marginRight: 8 },
+  searchPlaceholder: { fontSize: 13, color: COLORS.textLight },
 
   /* Banner */
   bannerSection: { marginTop: 8, marginBottom: 4 },
@@ -489,9 +530,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: 6,
     borderWidth: 1.5, borderColor: COLORS.border,
     elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 3,
+    shadowOpacity: 0.06, shadowRadius: 3,
   },
-  categoryIconWrapActive: { borderColor: COLORS.primary, backgroundColor: '#FEF3C7' },
+  categoryIconWrapActive: { borderColor: COLORS.primary, borderWidth: 2.5 },
   categoryEmoji: { fontSize: 24 },
   categoryLabel: { fontSize: 10, color: COLORS.textSecondary, textAlign: 'center' },
   categoryLabelActive: { color: COLORS.primary, fontWeight: '600' },

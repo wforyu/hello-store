@@ -68,7 +68,7 @@ export default function ProfileScreen({ navigation }) {
     setSaving(true);
     try {
       await api.put('/api/profile', { name, email });
-      toast('Profil diperbarui ✅', 'success');
+      toast('Profil diperbarui', 'success');
       setEditing(false);
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menyimpan.';
@@ -82,11 +82,12 @@ export default function ProfileScreen({ navigation }) {
     setSelectedAvatarId(avatar.id);
     await AsyncStorage.setItem(AVATAR_KEY, avatar.id);
     setShowAvatarModal(false);
-    toast(`Avatar ${avatar.label} dipilih ${avatar.emoji}`, 'success');
+    toast(`Avatar ${avatar.label} dipilih`, 'success');
   };
 
   return (
     <ScrollView style={styles.container}>
+      {/* Profile Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.avatarWrap} onPress={() => setShowAvatarModal(true)} activeOpacity={0.7}>
           <View style={styles.avatar}>
@@ -138,31 +139,81 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.name}>{user?.name}</Text>
             <Text style={styles.email}>{user?.email}</Text>
             <Text style={styles.role}>{user?.role === 'customer' ? 'Pelanggan' : user?.role}</Text>
-            <View style={styles.pointsBox}>
-              <Text style={styles.pointsLabel}>⭐ Poin</Text>
-              <Text style={styles.pointsValue}>{user?.points || 0}</Text>
-            </View>
           </>
         )}
       </View>
 
+      {/* Stats Cards */}
+      {!editing && (
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>⭐</Text>
+            <Text style={styles.statValue}>{user?.points || 0}</Text>
+            <Text style={styles.statLabel}>Poin</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>🛒</Text>
+            <Text style={styles.statValue}>{user?.orders_count || '-'}</Text>
+            <Text style={styles.statLabel}>Pesanan</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>📍</Text>
+            <Text style={styles.statValue}>{user?.addresses_count || '-'}</Text>
+            <Text style={styles.statLabel}>Alamat</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Menu Items */}
       {!editing && (
         <View style={styles.actions}>
+          <Text style={styles.menuSectionTitle}>Akun</Text>
           <TouchableOpacity style={styles.actionBtn} onPress={() => setEditing(true)}>
-            <Text style={styles.actionIcon}>✏️</Text>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#EFF6FF' }]}>
+              <Text style={styles.actionIcon}>✏️</Text>
+            </View>
             <Text style={styles.actionBtnText}>Edit Profil</Text>
+            <Text style={styles.actionArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Orders')}>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#FEF3C7' }]}>
+              <Text style={styles.actionIcon}>📦</Text>
+            </View>
+            <Text style={styles.actionBtnText}>Pesanan Saya</Text>
+            <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Wishlist')}>
-            <Text style={styles.actionIcon}>❤️</Text>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#FEE2E2' }]}>
+              <Text style={styles.actionIcon}>❤️</Text>
+            </View>
             <Text style={styles.actionBtnText}>Wishlist Saya</Text>
+            <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Address')}>
-            <Text style={styles.actionIcon}>📍</Text>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#ECFDF5' }]}>
+              <Text style={styles.actionIcon}>📍</Text>
+            </View>
             <Text style={styles.actionBtnText}>Alamat Saya</Text>
+            <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, styles.logoutBtn]} onPress={handleLogout}>
-            <Text style={styles.actionIcon}>🚪</Text>
+
+          <Text style={[styles.menuSectionTitle, { marginTop: 16 }]}>Lainnya</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Notifications')}>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#F3E8FF' }]}>
+              <Text style={styles.actionIcon}>🔔</Text>
+            </View>
+            <Text style={styles.actionBtnText}>Notifikasi</Text>
+            <Text style={styles.actionArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.logoutBtn]}
+            onPress={handleLogout}
+          >
+            <View style={[styles.actionIconWrap, { backgroundColor: '#FEE2E2' }]}>
+              <Text style={styles.actionIcon}>🚪</Text>
+            </View>
             <Text style={[styles.actionBtnText, styles.logoutText]}>Keluar</Text>
+            <Text style={[styles.actionArrow, { color: COLORS.error }]}>›</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -228,13 +279,42 @@ const styles = StyleSheet.create({
   avatarHint: { fontSize: 11, color: COLORS.primary, fontWeight: '500', marginTop: 4 },
   name: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   email: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 4 },
-  role: { fontSize: 13, color: COLORS.textLight, marginBottom: 16 },
-  pointsBox: {
-    backgroundColor: '#FEF3C7', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12,
-    flexDirection: 'row', alignItems: 'center',
+  role: { fontSize: 13, color: COLORS.textLight },
+
+  // Stats
+  statsRow: {
+    flexDirection: 'row', marginHorizontal: 12, marginTop: 12, gap: 8,
   },
-  pointsLabel: { fontSize: 14, color: COLORS.textSecondary, marginRight: 8 },
-  pointsValue: { fontSize: 20, fontWeight: '700', color: COLORS.primary },
+  statCard: {
+    flex: 1, backgroundColor: COLORS.white, borderRadius: 12, padding: 14,
+    alignItems: 'center', elevation: 1,
+  },
+  statIcon: { fontSize: 20, marginBottom: 4 },
+  statValue: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  statLabel: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+
+  // Menu
+  actions: { paddingHorizontal: 12, marginTop: 12, marginBottom: 24 },
+  menuSectionTitle: {
+    fontSize: 12, fontWeight: '600', color: COLORS.textSecondary,
+    textTransform: 'uppercase', marginBottom: 8, marginLeft: 4,
+  },
+  actionBtn: {
+    backgroundColor: COLORS.white, borderRadius: 12, paddingVertical: 14,
+    paddingHorizontal: 14, marginBottom: 8,
+    flexDirection: 'row', alignItems: 'center',
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3,
+  },
+  actionIconWrap: {
+    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  actionIcon: { fontSize: 18 },
+  actionBtnText: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.text },
+  actionArrow: { fontSize: 20, color: COLORS.textLight },
+  logoutBtn: { borderWidth: 1, borderColor: COLORS.error + '30' },
+  logoutText: { color: COLORS.error },
+
   editFields: { width: '100%' },
   input: {
     borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
@@ -252,18 +332,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12, alignItems: 'center',
   },
   cancelBtnText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
-  actions: { paddingHorizontal: 12, marginTop: 12 },
-  actionBtn: {
-    backgroundColor: COLORS.white, borderRadius: 12, paddingVertical: 16,
-    paddingHorizontal: 16, marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center',
-    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3,
-  },
-  actionIcon: { fontSize: 20, marginRight: 12 },
-  actionBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  logoutBtn: { borderWidth: 1, borderColor: COLORS.error + '30' },
-  logoutText: { color: COLORS.error },
+
+  // Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
   },
