@@ -18,6 +18,7 @@ Route::get('/products/suggestions', [StoreController::class, 'suggestions'])->na
 
 Route::get('/cart', [StoreController::class, 'cartIndex'])->name('cart.index');
 Route::post('/cart/add/{product}', [StoreController::class, 'cartAdd'])->name('cart.add');
+Route::post('/cart/add-bundle/{bundle}', [StoreController::class, 'cartAddBundle'])->name('cart.add-bundle');
 Route::post('/cart/update', [StoreController::class, 'cartUpdate'])->name('cart.update');
 Route::post('/cart/remove/{key}', [StoreController::class, 'cartRemove'])->name('cart.remove');
 

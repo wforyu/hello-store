@@ -20,6 +20,15 @@ class UsersTable
                 TextColumn::make('email')
                     ->label('Email')
                     ->searchable(),
+                TextColumn::make('segment')
+                    ->label('Segmen')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'platinum' => 'success',
+                        'gold' => 'warning',
+                        'silver' => 'gray',
+                        default => 'gray',
+                    }),
                 TextColumn::make('role')
                     ->label('Role')
                     ->badge()

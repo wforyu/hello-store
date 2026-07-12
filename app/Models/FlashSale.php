@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FlashSale extends Model
 {
-    use SoftDeletes;
+    use RecordsActivity, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'description', 'start_time', 'end_time',

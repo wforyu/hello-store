@@ -56,13 +56,21 @@
                         </div>
 
                         {{-- Price --}}
-                        <div class="flex items-baseline gap-2 mb-4">
+                        <div class="flex items-baseline gap-2 mb-3">
                             <span class="text-2xl font-extrabold text-amber-600">Rp{{ number_format($bundle->bundle_price, 0, ',', '.') }}</span>
                             @if($bundle->total_original_price > $bundle->bundle_price)
                                 <span class="text-sm text-gray-400 line-through">Rp{{ number_format($bundle->total_original_price, 0, ',', '.') }}</span>
                                 <span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg">Hemat Rp{{ number_format($bundle->total_original_price - $bundle->bundle_price, 0, ',', '.') }}</span>
                             @endif
                         </div>
+
+                        {{-- Add to cart --}}
+                        <form action="{{ route('cart.add-bundle', $bundle) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors text-sm">
+                                Tambah ke Keranjang
+                            </button>
+                        </form>
                     </div>
                 </div>
             @endforeach

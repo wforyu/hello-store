@@ -33,10 +33,14 @@
 
     <x-filament::section>
         <x-slot name="heading">Laba / Rugi</x-slot>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
             <div>
                 <p style="font-size:0.875rem;color:var(--gray-500)">Pendapatan</p>
                 <p style="font-size:1.125rem;font-weight:700;color:var(--success-600)">Rp {{ number_format($profit['revenue'] ?? 0, 0, ',', '.') }}</p>
+            </div>
+            <div>
+                <p style="font-size:0.875rem;color:var(--gray-500)">Harga Pokok (COGS)</p>
+                <p style="font-size:1.125rem;font-weight:700;color:var(--warning-600)">Rp {{ number_format($profit['cogs'] ?? 0, 0, ',', '.') }}</p>
             </div>
             <div>
                 <p style="font-size:0.875rem;color:var(--gray-500)">Pengeluaran</p>

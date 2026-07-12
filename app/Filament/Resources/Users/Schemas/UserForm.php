@@ -25,6 +25,17 @@ class UserForm
                 DateTimePicker::make('email_verified_at')
                     ->label('Email Terverifikasi Pada')
                     ->helperText('Kosongkan jika email belum diverifikasi. Isi tanggal untuk tandai sudah verifikasi.'),
+                Select::make('segment')
+                    ->label('Segmen')
+                    ->helperText('Bronze: 1x poin, Silver: 1.2x, Gold: 1.5x, Platinum: 2x')
+                    ->options([
+                        'bronze' => 'Bronze',
+                        'silver' => 'Silver',
+                        'gold' => 'Gold',
+                        'platinum' => 'Platinum',
+                    ])
+                    ->default('bronze')
+                    ->required(),
                 Select::make('role')
                     ->label('Role')
                     ->options([

@@ -3,8 +3,10 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Reports;
+use App\Filament\Widgets\ActivityTimelineWidget;
 use App\Filament\Widgets\EnhancedStatsOverviewWidget;
 use App\Filament\Widgets\FinanceOverview;
+use App\Filament\Widgets\PurchaseAnalyticsWidget;
 use App\Filament\Widgets\RecentOrdersWidget;
 use App\Filament\Widgets\RevenueChart;
 use App\Filament\Widgets\RevenueChartWidget;
@@ -26,6 +28,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\View;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -62,12 +65,14 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 EnhancedStatsOverviewWidget::class,
                 FinanceOverview::class,
+                PurchaseAnalyticsWidget::class,
                 RevenueChart::class,
                 RevenueChartWidget::class,
                 TopProductsTableWidget::class,
                 TopCategoriesTableWidget::class,
                 TopCashiersTableWidget::class,
                 RecentOrdersWidget::class,
+                ActivityTimelineWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -153,6 +158,9 @@ class AdminPanelProvider extends PanelProvider
 })();
 </script>
 HTML;
+            })
+            ->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, function (): string {
+                return View::make('filament.notification-bell')->render();
             });
     }
 }

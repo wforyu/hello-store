@@ -12,13 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role', 'points'])]
+#[Fillable(['name', 'email', 'password', 'role', 'points', 'segment'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected function casts(): array
     {
@@ -26,15 +27,37 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'points' => 'integer',
+            'segment' => 'string',
         ];
+    }
+
+    public function getSegmentPointsMultiplier(): float
+    {
+        return match ($this->segment) {
+            'platinum' => 2.0,
+            'gold' => 1.5,
+            'silver' => 1.2,
+            default => 1.0,
+        };
+    }
+
+    public function getSegmentDiscountRate(): float
+    {
+        return match ($this->segment) {
+            'platinum' => 0.15,
+            'gold' => 0.10,
+            'silver' => 0.05,
+            default => 0,
+        };
     }
 
     public function addPoints(int $points, string $description, ?Model $reference = null): PointTransaction
     {
-        $this->increment('points', $points);
+        $multiplied = (int) round($points * $this->getSegmentPointsMultiplier());
+        $this->increment('points', $multiplied);
 
         return $this->pointTransactions()->create([
-            'points' => $points,
+            'points' => $multiplied,
             'type' => 'earned',
             'description' => $description,
             'reference_type' => $reference ? $reference->getMorphClass() : null,

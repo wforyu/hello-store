@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsActivity;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[UseFactory(ProductFactory::class)]
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, RecordsActivity, SoftDeletes;
 
     protected static function booted(): void
     {
@@ -42,7 +43,7 @@ class Product extends Model
     }
 
     protected $fillable = [
-        'category_id', 'brand_id', 'name', 'slug', 'description', 'price', 'compare_price',
+        'category_id', 'brand_id', 'name', 'slug', 'description', 'price', 'compare_price', 'cost_price',
         'stock', 'sku', 'weight', 'images', 'is_active', 'featured',
         'meta_title', 'meta_description',
         'is_digital', 'digital_file', 'license_key',
@@ -53,6 +54,7 @@ class Product extends Model
         return [
             'price' => 'decimal:2',
             'compare_price' => 'decimal:2',
+            'cost_price' => 'decimal:2',
             'weight' => 'decimal:2',
             'images' => 'array',
             'is_active' => 'boolean',

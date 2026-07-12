@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductBundle extends Model
 {
-    use SoftDeletes;
+    use RecordsActivity, SoftDeletes;
 
     protected $fillable = [
         'name', 'slug', 'description', 'bundle_price',

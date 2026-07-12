@@ -116,10 +116,17 @@ class Reports extends Page
 
         $totalExpense = Expense::whereBetween('expense_date', [$start, $end])->sum('amount');
 
+        $totalCOGS = OrderItem::whereHas('order', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('payment_status', 'paid'))
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->whereNotNull('products.cost_price')
+            ->selectRaw('COALESCE(SUM(order_items.quantity * products.cost_price), 0) as total_cogs')
+            ->value('total_cogs');
+
         $this->profitData = [
             'revenue' => $this->salesData['total_revenue'],
             'expense' => $totalExpense,
-            'profit' => $this->salesData['total_revenue'] - $totalExpense,
+            'cogs' => $totalCOGS,
+            'profit' => $this->salesData['total_revenue'] - $totalCOGS - $totalExpense,
         ];
 
         $this->topProducts = OrderItem::selectRaw('product_id, SUM(quantity) as total_qty, SUM(subtotal) as total_revenue')

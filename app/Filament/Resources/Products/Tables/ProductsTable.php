@@ -42,6 +42,10 @@ class ProductsTable
                     ->label('Harga')
                     ->money('IDR')
                     ->sortable(),
+                TextColumn::make('cost_price')
+                    ->label('Harga Modal')
+                    ->money('IDR')
+                    ->sortable(),
                 TextColumn::make('compare_price')
                     ->label('Harga Sebelumnya')
                     ->money('IDR')

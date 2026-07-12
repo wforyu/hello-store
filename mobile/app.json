@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Hello Store",
+    "slug": "hello-store",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FEF3C7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hellostore.app"
+    },
+    "android": {
+      "package": "com.hellostore.app",
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "backgroundColor": "#FEF3C7",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "apiUrl": "https://change-passivism-implode.ngrok-free.dev"
+    }
+  }
+}

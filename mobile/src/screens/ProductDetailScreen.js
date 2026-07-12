@@ -1,0 +1,369 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, Image, ScrollView, TouchableOpacity,
+  StyleSheet, ActivityIndicator, Alert, TextInput,
+} from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
+import api from '../api/client';
+import { COLORS, getImageUrl } from '../config';
+
+export default function ProductDetailScreen({ route, navigation }) {
+  const { user, refreshCartCount } = useAuth();
+  const toast = useToast();
+  const { product: initialProduct } = route.params;
+  const [product, setProduct] = useState(initialProduct);
+  const [loading, setLoading] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [isWished, setIsWished] = useState(false);
+  const [wishLoading, setWishLoading] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchDetail();
+  }, []);
+
+  const fetchDetail = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(`/api/products/${initialProduct.id}`);
+      if (response.data?.success) {
+        setProduct(response.data.data);
+        if (response.data.data?.is_wished !== undefined) {
+          setIsWished(response.data.data.is_wished);
+        }
+      }
+    } catch (e) {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (price) => `Rp${Number(price).toLocaleString('id-ID')}`;
+
+  const getPrice = () => {
+    if (selectedVariant) return selectedVariant.price;
+    return product.final_price ?? product.price;
+  };
+
+  const getStock = () => {
+    if (selectedVariant) return selectedVariant.stock;
+    return product.stock;
+  };
+
+  const toggleWishlist = async () => {
+    if (!user) {
+      Alert.alert('Login Diperlukan', 'Silakan login untuk menambahkan ke wishlist.', [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Login', onPress: () => navigation.navigate('Login') },
+      ]);
+      return;
+    }
+    setWishLoading(true);
+    try {
+      const response = await api.post(`/api/wishlist/toggle/${product.id}`);
+      if (response.data?.success) {
+        setIsWished((prev) => !prev);
+        Alert.alert('Berhasil', response.data.message || (isWished ? 'Dihapus dari wishlist' : 'Ditambahkan ke wishlist'));
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Gagal memperbarui wishlist.');
+    } finally {
+      setWishLoading(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!user) {
+      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+      return;
+    }
+    if (reviewRating === 0) {
+      Alert.alert('Rating Diperlukan', 'Pilih rating bintang terlebih dahulu.');
+      return;
+    }
+    setReviewSubmitting(true);
+    try {
+      const response = await api.post(`/api/products/${product.id}/review`, {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      if (response.data?.success) {
+        Alert.alert('Berhasil', 'Ulasan berhasil dikirim.');
+        setReviewRating(0);
+        setReviewComment('');
+        fetchDetail();
+      }
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Gagal mengirim ulasan.';
+      Alert.alert('Error', msg);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const addToCart = async () => {
+    if (!user) {
+      Alert.alert('Login Diperlukan', 'Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.', [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Login', onPress: () => navigation.navigate('Login') },
+      ]);
+      return;
+    }
+    try {
+      const payload = { quantity: qty };
+      if (selectedVariant) payload.variant_id = selectedVariant.id;
+
+      const response = await api.post(`/api/cart/add/${product.id}`, payload);
+      if (response.data?.success) {
+        toast(response.data.message || 'Ditambahkan ke keranjang 🛒', 'success');
+        refreshCartCount();
+      }
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Gagal menambahkan ke keranjang.';
+      toast(msg, 'error');
+    }
+  };
+
+  const images = product.images?.length ? product.images : [{ url: product.image }];
+
+  return (
+    <ScrollView style={styles.container}>
+      {loading && product.id === initialProduct.id ? (
+        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+      ) : (
+        <>
+          <Image
+            source={{ uri: getImageUrl(images[selectedImage]?.url || product.image) }}
+            style={styles.mainImage}
+            resizeMode="cover"
+          />
+          {images.length > 1 && (
+            <ScrollView horizontal style={styles.thumbnails}>
+              {images.map((img, idx) => (
+                <TouchableOpacity key={idx} onPress={() => setSelectedImage(idx)}>
+                  <Image
+                    source={{ uri: getImageUrl(img.url) }}
+                    style={[
+                      styles.thumb,
+                      idx === selectedImage && styles.thumbActive,
+                    ]}
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={styles.info}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
+              <TouchableOpacity
+                style={styles.wishlistBtn}
+                onPress={toggleWishlist}
+                disabled={wishLoading}
+              >
+                <Text style={styles.wishlistIcon}>{isWished ? '♥' : '♡'}</Text>
+              </TouchableOpacity>
+            </View>
+            {product.category && (
+              <Text style={styles.category}>{product.category}</Text>
+            )}
+            <Text style={styles.price}>{formatPrice(getPrice())}</Text>
+            {product.compare_price && product.compare_price > getPrice() && (
+              <Text style={styles.compare}>{formatPrice(product.compare_price)}</Text>
+            )}
+
+            <View style={styles.stockRow}>
+              <Text style={styles.stockLabel}>Stok: </Text>
+              <Text style={[styles.stockValue, getStock() <= 5 && { color: COLORS.error }]}>
+                {getStock()}
+              </Text>
+            </View>
+
+            {product.variants?.length > 0 && (
+              <View style={styles.variantSection}>
+                <Text style={styles.sectionTitle}>Varian</Text>
+                <View style={styles.variantList}>
+                  {product.variants.map((v) => (
+                    <TouchableOpacity
+                      key={v.id}
+                      style={[
+                        styles.variantChip,
+                        selectedVariant?.id === v.id && styles.variantChipActive,
+                      ]}
+                      onPress={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}
+                    >
+                      <Text
+                        style={[
+                          styles.variantText,
+                          selectedVariant?.id === v.id && styles.variantTextActive,
+                        ]}
+                      >
+                        {v.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {product.description && (
+              <View style={styles.description}>
+                <Text style={styles.sectionTitle}>Deskripsi</Text>
+                <Text style={styles.descriptionText}>{product.description.replace(/<[^>]*>/g, '')}</Text>
+              </View>
+            )}
+
+            <View style={styles.reviews}>
+              <Text style={styles.sectionTitle}>
+                Ulasan ({product.review_stats?.total || product.reviews?.length || 0})
+              </Text>
+              {product.reviews?.slice(0, 3).map((review) => (
+                <View key={review.id} style={styles.reviewItem}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewUser}>{review.user_name}</Text>
+                    <Text style={styles.reviewRating}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text>
+                  </View>
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                </View>
+              ))}
+              {(!product.reviews || product.reviews.length === 0) && (
+                <Text style={styles.emptyReview}>Belum ada ulasan.</Text>
+              )}
+            </View>
+
+            {user && (
+              <View style={styles.reviewForm}>
+                <Text style={styles.sectionTitle}>Tulis Ulasan</Text>
+                <Text style={styles.reviewFormLabel}>Rating</Text>
+                <View style={styles.starPicker}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                      <Text style={[styles.star, star <= reviewRating && styles.starActive]}>
+                        {star <= reviewRating ? '★' : '☆'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={styles.reviewInput}
+                  placeholder="Tulis komentar (opsional)..."
+                  placeholderTextColor={COLORS.textLight}
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                <TouchableOpacity
+                  style={[styles.submitBtn, reviewSubmitting && styles.submitBtnDisabled]}
+                  onPress={submitReview}
+                  disabled={reviewSubmitting}
+                >
+                  <Text style={styles.submitBtnText}>
+                    {reviewSubmitting ? 'Mengirim...' : 'Kirim Ulasan'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </>
+      )}
+
+      <View style={styles.bottomBar}>
+        <View style={styles.qtyControl}>
+          <TouchableOpacity
+            style={styles.qtyBtn}
+            onPress={() => setQty(Math.max(1, qty - 1))}
+          >
+            <Text style={styles.qtyBtnText}>-</Text>
+          </TouchableOpacity>
+          <Text style={styles.qtyValue}>{qty}</Text>
+          <TouchableOpacity
+            style={styles.qtyBtn}
+            onPress={() => setQty(Math.min(getStock(), qty + 1))}
+          >
+            <Text style={styles.qtyBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.addBtn} onPress={addToCart}>
+          <Text style={styles.addBtnText}>+ Keranjang</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.white },
+  mainImage: { width: '100%', height: 320, backgroundColor: COLORS.border },
+  thumbnails: { paddingHorizontal: 12, paddingVertical: 8 },
+  thumb: { width: 60, height: 60, borderRadius: 8, marginRight: 8, borderWidth: 2, borderColor: 'transparent' },
+  thumbActive: { borderColor: COLORS.primary },
+  info: { padding: 16 },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  name: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4, flex: 1, marginRight: 8 },
+  wishlistBtn: { padding: 4, marginTop: 2 },
+  wishlistIcon: { fontSize: 24, color: COLORS.error },
+  category: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 8 },
+  price: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
+  compare: { fontSize: 14, color: COLORS.textLight, textDecorationLine: 'line-through', marginTop: 2 },
+  stockRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  stockLabel: { fontSize: 14, color: COLORS.textSecondary },
+  stockValue: { fontSize: 14, fontWeight: '600', color: COLORS.success },
+  variantSection: { marginTop: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  variantList: { flexDirection: 'row', flexWrap: 'wrap' },
+  variantChip: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.border, marginRight: 8, marginBottom: 8,
+  },
+  variantChipActive: { borderColor: COLORS.primary, backgroundColor: '#FEF3C7' },
+  variantText: { fontSize: 13, color: COLORS.text },
+  variantTextActive: { color: COLORS.primary },
+  description: { marginTop: 16 },
+  descriptionText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20 },
+  reviews: { marginTop: 16 },
+  emptyReview: { fontSize: 13, color: COLORS.textLight, fontStyle: 'italic' },
+  reviewItem: { marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  reviewUser: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  reviewRating: { color: '#F59E0B', fontSize: 14 },
+  reviewComment: { fontSize: 13, color: COLORS.textSecondary },
+  reviewForm: { marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.border },
+  reviewFormLabel: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 6 },
+  starPicker: { flexDirection: 'row', marginBottom: 12 },
+  star: { fontSize: 30, color: COLORS.border, marginRight: 6 },
+  starActive: { color: '#F59E0B' },
+  reviewInput: {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
+    padding: 12, fontSize: 14, color: COLORS.text, minHeight: 80,
+    backgroundColor: COLORS.background, marginBottom: 12,
+  },
+  submitBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 10,
+    paddingVertical: 12, alignItems: 'center',
+  },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  bottomBar: {
+    flexDirection: 'row', alignItems: 'center', padding: 16,
+    borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.white,
+  },
+  qtyControl: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
+  qtyBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.background,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  qtyBtnText: { fontSize: 20, fontWeight: '600', color: COLORS.text },
+  qtyValue: { fontSize: 18, fontWeight: '600', marginHorizontal: 16, color: COLORS.text },
+  addBtn: {
+    flex: 1, backgroundColor: COLORS.primary, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  addBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+});

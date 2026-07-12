@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\RecordsActivity;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[UseFactory(OrderFactory::class)]
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsActivity;
 
     protected $fillable = [
         'user_id', 'shift_id', 'order_number', 'status', 'subtotal', 'shipping_cost', 'total',

@@ -126,8 +126,7 @@ class CouponResource extends Resource
                     ->formatStateUsing(fn ($state) => $state === 'percentage' ? '%' : 'Rp'),
                 TextColumn::make('value')
                     ->label('Nilai')
-                    ->money('IDR')
-                    ->formatStateUsing(fn ($state, $record) => $record->type === 'percentage' ? $state.'%' : 'Rp '.number_format($state, 0, ',', '.')),
+                    ->formatStateUsing(fn ($state, $record) => $record->type === 'percentage' ? $state.'%' : 'Rp '.number_format((float) $state, 0, ',', '.')),
                 TextColumn::make('used_count')
                     ->label('Terpakai')
                     ->sortable(),

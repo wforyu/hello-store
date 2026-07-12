@@ -53,6 +53,12 @@ class ProductForm
                     ->helperText('Harga asli sebelum diskon. Jika diisi, akan tampil coretan harga + badge diskon di toko.')
                     ->formatStateUsing(fn ($state): string => $state !== null && $state !== '' ? number_format((float) $state, 0, ',', '.') : '')
                     ->dehydrateStateUsing(fn ($state): ?int => $state !== null && $state !== '' ? (int) str_replace('.', '', $state) : null),
+                TextInput::make('cost_price')
+                    ->label('Harga Modal')
+                    ->prefix('Rp')
+                    ->helperText('Harga beli/pokok produk (untuk hitung laba). Titik (.) otomatis muncul.')
+                    ->formatStateUsing(fn ($state): string => $state !== null && $state !== '' ? number_format((float) $state, 0, ',', '.') : '')
+                    ->dehydrateStateUsing(fn ($state): ?int => $state !== null && $state !== '' ? (int) str_replace('.', '', $state) : null),
                 TextInput::make('stock')
                     ->label('Stok')
                     ->required()

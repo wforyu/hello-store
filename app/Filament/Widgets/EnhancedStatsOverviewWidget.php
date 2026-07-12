@@ -34,7 +34,12 @@ class EnhancedStatsOverviewWidget extends BaseWidget
             $q->whereDate('created_at', $today)->where('payment_status', 'paid');
         })->sum('quantity');
         $todayExpenses = Expense::whereDate('expense_date', $today)->sum('amount');
-        $netProfit = $todayRevenue - $todayExpenses;
+        $todayCOGS = OrderItem::whereHas('order', fn ($q) => $q->whereDate('created_at', $today)->where('payment_status', 'paid'))
+            ->join('products', 'order_items.product_id', '=', 'products.id')
+            ->whereNotNull('products.cost_price')
+            ->selectRaw('COALESCE(SUM(order_items.quantity * products.cost_price), 0) as total_cogs')
+            ->value('total_cogs');
+        $netProfit = $todayRevenue - $todayCOGS - $todayExpenses;
 
         // Month & customer stats
         $newCustomersMonth = User::where('role', 'customer')
@@ -76,7 +81,7 @@ class EnhancedStatsOverviewWidget extends BaseWidget
                 ->descriptionIcon('heroicon-o-banknotes')
                 ->color('success'),
             Stat::make('Laba Bersih Hari Ini', 'Rp '.number_format($netProfit, 0, ',', '.'))
-                ->description($netProfit >= 0 ? 'Pendapatan - Biaya hari ini' : 'Defisit hari ini')
+                ->description($netProfit >= 0 ? 'Revenue - COGS - Biaya hari ini' : 'Defisit hari ini')
                 ->descriptionIcon('heroicon-o-arrow-trending-up')
                 ->color($netProfit >= 0 ? 'success' : 'danger'),
 

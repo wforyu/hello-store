@@ -377,7 +377,7 @@ class StoreController extends Controller
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'product_variant_id' => ! empty($item['variant_id']) ? $item['variant_id'] : null,
-                    'product_name' => $item['variant_name']
+                    'product_name' => ! empty($item['variant_name'])
                         ? $item['name'].' - '.$item['variant_name']
                         : $item['name'],
                     'product_price' => $item['price'],
@@ -972,6 +972,72 @@ class StoreController extends Controller
             ->paginate(12);
 
         return view('store.bundles', compact('bundles'));
+    }
+
+    public function cartAddBundle(Request $request, ProductBundle $bundle)
+    {
+        $bundle->load('products');
+
+        if ($bundle->products->isEmpty()) {
+            return redirect()->back()->with('error', 'Paket ini tidak memiliki produk!');
+        }
+
+        // Calculate discount percentage of bundle vs original total
+        $originalTotal = (float) $bundle->total_original_price;
+        $bundlePrice = (float) $bundle->bundle_price;
+        $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
+
+        $cart = collect(session('cart', []));
+
+        foreach ($bundle->products as $product) {
+            if (! $product->is_active) {
+                continue;
+            }
+
+            $qty = (int) ($product->pivot->quantity ?? 1);
+            $unitPrice = $product->price;
+
+            // Apply proportional discount to each item
+            $itemPrice = $discountPercent > 0
+                ? round($unitPrice * (1 - $discountPercent))
+                : (float) $unitPrice;
+
+            $effectiveStock = $product->stock;
+            if ($effectiveStock < 1) {
+                return redirect()->back()->with('error', "Stok '{$product->name}' dalam paket ini habis!");
+            }
+
+            $key = "{$product->id}_bundle{$bundle->id}";
+
+            $existingIndex = $cart->search(fn ($item) => ($item['key'] ?? $item['product_id']) == $key);
+
+            if ($existingIndex !== false) {
+                $cart = $cart->map(function ($item, $index) use ($qty, $effectiveStock, $existingIndex) {
+                    if ($index === $existingIndex) {
+                        $item['quantity'] = min($item['quantity'] + $qty, $effectiveStock);
+                    }
+
+                    return $item;
+                });
+            } else {
+                $cart->push([
+                    'key' => $key,
+                    'product_id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'price' => $itemPrice,
+                    'image' => $product->main_image,
+                    'quantity' => min($qty, $effectiveStock),
+                    'stock' => $effectiveStock,
+                    'bundle_id' => $bundle->id,
+                    'bundle_name' => $bundle->name,
+                ]);
+            }
+        }
+
+        session(['cart' => $cart]);
+
+        return redirect()->back()->with('success', "Paket '{$bundle->name}' ditambahkan ke keranjang!");
     }
 
     protected function getCartWeight($cart): int

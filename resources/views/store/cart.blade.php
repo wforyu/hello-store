@@ -46,6 +46,9 @@
                             @if(!empty($item['variant_name']))
                                 <p class="text-xs text-gray-400 mt-0.5">{{ $item['variant_name'] }}</p>
                             @endif
+                            @if(!empty($item['bundle_name']))
+                                <p class="text-xs font-semibold text-orange-500 bg-orange-50 inline-block px-1.5 py-0.5 rounded mt-0.5">Paket: {{ $item['bundle_name'] }}</p>
+                            @endif
                             <p class="text-sm text-amber-600 font-bold mt-0.5">Rp{{ number_format($item['price'], 0, ',', '.') }}</p>
                         </div>
 

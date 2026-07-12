@@ -174,6 +174,7 @@ class PosController extends Controller
 
         $itemSubtotal = $this->getSubtotal($cart);
         $itemDiscounts = $this->getItemDiscountsTotal($cart);
+        $activeShift = Shift::where('user_id', auth()->id())->whereNull('closed_at')->first();
         $afterItemDiscount = $itemSubtotal - $itemDiscounts;
 
         $validated = $request->validate([

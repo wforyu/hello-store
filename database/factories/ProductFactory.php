@@ -21,6 +21,7 @@ class ProductFactory extends Factory
             'description' => fake()->paragraphs(rand(1, 3), true),
             'price' => fake()->randomFloat(2, 1000, 5000000),
             'compare_price' => fake()->optional(0.3)->randomFloat(2, 2000, 6000000),
+            'cost_price' => fake()->optional(0.7)->randomFloat(2, 500, 3000000),
             'stock' => fake()->numberBetween(0, 200),
             'sku' => strtoupper(fake()->bothify('SKU-####-???')),
             'weight' => fake()->randomFloat(2, 0.1, 10),

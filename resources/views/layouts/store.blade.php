@@ -147,10 +147,18 @@
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
-                        <span x-data="{ notifCount: 0 }"
+                        <span x-data="{ notifCount: 0, prevCount: 0 }"
                             x-init="fetch('{{ route('notifications.unread') }}')
                                 .then(r => r.json())
-                                .then(d => notifCount = d.count)"
+                                .then(d => { notifCount = d.count; prevCount = d.count; });
+                            setInterval(() => {
+                                fetch('{{ route('notifications.unread') }}')
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.count > notifCount) playNotifSound();
+                                        notifCount = d.count;
+                                    });
+                            }, 10000)"
                             x-show="notifCount > 0"
                             x-cloak
                             class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
@@ -419,6 +427,30 @@
     @stack('scripts')
 
     <script>
+        function playNotifSound() {
+            try {
+                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.2);
+                var osc2 = ctx.createOscillator();
+                var gain2 = ctx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.frequency.value = 1100;
+                gain2.gain.setValueAtTime(0.2, ctx.currentTime + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+                osc2.start(ctx.currentTime + 0.15);
+                osc2.stop(ctx.currentTime + 0.35);
+            } catch(e) {}
+        }
+
         document.addEventListener('alpine:init', () => {
             Alpine.data('searchSuggestions', () => ({
                 query: '{{ request('search') }}',
