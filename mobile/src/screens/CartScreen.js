@@ -10,7 +10,7 @@ import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function CartScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, refreshCartCount } = useAuth();
   const [items, setItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -40,6 +40,7 @@ export default function CartScreen({ navigation }) {
     try {
       await api.post('/api/cart/update', { items: [{ id, quantity: newQty }] });
       fetchCart();
+      refreshCartCount();
     } catch (e) {
     }
   };
@@ -48,6 +49,7 @@ export default function CartScreen({ navigation }) {
     try {
       await api.delete(`/api/cart/remove/${id}`);
       fetchCart();
+      refreshCartCount();
     } catch (e) {
       Alert.alert('Error', 'Gagal menghapus item.');
     }

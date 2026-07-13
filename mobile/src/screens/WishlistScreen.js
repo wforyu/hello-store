@@ -84,7 +84,7 @@ export default function WishlistScreen({ navigation }) {
 
   const renderItem = ({ item }) => {
     const product = item.product || item;
-    const image = product.main_image || product.images?.[0] || null;
+    const image = product.image || product.main_image || product.images?.[0] || null;
 
     return (
       <TouchableOpacity

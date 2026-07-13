@@ -39,13 +39,30 @@ export default function ProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
+  const [stats, setStats] = useState({ orders: 0, addresses: 0 });
 
   React.useEffect(() => {
     (async () => {
       const saved = await AsyncStorage.getItem(AVATAR_KEY);
       if (saved) setSelectedAvatarId(saved);
     })();
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const [ordersRes, addrRes] = await Promise.all([
+        api.get('/api/orders', { params: { per_page: 1 } }),
+        api.get('/api/addresses', { params: { per_page: 1 } }),
+      ]);
+      const ordersTotal = ordersRes.data?.meta?.total ?? ordersRes.data?.data?.total ?? 0;
+      const addrList = addrRes.data?.data;
+      const addrTotal = Array.isArray(addrList) ? addrList.length : (addrRes.data?.meta?.total ?? 0);
+      setStats({ orders: ordersTotal, addresses: addrTotal });
+    } catch (e) {
+      // silent
+    }
+  };
 
   if (!user) {
     return <LoginPrompt navigation={navigation} message="Silakan login untuk mengakses profil." />;
@@ -153,12 +170,12 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>🛒</Text>
-            <Text style={styles.statValue}>{user?.orders_count || '-'}</Text>
+            <Text style={styles.statValue}>{stats.orders}</Text>
             <Text style={styles.statLabel}>Pesanan</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statIcon}>📍</Text>
-            <Text style={styles.statValue}>{user?.addresses_count || '-'}</Text>
+            <Text style={styles.statValue}>{stats.addresses}</Text>
             <Text style={styles.statLabel}>Alamat</Text>
           </View>
         </View>

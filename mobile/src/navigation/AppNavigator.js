@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, View, Text, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../context/AuthContext';
@@ -38,8 +38,13 @@ function TabIcon({ emoji, color, badge }) {
 }
 
 function MainTabs() {
-  const { cartCount } = useAuth();
+  const { cartCount, refreshCartCount, user } = useAuth();
   const insets = useSafeAreaInsets();
+  const currentIndex = useNavigationState((state) => state?.index);
+
+  useEffect(() => {
+    if (user) refreshCartCount();
+  }, [currentIndex, user]);
 
   return (
     <Tab.Navigator
@@ -53,16 +58,13 @@ function MainTabs() {
           height: 56 + Math.max(insets.bottom, 0),
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-        headerStyle: { backgroundColor: COLORS.white },
-        headerTintColor: COLORS.text,
-        headerTitleStyle: { fontWeight: '600' },
+        headerShown: false,
       }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Hello Store',
           tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} />,
         }}
       />
@@ -70,7 +72,6 @@ function MainTabs() {
         name="Cart"
         component={CartScreen}
         options={{
-          title: 'Keranjang',
           tabBarIcon: ({ color }) => <TabIcon emoji="🛒" color={color} badge={cartCount} />,
         }}
       />
@@ -78,7 +79,6 @@ function MainTabs() {
         name="Orders"
         component={OrderListScreen}
         options={{
-          title: 'Pesanan',
           tabBarIcon: ({ color }) => <TabIcon emoji="📦" color={color} />,
         }}
       />
@@ -86,7 +86,6 @@ function MainTabs() {
         name="Notifications"
         component={NotificationScreen}
         options={{
-          title: 'Notifikasi',
           tabBarIcon: ({ color }) => <TabIcon emoji="🔔" color={color} />,
         }}
       />
@@ -94,7 +93,6 @@ function MainTabs() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Akun',
           tabBarIcon: ({ color }) => <TabIcon emoji="👤" color={color} />,
         }}
       />

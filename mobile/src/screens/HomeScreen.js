@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity, Image,
+  View, Text, FlatList, TextInput, TouchableOpacity, Image, Alert,
   StyleSheet, ActivityIndicator, RefreshControl, ScrollView, Dimensions,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -385,7 +385,23 @@ export default function HomeScreen({ navigation }) {
                   </View>
                 </View>
                 {bundles.map((bundle) => (
-                  <TouchableOpacity key={bundle.id} style={styles.bundleCard} activeOpacity={0.7}>
+                  <TouchableOpacity
+                    key={bundle.id}
+                    style={styles.bundleCard}
+                    activeOpacity={0.7}
+                    onPress={() => Alert.alert(
+                      bundle.name,
+                      `${bundle.description || 'Paket hemat ' + bundle.product_count + ' produk'}\n\nHarga: ${bundle.bundle_price_formatted}\nHemat: ${bundle.savings_formatted}`,
+                      [{ text: 'OK' }]
+                    )}
+                  >
+                    {bundle.image ? (
+                      <Image source={{ uri: getImageUrl(bundle.image) }} style={styles.bundleImage} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.bundleImage, styles.bundleImagePlaceholder]}>
+                        <Text style={styles.bundleImageEmoji}>🎁</Text>
+                      </View>
+                    )}
                     <View style={styles.bundleInfo}>
                       <Text style={styles.bundleName} numberOfLines={1}>{bundle.name}</Text>
                       <Text style={styles.bundleDesc} numberOfLines={1}>{bundle.product_count} produk</Text>
@@ -570,6 +586,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 12, marginBottom: 8, padding: 14, alignItems: 'center',
     elevation: 1, borderWidth: 1, borderColor: '#FEF3C7',
   },
+  bundleImage: { width: 60, height: 60, borderRadius: 10, backgroundColor: COLORS.border, marginRight: 12 },
+  bundleImagePlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#FEF3C7' },
+  bundleImageEmoji: { fontSize: 28 },
   bundleInfo: { flex: 1 },
   bundleName: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
   bundleDesc: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 6 },

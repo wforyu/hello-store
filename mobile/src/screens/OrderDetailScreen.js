@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
@@ -98,13 +98,14 @@ export default function OrderDetailScreen({ route, navigation }) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res.data?.success) {
-        Alert.alert('Berhasil', 'Bukti pembayaran berhasil diunggah.');
+        Alert.alert('Berhasil', 'Bukti pembayaran berhasil diunggah. Pesanan akan diproses setelah diverifikasi admin.', [
+          { text: 'OK', onPress: () => refreshOrder() },
+        ]);
         setPaymentModal(false);
         setPickedImage(null);
         setBankName('');
         setAccountName('');
         setAccountNumber('');
-        await refreshOrder();
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal mengunggah bukti pembayaran.';
@@ -269,12 +270,14 @@ export default function OrderDetailScreen({ route, navigation }) {
             Status: {order.payment.status || order.payment_status}
           </Text>
           {order.payment.proof_image_url && (
-            <TouchableOpacity
-              style={{ marginTop: 8 }}
-              onPress={() => Alert.alert('Bukti Pembayaran', '', [{ text: 'Tutup' }])}
-            >
-              <Text style={[styles.detailRow, { color: COLORS.info }]}>Lihat Bukti Pembayaran</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 10 }}>
+              <Text style={[styles.detailRow, { fontWeight: '500', marginBottom: 6 }]}>Bukti Pembayaran:</Text>
+              <Image
+                source={{ uri: getImageUrl(order.payment.proof_image_url) }}
+                style={styles.proofImage}
+                resizeMode="cover"
+              />
+            </View>
           )}
           {order.payment.bank_name && (
             <>
@@ -492,4 +495,5 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   modalBtn: { flex: 1, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   modalBtnText: { fontSize: 15, fontWeight: '600' },
+  proofImage: { width: '100%', height: 200, borderRadius: 10, backgroundColor: COLORS.border },
 });
