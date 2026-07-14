@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image,
-  StyleSheet, Alert, TextInput, ActivityIndicator,
+  StyleSheet, TextInput, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function CheckoutScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, refreshCartCount } = useAuth();
+  const { showAlert } = useAlert();
 
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,10 +29,14 @@ export default function CheckoutScreen({ navigation }) {
   const [couponDiscount, setCouponDiscount] = useState(null);
   const [couponName, setCouponName] = useState('');
 
+  const [ppnEnabled, setPpnEnabled] = useState(false);
+  const [ppnRate, setPpnRate] = useState(11);
+
   useEffect(() => {
     if (user) {
       fetchCart();
       fetchAddresses();
+      fetchPpnSettings();
     }
   }, [user]);
 
@@ -79,14 +87,27 @@ export default function CheckoutScreen({ navigation }) {
     }
   };
 
+  const fetchPpnSettings = async () => {
+    try {
+      const response = await api.get('/api/settings/ppn');
+      if (response.data?.success) {
+        setPpnEnabled(response.data.data.ppn_enabled);
+        setPpnRate(response.data.data.ppn_percentage);
+      }
+    } catch (e) {
+      // silent
+    }
+  };
+
   const formatPrice = (p) => `Rp${Number(p || 0).toLocaleString('id-ID')}`;
 
   const subtotal = cart ? cart.subtotal : 0;
   const discountAmount = couponDiscount || 0;
   const dpp = Math.max(0, subtotal - discountAmount);
+  const ppnAmount = ppnEnabled ? Math.round(dpp * ppnRate / 100) : 0;
   const grandTotal = usePoints
-    ? Math.max(0, dpp - Math.min(user.points || 0, Math.floor(dpp * 0.5)))
-    : dpp;
+    ? Math.max(0, dpp + ppnAmount - Math.min(user.points || 0, Math.floor(dpp * 0.5)))
+    : dpp + ppnAmount;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -101,13 +122,13 @@ export default function CheckoutScreen({ navigation }) {
         const discount = data.discount_amount || data.discount || 0;
         setCouponDiscount(discount);
         setCouponName(data.code || couponCode.trim());
-        Alert.alert('Kupon Diterapkan', `Diskon ${formatPrice(discount)} berhasil diterapkan!`);
+        showAlert({ title: 'Kupon Diterapkan', message: `Diskon ${formatPrice(discount)} berhasil diterapkan!`, type: 'success' });
       }
     } catch (e) {
       setCouponDiscount(null);
       setCouponName('');
       const msg = e.response?.data?.message || 'Kupon tidak valid.';
-      Alert.alert('Kupon Gagal', msg);
+      showAlert({ title: 'Kupon Gagal', message: msg, type: 'error' });
     } finally {
       setCouponLoading(false);
     }
@@ -119,12 +140,12 @@ export default function CheckoutScreen({ navigation }) {
     setCouponName('');
   };
 
-  const maxRedeemable = Math.floor(dpp * 0.5);
+  const maxRedeemable = Math.floor((dpp + ppnAmount) * 0.5);
   const pointsToRedeem = usePoints ? Math.min(user.points || 0, maxRedeemable) : 0;
 
   const placeOrder = async () => {
     if (!selectedAddress) {
-      Alert.alert('Alamat', 'Silakan pilih alamat pengiriman terlebih dahulu.');
+      showAlert({ title: 'Alamat', message: 'Silakan pilih alamat pengiriman terlebih dahulu.', type: 'warning' });
       return;
     }
 
@@ -147,14 +168,13 @@ export default function CheckoutScreen({ navigation }) {
 
       const response = await api.post('/api/orders', payload);
       if (response.data?.success) {
+        setCart(null);
         refreshCartCount();
-        Alert.alert('Berhasil', `Pesanan #${response.data.data.order_number} berhasil dibuat!`, [
-          { text: 'OK', onPress: () => navigation.navigate('Orders') },
-        ]);
+        showAlert({ title: 'Berhasil', message: `Pesanan #${response.data.data.order_number} berhasil dibuat!`, type: 'success', buttons: [{ text: 'OK', onPress: () => navigation.navigate('Orders') }] });
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal membuat pesanan.';
-      Alert.alert('Error', msg);
+      showAlert({ title: 'Error', message: msg, type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -352,12 +372,17 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(pointsToRedeem)}</Text>
           </View>
         )}
+        {ppnEnabled && ppnAmount > 0 && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>PPN {ppnRate}%</Text>
+            <Text style={styles.summaryValue}>{formatPrice(ppnAmount)}</Text>
+          </View>
+        )}
         <View style={styles.summaryDivider} />
         <View style={styles.summaryRow}>
           <Text style={styles.grandTotalLabel}>Total Bayar</Text>
           <Text style={styles.grandTotalValue}>{formatPrice(grandTotal)}</Text>
         </View>
-        <Text style={styles.summaryNote}>* PPN akan dihitung otomatis oleh sistem</Text>
       </View>
 
       {/* Submit Button */}
@@ -373,7 +398,7 @@ export default function CheckoutScreen({ navigation }) {
         )}
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: insets.bottom + 20 }} />
     </ScrollView>
   );
 }

@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { COLORS } from '../config';
 
 export default function LoginScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { login } = useAuth();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Email dan password harus diisi.');
+      showAlert({ title: 'Error', message: 'Email dan password harus diisi.', type: 'error' });
       return;
     }
     setLoading(true);
@@ -23,7 +27,7 @@ export default function LoginScreen({ navigation }) {
       navigation.replace('Main');
     } catch (e) {
       const msg = e.response?.data?.message || 'Login gagal. Periksa koneksi.';
-      Alert.alert('Login Gagal', msg);
+      showAlert({ title: 'Login Gagal', message: msg, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -34,7 +38,7 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.inner}>
+      <View style={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.header}>
           <Text style={styles.logo}>HS</Text>
           <Text style={styles.title}>Hello Store</Text>

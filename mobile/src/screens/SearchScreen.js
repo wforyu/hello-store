@@ -4,10 +4,12 @@ import {
   StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { useToast } from '../components/Toast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function SearchScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const toast = useToast();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -107,7 +109,7 @@ export default function SearchScreen({ navigation }) {
           data={results}
           renderItem={renderItem}
           keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
           keyboardShouldPersistTaps="handled"
         />
       ) : searched ? (

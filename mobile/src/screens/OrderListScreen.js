@@ -1,9 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS } from '../config';
@@ -23,7 +25,9 @@ const STATUS_LABELS = {
 };
 
 export default function OrderListScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,10 +69,11 @@ export default function OrderListScreen({ navigation }) {
   const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const reorder = (item) => {
-    Alert.alert(
-      'Beli Lagi',
-      `Tambahkan item dari pesanan ${item.order_number} ke keranjang?`,
-      [
+    showAlert({
+      title: 'Beli Lagi',
+      message: `Tambahkan item dari pesanan ${item.order_number} ke keranjang?`,
+      type: 'warning',
+      buttons: [
         { text: 'Batal', style: 'cancel' },
         {
           text: 'Ya, Beli Lagi',
@@ -81,18 +86,16 @@ export default function OrderListScreen({ navigation }) {
                 const skipped = data.skipped ?? 0;
                 let msg = `${added} item ditambahkan ke keranjang.`;
                 if (skipped > 0) msg += `\n${skipped} item dilewati (stok habis/tidak aktif).`;
-                Alert.alert('Berhasil', msg, [
-                  { text: 'OK', onPress: () => navigation.navigate('Cart') },
-                ]);
+                showAlert({ title: 'Berhasil', message: msg, type: 'success', buttons: [{ text: 'OK', onPress: () => navigation.navigate('Cart') }] });
               }
             } catch (e) {
               const msg = e.response?.data?.message || 'Gagal memproses beli lagi.';
-              Alert.alert('Error', msg);
+              showAlert({ title: 'Error', message: msg, type: 'error' });
             }
           },
         },
       ],
-    );
+    });
   };
 
   const renderOrder = ({ item }) => {
@@ -133,7 +136,7 @@ export default function OrderListScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {loading && orders.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />

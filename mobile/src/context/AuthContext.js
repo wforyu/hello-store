@@ -77,8 +77,12 @@ export function AuthProvider({ children }) {
     setCartCount(0);
   };
 
+  const updateUser = (data) => {
+    setUser((prev) => (prev ? { ...prev, ...data } : prev));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, cartCount, refreshCartCount }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, cartCount, refreshCartCount, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

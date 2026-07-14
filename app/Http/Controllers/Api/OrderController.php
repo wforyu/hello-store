@@ -226,6 +226,11 @@ class OrderController extends Controller
             return $order;
         });
 
+        Cart::where('user_id', auth()->id())->each(function ($cart) {
+            $cart->items()->delete();
+            $cart->delete();
+        });
+
         Notification::createForUser(
             auth()->id(),
             'order',
@@ -544,7 +549,7 @@ class OrderController extends Controller
                 'method' => $payment->method,
                 'amount' => (float) $payment->amount,
                 'status' => $payment->status,
-                'proof_image_url' => $payment->proof_image_url,
+                'proof_image_url' => $payment->proof_image ? '/storage/'.$payment->proof_image : null,
                 'bank_name' => $payment->bank_name,
                 'account_name' => $payment->account_name,
                 'account_number' => $payment->account_number,

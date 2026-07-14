@@ -7,8 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
       "backgroundColor": "#FEF3C7"
     },
     "ios": {
@@ -29,8 +27,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store",
-      "expo-splash-screen"
+      "expo-secure-store"
     ],
     "extra": {
       "apiUrl": "https://change-passivism-implode.ngrok-free.dev"

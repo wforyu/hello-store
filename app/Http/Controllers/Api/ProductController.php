@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\FlashSale;
 use App\Models\Product;
+use App\Models\Wishlist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -79,10 +80,14 @@ class ProductController extends Controller
         $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
 
         $data = $this->formatProduct($product, $flashSaleMap);
+
+        $data['is_wished'] = auth()->check()
+            ? Wishlist::where('user_id', auth()->id())->where('product_id', $product->id)->exists()
+            : false;
         $data['description'] = $product->description;
         $data['images'] = $product->productImages->map(fn ($img) => [
             'id' => $img->id,
-            'url' => $img->url,
+            'url' => '/storage/'.$img->image,
             'sort_order' => $img->sort_order,
         ]);
         $data['variants'] = $product->variants->map(fn ($v) => [
@@ -91,7 +96,7 @@ class ProductController extends Controller
             'price' => (float) $v->price,
             'stock' => $v->stock,
             'weight' => (float) $v->weight,
-            'image' => $v->image ? (str_starts_with($v->image, 'http') ? $v->image : asset('storage/'.$v->image)) : null,
+            'image' => $v->image ? (str_starts_with($v->image, 'http') ? $v->image : '/storage/'.$v->image) : null,
             'is_active' => $v->is_active,
             'sku' => $v->sku,
         ]);
@@ -141,12 +146,12 @@ class ProductController extends Controller
                 'id' => $cat->id,
                 'name' => $cat->name,
                 'slug' => $cat->slug,
-                'image' => $cat->image ? (str_starts_with($cat->image, 'http') ? $cat->image : asset('storage/'.$cat->image)) : null,
+                'image' => $cat->image ? (str_starts_with($cat->image, 'http') ? $cat->image : '/storage/'.$cat->image) : null,
                 'children' => $cat->children->map(fn ($child) => [
                     'id' => $child->id,
                     'name' => $child->name,
                     'slug' => $child->slug,
-                    'image' => $child->image ? (str_starts_with($child->image, 'http') ? $child->image : asset('storage/'.$child->image)) : null,
+                    'image' => $child->image ? (str_starts_with($child->image, 'http') ? $child->image : '/storage/'.$child->image) : null,
                 ]),
             ]);
 
@@ -180,7 +185,7 @@ class ProductController extends Controller
             'is_digital' => $product->is_digital,
             'rating' => round($product->approved_reviews_avg_rating ?? 0, 1),
             'review_count' => (int) ($product->approved_reviews_count ?? 0),
-            'image' => $product->main_image,
+            'image' => $product->productImages->first() ? '/storage/'.$product->productImages->first()->image : null,
             'category' => $product->category?->name,
             'brand' => $product->brand?->name,
             'flash_sale' => $flashData ? [

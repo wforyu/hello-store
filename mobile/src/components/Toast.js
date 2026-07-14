@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ToastContext = createContext(null);
 
 export function ToastProvider({ children }) {
+  const insets = useSafeAreaInsets();
   const [toast, setToast] = useState(null);
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -23,7 +25,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={showToast}>
       {children}
       {toast && (
-        <Animated.View style={[styles.container, { opacity, backgroundColor: bg }]}>  
+        <Animated.View style={[styles.container, { opacity, backgroundColor: bg, bottom: insets.bottom + 80 }]}>  
           <Text style={styles.text}>{toast.message}</Text>
         </Animated.View>
       )}

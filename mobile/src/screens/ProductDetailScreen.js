@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, TextInput,
+  StyleSheet, ActivityIndicator, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { useToast } from '../components/Toast';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function ProductDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, refreshCartCount } = useAuth();
+  const { showAlert } = useAlert();
   const toast = useToast();
   const { product: initialProduct } = route.params;
   const [product, setProduct] = useState(initialProduct);
@@ -57,10 +61,15 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const toggleWishlist = async () => {
     if (!user) {
-      Alert.alert('Login Diperlukan', 'Silakan login untuk menambahkan ke wishlist.', [
-        { text: 'Batal', style: 'cancel' },
-        { text: 'Login', onPress: () => navigation.navigate('Login') },
-      ]);
+      showAlert({
+        title: 'Login Diperlukan',
+        message: 'Silakan login untuk menambahkan ke wishlist.',
+        type: 'warning',
+        buttons: [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Login', onPress: () => navigation.navigate('Login') },
+        ],
+      });
       return;
     }
     setWishLoading(true);
@@ -68,10 +77,10 @@ export default function ProductDetailScreen({ route, navigation }) {
       const response = await api.post(`/api/wishlist/toggle/${product.id}`);
       if (response.data?.success) {
         setIsWished((prev) => !prev);
-        Alert.alert('Berhasil', response.data.message || (isWished ? 'Dihapus dari wishlist' : 'Ditambahkan ke wishlist'));
+        showAlert({ title: 'Berhasil', message: response.data.message || (isWished ? 'Dihapus dari wishlist' : 'Ditambahkan ke wishlist'), type: 'success' });
       }
     } catch (e) {
-      Alert.alert('Error', 'Gagal memperbarui wishlist.');
+      showAlert({ title: 'Error', message: 'Gagal memperbarui wishlist.', type: 'error' });
     } finally {
       setWishLoading(false);
     }
@@ -79,11 +88,11 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const submitReview = async () => {
     if (!user) {
-      Alert.alert('Login Diperlukan', 'Silakan login untuk memberikan ulasan.');
+      showAlert({ title: 'Login Diperlukan', message: 'Silakan login untuk memberikan ulasan.', type: 'warning' });
       return;
     }
     if (reviewRating === 0) {
-      Alert.alert('Rating Diperlukan', 'Pilih rating bintang terlebih dahulu.');
+      showAlert({ title: 'Rating Diperlukan', message: 'Pilih rating bintang terlebih dahulu.', type: 'warning' });
       return;
     }
     setReviewSubmitting(true);
@@ -93,14 +102,14 @@ export default function ProductDetailScreen({ route, navigation }) {
         comment: reviewComment.trim(),
       });
       if (response.data?.success) {
-        Alert.alert('Berhasil', 'Ulasan berhasil dikirim.');
+        showAlert({ title: 'Berhasil', message: 'Ulasan berhasil dikirim.', type: 'success' });
         setReviewRating(0);
         setReviewComment('');
         fetchDetail();
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal mengirim ulasan.';
-      Alert.alert('Error', msg);
+      showAlert({ title: 'Error', message: msg, type: 'error' });
     } finally {
       setReviewSubmitting(false);
     }
@@ -108,10 +117,15 @@ export default function ProductDetailScreen({ route, navigation }) {
 
   const addToCart = async () => {
     if (!user) {
-      Alert.alert('Login Diperlukan', 'Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.', [
-        { text: 'Batal', style: 'cancel' },
-        { text: 'Login', onPress: () => navigation.navigate('Login') },
-      ]);
+      showAlert({
+        title: 'Login Diperlukan',
+        message: 'Silakan login terlebih dahulu untuk menambahkan produk ke keranjang.',
+        type: 'warning',
+        buttons: [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Login', onPress: () => navigation.navigate('Login') },
+        ],
+      });
       return;
     }
     try {
@@ -140,7 +154,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Image
             source={{ uri: getImageUrl(images[selectedImage]?.url || product.image) }}
             style={styles.mainImage}
-            resizeMode="cover"
+            resizeMode="contain"
           />
           {images.length > 1 && (
             <ScrollView horizontal style={styles.thumbnails}>
@@ -274,7 +288,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         </>
       )}
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.qtyControl}>
           <TouchableOpacity
             style={styles.qtyBtn}
@@ -300,7 +314,7 @@ export default function ProductDetailScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  mainImage: { width: '100%', height: 320, backgroundColor: COLORS.border },
+  mainImage: { width: '100%', height: 350, backgroundColor: '#F9FAFB' },
   thumbnails: { paddingHorizontal: 12, paddingVertical: 8 },
   thumb: { width: 60, height: 60, borderRadius: 8, marginRight: 8, borderWidth: 2, borderColor: 'transparent' },
   thumbActive: { borderColor: COLORS.primary },

@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet,
-  Alert, ActivityIndicator, ScrollView, Switch,
+  ActivityIndicator, ScrollView, Switch,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS } from '../config';
@@ -16,7 +18,9 @@ const EMPTY_FORM = {
 
 export default function AddressScreen({ navigation, route }) {
   const onSelect = route?.params?.onSelect;
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
 
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,8 +87,8 @@ export default function AddressScreen({ navigation, route }) {
   };
 
   const handleSave = async () => {
-    if (!form.label.trim() || !form.recipient.trim() || !form.phone.trim() || !form.street.trim()) {
-      Alert.alert('Error', 'Label, nama penerima, telepon, dan alamat wajib diisi.');
+    if (!form.label.trim() || !form.recipient.trim() || !form.phone.trim() || !form.street.trim() || !form.city.trim()) {
+      showAlert({ title: 'Error', message: 'Label, nama penerima, telepon, alamat, dan kota wajib diisi.', type: 'error' });
       return;
     }
     setSaving(true);
@@ -109,29 +113,34 @@ export default function AddressScreen({ navigation, route }) {
       fetchAddresses();
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menyimpan alamat.';
-      Alert.alert('Error', msg);
+      showAlert({ title: 'Error', message: msg, type: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (addr) => {
-    Alert.alert('Hapus Alamat', `Hapus alamat "${addr.label}"?`, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/api/addresses/${addr.id}`);
-            fetchAddresses();
-          } catch (e) {
-            const msg = e.response?.data?.message || 'Gagal menghapus alamat.';
-            Alert.alert('Error', msg);
-          }
+    showAlert({
+      title: 'Hapus Alamat',
+      message: `Hapus alamat "${addr.label}"?`,
+      type: 'warning',
+      buttons: [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/api/addresses/${addr.id}`);
+              fetchAddresses();
+            } catch (e) {
+              const msg = e.response?.data?.message || 'Gagal menghapus alamat.';
+              showAlert({ title: 'Error', message: msg, type: 'error' });
+            }
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const handleCardPress = (addr) => {
@@ -139,8 +148,6 @@ export default function AddressScreen({ navigation, route }) {
       navigation.navigate('Checkout', { selectedAddress: addr });
     }
   };
-
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const renderAddress = ({ item }) => (
     <TouchableOpacity
@@ -176,7 +183,7 @@ export default function AddressScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       {showForm ? (
-        <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
+        <ScrollView style={styles.formContainer} contentContainerStyle={[styles.formContent, { paddingBottom: insets.bottom + 40 }]}>
           <Text style={styles.formTitle}>{editingId ? 'Edit Alamat' : 'Tambah Alamat'}</Text>
 
           <Text style={styles.fieldLabel}>Label *</Text>
@@ -302,7 +309,7 @@ export default function AddressScreen({ navigation, route }) {
               data={addresses}
               renderItem={renderAddress}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 40 }]}
               refreshing={refreshing}
               onRefresh={() => fetchAddresses(true)}
               ListEmptyComponent={

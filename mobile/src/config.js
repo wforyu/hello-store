@@ -1,4 +1,4 @@
-export const API_URL = 'https://change-passivism-implode.ngrok-free.dev';
+export const API_URL = 'https://yard-steed-ferris.ngrok-free.dev';
 
 export const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/200';

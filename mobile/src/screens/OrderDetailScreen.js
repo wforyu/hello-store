@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
@@ -22,7 +24,9 @@ const STATUS_LABELS = {
 const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
 export default function OrderDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { order: initialOrder } = route.params;
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(false);
@@ -58,7 +62,7 @@ export default function OrderDetailScreen({ route, navigation }) {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Izin Diperlukan', 'Izin akses galeri diperlukan untuk memilih gambar.');
+      showAlert({ title: 'Izin Diperlukan', message: 'Izin akses galeri diperlukan untuk memilih gambar.', type: 'error' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -73,11 +77,11 @@ export default function OrderDetailScreen({ route, navigation }) {
 
   const submitPayment = async () => {
     if (!pickedImage) {
-      Alert.alert('Error', 'Pilih bukti pembayaran terlebih dahulu.');
+      showAlert({ title: 'Error', message: 'Pilih bukti pembayaran terlebih dahulu.', type: 'error' });
       return;
     }
     if (!bankName.trim() || !accountName.trim() || !accountNumber.trim()) {
-      Alert.alert('Error', 'Lengkapi semua data bank.');
+      showAlert({ title: 'Error', message: 'Lengkapi semua data bank.', type: 'error' });
       return;
     }
     setUploading(true);
@@ -98,9 +102,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res.data?.success) {
-        Alert.alert('Berhasil', 'Bukti pembayaran berhasil diunggah. Pesanan akan diproses setelah diverifikasi admin.', [
-          { text: 'OK', onPress: () => refreshOrder() },
-        ]);
+        showAlert({ title: 'Berhasil', message: 'Bukti pembayaran berhasil diunggah. Pesanan akan diproses setelah diverifikasi admin.', type: 'success', buttons: [{ text: 'OK', onPress: () => refreshOrder() }] });
         setPaymentModal(false);
         setPickedImage(null);
         setBankName('');
@@ -109,17 +111,18 @@ export default function OrderDetailScreen({ route, navigation }) {
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal mengunggah bukti pembayaran.';
-      Alert.alert('Error', msg);
+      showAlert({ title: 'Error', message: msg, type: 'error' });
     } finally {
       setUploading(false);
     }
   };
 
   const cancelOrder = () => {
-    Alert.alert(
-      'Batalkan Pesanan',
-      'Apakah Anda yakin ingin membatalkan pesanan ini?',
-      [
+    showAlert({
+      title: 'Batalkan Pesanan',
+      message: 'Apakah Anda yakin ingin membatalkan pesanan ini?',
+      type: 'warning',
+      buttons: [
         { text: 'Tidak', style: 'cancel' },
         {
           text: 'Ya, Batalkan',
@@ -129,27 +132,26 @@ export default function OrderDetailScreen({ route, navigation }) {
             try {
               const res = await api.post(`/api/orders/${order.id}/cancel`);
               if (res.data?.success) {
-                Alert.alert('Berhasil', 'Pesanan dibatalkan.', [
-                  { text: 'OK', onPress: () => refreshOrder() },
-                ]);
+                showAlert({ title: 'Berhasil', message: 'Pesanan dibatalkan.', type: 'success', buttons: [{ text: 'OK', onPress: () => refreshOrder() }] });
               }
             } catch (e) {
               const msg = e.response?.data?.message || 'Gagal membatalkan pesanan.';
-              Alert.alert('Error', msg);
+              showAlert({ title: 'Error', message: msg, type: 'error' });
             } finally {
               setLoading(false);
             }
           },
         },
       ],
-    );
+    });
   };
 
   const confirmReceived = () => {
-    Alert.alert(
-      'Konfirmasi Penerimaan',
-      'Apakah Anda yakin pesanan sudah diterima?',
-      [
+    showAlert({
+      title: 'Konfirmasi Penerimaan',
+      message: 'Apakah Anda yakin pesanan sudah diterima?',
+      type: 'warning',
+      buttons: [
         { text: 'Batal', style: 'cancel' },
         {
           text: 'Ya, Terima',
@@ -158,27 +160,26 @@ export default function OrderDetailScreen({ route, navigation }) {
             try {
               const res = await api.post(`/api/orders/${order.id}/confirm`);
               if (res.data?.success) {
-                Alert.alert('Berhasil', 'Pesanan berhasil dikonfirmasi.', [
-                  { text: 'OK', onPress: () => refreshOrder() },
-                ]);
+                showAlert({ title: 'Berhasil', message: 'Pesanan berhasil dikonfirmasi.', type: 'success', buttons: [{ text: 'OK', onPress: () => refreshOrder() }] });
               }
             } catch (e) {
               const msg = e.response?.data?.message || 'Gagal mengkonfirmasi.';
-              Alert.alert('Error', msg);
+              showAlert({ title: 'Error', message: msg, type: 'error' });
             } finally {
               setLoading(false);
             }
           },
         },
       ],
-    );
+    });
   };
 
   const reorder = () => {
-    Alert.alert(
-      'Beli Lagi',
-      'Tambahkan item dari pesanan ini ke keranjang?',
-      [
+    showAlert({
+      title: 'Beli Lagi',
+      message: 'Tambahkan item dari pesanan ini ke keranjang?',
+      type: 'warning',
+      buttons: [
         { text: 'Batal', style: 'cancel' },
         {
           text: 'Ya, Beli Lagi',
@@ -192,20 +193,18 @@ export default function OrderDetailScreen({ route, navigation }) {
                 const skipped = data.skipped ?? 0;
                 let msg = `${added} item ditambahkan ke keranjang.`;
                 if (skipped > 0) msg += `\n${skipped} item dilewati (stok habis/tidak aktif).`;
-                Alert.alert('Berhasil', msg, [
-                  { text: 'OK', onPress: () => navigation.navigate('Cart') },
-                ]);
+                showAlert({ title: 'Berhasil', message: msg, type: 'success', buttons: [{ text: 'OK', onPress: () => navigation.navigate('Cart') }] });
               }
             } catch (e) {
               const msg = e.response?.data?.message || 'Gagal memproses beli lagi.';
-              Alert.alert('Error', msg);
+              showAlert({ title: 'Error', message: msg, type: 'error' });
             } finally {
               setLoading(false);
             }
           },
         },
       ],
-    );
+    });
   };
 
   const statusColor = STATUS_COLORS[order.status] || COLORS.textSecondary;
@@ -365,7 +364,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: insets.bottom + 20 }} />
 
       <Modal visible={paymentModal} animationType="slide" transparent>
         <KeyboardAvoidingView
@@ -377,9 +376,16 @@ export default function OrderDetailScreen({ route, navigation }) {
 
             <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImage}>
               {pickedImage ? (
-                <Text style={styles.imagePickerText}>Gambar dipilih (tap untuk ganti)</Text>
+                <View style={{ alignItems: 'center' }}>
+                  <Image source={{ uri: pickedImage.uri }} style={styles.pickedPreview} resizeMode="cover" />
+                  <Text style={[styles.imagePickerText, { marginTop: 8 }]}>Tap untuk ganti gambar</Text>
+                </View>
               ) : (
-                <Text style={styles.imagePickerText}>Pilih Gambar Bukti Transfer</Text>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 32, marginBottom: 8 }}>📷</Text>
+                  <Text style={styles.imagePickerText}>Pilih Gambar Bukti Transfer</Text>
+                  <Text style={{ fontSize: 12, color: COLORS.textLight, marginTop: 4 }}>JPG, PNG, maks 2MB</Text>
+                </View>
               )}
             </TouchableOpacity>
 
@@ -488,6 +494,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 16,
   },
   imagePickerText: { fontSize: 14, color: COLORS.textSecondary },
+  pickedPreview: { width: 200, height: 150, borderRadius: 10, backgroundColor: COLORS.border },
   modalInput: {
     borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
     padding: 14, fontSize: 14, color: COLORS.text, marginBottom: 12,

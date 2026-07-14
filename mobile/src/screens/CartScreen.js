@@ -1,16 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, Image,
-  StyleSheet, ActivityIndicator, Alert,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function CartScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, refreshCartCount } = useAuth();
+  const { showAlert } = useAlert();
   const [items, setItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -51,7 +55,7 @@ export default function CartScreen({ navigation }) {
       fetchCart();
       refreshCartCount();
     } catch (e) {
-      Alert.alert('Error', 'Gagal menghapus item.');
+      showAlert({ title: 'Error', message: 'Gagal menghapus item.', type: 'error' });
     }
   };
 
@@ -101,7 +105,7 @@ export default function CartScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {items.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyText}>Keranjang belanja kosong.</Text>
@@ -117,7 +121,7 @@ export default function CartScreen({ navigation }) {
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
           />
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalValue}>{formatPrice(subtotal)}</Text>

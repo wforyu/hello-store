@@ -21,7 +21,7 @@ class HomeController extends Controller
                 'id' => $b->id,
                 'title' => $b->title,
                 'description' => $b->description,
-                'image' => $b->image ? asset('storage/'.$b->image) : null,
+                'image' => $b->image ? '/storage/'.$b->image : null,
                 'link' => $b->link,
                 'link_label' => $b->link_label,
             ]);
@@ -99,7 +99,7 @@ class HomeController extends Controller
                 'total_original_price_formatted' => 'Rp'.number_format($bundle->total_original_price, 0, ',', '.'),
                 'savings' => max(0, (float) $bundle->total_original_price - (float) $bundle->bundle_price),
                 'savings_formatted' => 'Rp'.number_format(max(0, (float) $bundle->total_original_price - (float) $bundle->bundle_price), 0, ',', '.'),
-                'image' => $bundle->image ? asset('storage/'.$bundle->image) : null,
+                'image' => $bundle->image ? '/storage/'.$bundle->image : null,
                 'product_count' => $bundle->products->count(),
             ]);
 

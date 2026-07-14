@@ -21,7 +21,6 @@ class ProfileController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'points' => $user->points,
-                'phone' => $user->phone ?? '',
                 'created_at' => $user->created_at,
             ],
             'message' => null,

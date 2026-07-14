@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity, Image, Alert,
+  View, Text, FlatList, TextInput, TouchableOpacity, Image,
   StyleSheet, ActivityIndicator, RefreshControl, ScrollView, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
 import { COLORS, getImageUrl, API_URL } from '../config';
 
@@ -12,25 +14,47 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - 24;
 const FLASH_ICONS = ['⚡', '🔥', '💥', '🎯', '🏷️', '💰', '🎁', '🛒'];
 
-const CATEGORY_ICONS = {
-  'Elektronik': { emoji: '📱', bg: '#EFF6FF', color: '#3B82F6' },
-  'Fashion': { emoji: '👕', bg: '#FDF2F8', color: '#EC4899' },
-  'Makanan': { emoji: '🍔', bg: '#FEF3C7', color: '#F59E0B' },
-  'Minuman': { emoji: '☕', bg: '#F0FDF4', color: '#22C55E' },
-  'Kecantikan': { emoji: '💄', bg: '#FDF2F8', color: '#EC4899' },
-  'Kesehatan': { emoji: '💊', bg: '#ECFDF5', color: '#10B981' },
-  'Rumah Tangga': { emoji: '🏠', bg: '#FEF9C3', color: '#CA8A04' },
-  'Olahraga': { emoji: '⚽', bg: '#F0FDF4', color: '#16A34A' },
-  'Mainan': { emoji: '🎮', bg: '#F3E8FF', color: '#9333EA' },
-  'Buku': { emoji: '📚', bg: '#FFF7ED', color: '#EA580C' },
-  'Otomotif': { emoji: '🚗', bg: '#F0F9FF', color: '#0284C7' },
-  'Aksesoris': { emoji: '⌚', bg: '#F5F3FF', color: '#7C3AED' },
-  'default': { emoji: '📦', bg: '#F3F4F6', color: '#6B7280' },
+const CATEGORY_ICONS = [
+  { match: ['elektronik', 'handphone', 'hp', 'phone', 'laptop', 'komputer', 'tablet', 'gadget'], emoji: '📱', bg: '#EFF6FF', color: '#3B82F6' },
+  { match: ['fashion', 'pakaian', 'baju', 'kaos', 'kemeja', 'celana', 'jaket', 'sweater', 'dress', 'rok'], emoji: '👕', bg: '#FDF2F8', color: '#EC4899' },
+  { match: ['sepatu', 'sandals', 'sandal', 'boots'], emoji: '👟', bg: '#FEF3C7', color: '#D97706' },
+  { match: ['tas', 'handbag', 'ransel', 'backpack'], emoji: '👜', bg: '#FDF2F8', color: '#DB2777' },
+  { match: ['makanan', 'snack', 'cemilan', 'kue', 'roti', 'nasi', 'mie'], emoji: '🍔', bg: '#FEF3C7', color: '#F59E0B' },
+  { match: ['minuman', 'kopi', 'teh', 'jus', 'susu'], emoji: '☕', bg: '#F0FDF4', color: '#22C55E' },
+  { match: ['kecantikan', 'kosmetik', 'makeup', 'skincare', 'perawatan wajah'], emoji: '💄', bg: '#FDF2F8', color: '#EC4899' },
+  { match: ['kesehatan', 'obat', 'vitamin', 'suplemen', 'medis'], emoji: '💊', bg: '#ECFDF5', color: '#10B981' },
+  { match: ['rumah tangga', 'household', 'dapur', 'masak', 'perabot', 'furniture'], emoji: '🏠', bg: '#FEF9C3', color: '#CA8A04' },
+  { match: ['olahraga', 'sport', 'gym', 'fitness', 'running', 'lari'], emoji: '⚽', bg: '#F0FDF4', color: '#16A34A' },
+  { match: ['mainan', 'toy', 'boneka', 'puzzle', 'game'], emoji: '🎮', bg: '#F3E8FF', color: '#9333EA' },
+  { match: ['buku', 'novel', 'komik', 'buku tulis', 'buku tulis', 'literatur', 'majalah'], emoji: '📚', bg: '#FFF7ED', color: '#EA580C' },
+  { match: ['alat tulis', 'pensil', 'pena', 'spidol', 'kertas', 'stationery', 'pulpen'], emoji: '✏️', bg: '#FFFBEB', color: '#D97706' },
+  { match: ['otomotif', 'mobil', 'motor', 'sparepart', 'ban', 'oli'], emoji: '🚗', bg: '#F0F9FF', color: '#0284C7' },
+  { match: ['aksesoris', 'perhiasan', 'cincin', 'kalung', 'gelang', 'jam', 'watch'], emoji: '⌚', bg: '#F5F3FF', color: '#7C3AED' },
+  { match: ['elektronik', 'tv', 'ac', 'kulkas', 'mesin cuci', 'kipas', 'kipas angin'], emoji: '📺', bg: '#EFF6FF', color: '#2563EB' },
+  { match: ['bayi', 'balita', 'anak', 'baby', 'kids', 'susu bayi'], emoji: '👶', bg: '#FDF2F8', color: '#F472B6' },
+  { match: ['hewan', 'peliharaan', 'kucing', 'anjing', 'pet', 'ikan'], emoji: '🐾', bg: '#ECFDF5', color: '#059669' },
+  { match: ['sayur', 'buah', 'segar', 'organik', 'grosir'], emoji: '🥬', bg: '#F0FDF4', color: '#15803D' },
+  { match: ['dapur', 'masak', 'panci', 'wajan', 'sendok', 'garpu', 'piring', 'gelas'], emoji: '🍳', bg: '#FFFBEB', color: '#B45309' },
+  { match: ['peralatan', 'alat', 'tool', 'bor', 'obeng', 'tang'], emoji: '🔧', bg: '#F3F4F6', color: '#4B5563' },
+  { match: ['atk', 'kantor', 'office'], emoji: '📎', bg: '#EFF6FF', color: '#3B82F6' },
+];
+
+const getCategoryIcon = (name) => {
+  if (!name) return { emoji: '📦', bg: '#F3F4F6', color: '#6B7280' };
+  const lower = name.toLowerCase();
+  for (const cat of CATEGORY_ICONS) {
+    if (cat.match.some(keyword => lower.includes(keyword))) {
+      return cat;
+    }
+  }
+  return { emoji: '📦', bg: '#F3F4F6', color: '#6B7280' };
 };
 
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user, refreshCartCount } = useAuth();
   const toast = useToast();
+  const { showAlert } = useAlert();
   const [homeData, setHomeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -225,7 +249,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerTop}>
           <View style={styles.brandRow}>
             <View style={styles.logoMark}>
@@ -313,7 +337,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={[styles.categoryLabel, !selectedCategory && styles.categoryLabelActive]} numberOfLines={1}>Semua</Text>
                   </TouchableOpacity>
                   {categories.map((cat) => {
-                    const catStyle = CATEGORY_ICONS[cat.name] || CATEGORY_ICONS.default;
+                    const catStyle = getCategoryIcon(cat.name);
                     return (
                       <TouchableOpacity
                         key={cat.id}
@@ -389,11 +413,11 @@ export default function HomeScreen({ navigation }) {
                     key={bundle.id}
                     style={styles.bundleCard}
                     activeOpacity={0.7}
-                    onPress={() => Alert.alert(
-                      bundle.name,
-                      `${bundle.description || 'Paket hemat ' + bundle.product_count + ' produk'}\n\nHarga: ${bundle.bundle_price_formatted}\nHemat: ${bundle.savings_formatted}`,
-                      [{ text: 'OK' }]
-                    )}
+                    onPress={() => showAlert({
+                      title: bundle.name,
+                      message: `${bundle.description || 'Paket hemat ' + bundle.product_count + ' produk'}\n\nHarga: ${bundle.bundle_price_formatted}\nHemat: ${bundle.savings_formatted}`,
+                      type: 'info',
+                    })}
                   >
                     {bundle.image ? (
                       <Image source={{ uri: getImageUrl(bundle.image) }} style={styles.bundleImage} resizeMode="cover" />
@@ -493,7 +517,7 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: COLORS.white, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10,
+    backgroundColor: COLORS.white, paddingHorizontal: 14, paddingBottom: 10,
     borderBottomLeftRadius: 16, borderBottomRightRadius: 16, elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
@@ -610,7 +634,7 @@ const styles = StyleSheet.create({
   featuredRating: { fontSize: 11, color: '#F59E0B', paddingHorizontal: 8, paddingBottom: 8, marginTop: 2 },
 
   /* Product Grid */
-  productList: { paddingHorizontal: 6, paddingBottom: 20 },
+  productList: { paddingHorizontal: 6, paddingBottom: 24 },
   row: { justifyContent: 'space-between', paddingHorizontal: 6 },
   productCard: {
     backgroundColor: COLORS.white, borderRadius: 12, marginBottom: 10,

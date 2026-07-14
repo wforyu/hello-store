@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { COLORS } from '../config';
 
 export default function RegisterScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { register } = useAuth();
+  const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,15 +20,15 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
-      Alert.alert('Error', 'Semua field harus diisi.');
+      showAlert({ title: 'Error', message: 'Semua field harus diisi.', type: 'error' });
       return;
     }
     if (password !== passwordConfirmation) {
-      Alert.alert('Error', 'Konfirmasi password tidak cocok.');
+      showAlert({ title: 'Error', message: 'Konfirmasi password tidak cocok.', type: 'error' });
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Error', 'Password minimal 8 karakter.');
+      showAlert({ title: 'Error', message: 'Password minimal 8 karakter.', type: 'error' });
       return;
     }
     setLoading(true);
@@ -37,9 +41,9 @@ export default function RegisterScreen({ navigation }) {
       const errs = data?.errors;
       if (errs) {
         const first = Object.values(errs)[0]?.[0] || msg;
-        Alert.alert('Registrasi Gagal', first);
+        showAlert({ title: 'Registrasi Gagal', message: first, type: 'error' });
       } else {
-        Alert.alert('Registrasi Gagal', msg);
+        showAlert({ title: 'Registrasi Gagal', message: msg, type: 'error' });
       }
     } finally {
       setLoading(false);
@@ -51,7 +55,7 @@ export default function RegisterScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
         <View style={styles.header}>
           <Text style={styles.logo}>HS</Text>
           <Text style={styles.title}>Daftar Akun</Text>

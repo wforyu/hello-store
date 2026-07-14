@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, TextInput, ActivityIndicator, Modal, FlatList,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import { useToast } from '../components/Toast';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
@@ -31,7 +33,9 @@ const AVATARS = [
 const AVATAR_KEY = 'user_avatar';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { user, logout, updateUser } = useAuth();
+  const { showAlert } = useAlert();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
@@ -55,7 +59,7 @@ export default function ProfileScreen({ navigation }) {
         api.get('/api/orders', { params: { per_page: 1 } }),
         api.get('/api/addresses', { params: { per_page: 1 } }),
       ]);
-      const ordersTotal = ordersRes.data?.meta?.total ?? ordersRes.data?.data?.total ?? 0;
+      const ordersTotal = ordersRes.data?.data?.meta?.total ?? 0;
       const addrList = addrRes.data?.data;
       const addrTotal = Array.isArray(addrList) ? addrList.length : (addrRes.data?.meta?.total ?? 0);
       setStats({ orders: ordersTotal, addresses: addrTotal });
@@ -71,10 +75,15 @@ export default function ProfileScreen({ navigation }) {
   const currentAvatar = AVATARS.find((a) => a.id === selectedAvatarId) || AVATARS[0];
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Apakah Anda yakin ingin keluar?', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Keluar', style: 'destructive', onPress: logout },
-    ]);
+    showAlert({
+      title: 'Logout',
+      message: 'Apakah Anda yakin ingin keluar?',
+      type: 'warning',
+      buttons: [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Keluar', style: 'destructive', onPress: logout },
+      ],
+    });
   };
 
   const handleSave = async () => {
@@ -86,6 +95,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       await api.put('/api/profile', { name, email });
       toast('Profil diperbarui', 'success');
+      updateUser({ name, email });
       setEditing(false);
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menyimpan.';
@@ -103,7 +113,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24 }}>
       {/* Profile Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.avatarWrap} onPress={() => setShowAvatarModal(true)} activeOpacity={0.7}>
@@ -238,7 +248,7 @@ export default function ProfileScreen({ navigation }) {
       {/* Avatar Picker Modal */}
       <Modal visible={showAvatarModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 32 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Pilih Avatar</Text>
               <TouchableOpacity onPress={() => setShowAvatarModal(false)}>

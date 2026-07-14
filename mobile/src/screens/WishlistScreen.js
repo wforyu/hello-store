@@ -1,16 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, Image, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 
 export default function WishlistScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { showAlert } = useAlert();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,28 +60,33 @@ export default function WishlistScreen({ navigation }) {
 
   const removeItem = (item) => {
     const product = item.product || item;
-    Alert.alert('Hapus Wishlist', `Hapus "${product.name}" dari wishlist?`, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus',
-        style: 'destructive',
-        onPress: async () => {
-          setRemoving(product.id);
-          try {
-            await api.post(`/api/wishlist/toggle/${product.id}`);
-            setItems((prev) => prev.filter((w) => {
-              const p = w.product || w;
-              return p.id !== product.id;
-            }));
-          } catch (e) {
-            const msg = e.response?.data?.message || 'Gagal menghapus.';
-            Alert.alert('Error', msg);
-          } finally {
-            setRemoving(null);
-          }
+    showAlert({
+      title: 'Hapus Wishlist',
+      message: `Hapus "${product.name}" dari wishlist?`,
+      type: 'warning',
+      buttons: [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            setRemoving(product.id);
+            try {
+              await api.post(`/api/wishlist/toggle/${product.id}`);
+              setItems((prev) => prev.filter((w) => {
+                const p = w.product || w;
+                return p.id !== product.id;
+              }));
+            } catch (e) {
+              const msg = e.response?.data?.message || 'Gagal menghapus.';
+              showAlert({ title: 'Error', message: msg, type: 'error' });
+            } finally {
+              setRemoving(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
@@ -125,7 +134,7 @@ export default function WishlistScreen({ navigation }) {
             const p = item.product || item;
             return String(p.id);
           }}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 40 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
           }

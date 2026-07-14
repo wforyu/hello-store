@@ -1,25 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View, Text, Image, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
+import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
-function SplashScreen({ onFinish }) {
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.8));
+SplashScreen.preventAutoHideAsync();
+
+function CustomSplash({ onFinish }) {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 600,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
-        friction: 4,
+        friction: 5,
         useNativeDriver: true,
       }),
     ]).start();
@@ -27,24 +32,24 @@ function SplashScreen({ onFinish }) {
     const timer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 400,
+        duration: 350,
         useNativeDriver: true,
       }).start(() => onFinish());
-    }, 2500);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <Animated.View style={[splashStyles.container, { opacity: fadeAnim }]}>
-      <Animated.View style={[splashStyles.content, { transform: [{ scale: scaleAnim }] }]}>
+    <View style={splashStyles.container}>
+      <Animated.View style={[splashStyles.content, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={splashStyles.logoBox}>
-          <Text style={splashStyles.logoLetter}>H</Text>
+          <Text style={splashStyles.logoLetter}>HS</Text>
         </View>
         <Text style={splashStyles.appName}>Hello Store</Text>
         <Text style={splashStyles.slogan}>Belanja Mudah, Harga Terjangkau</Text>
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -59,58 +64,56 @@ const splashStyles = StyleSheet.create({
     alignItems: 'center',
   },
   logoBox: {
-    width: 140,
-    height: 140,
-    borderRadius: 32,
+    width: 120,
+    height: 120,
+    borderRadius: 28,
     backgroundColor: '#F59E0B',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#D97706',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
     elevation: 12,
   },
   logoLetter: {
-    fontSize: 80,
+    fontSize: 44,
     fontWeight: '900',
     color: '#FFFFFF',
   },
   appName: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
     color: '#111827',
     marginBottom: 8,
   },
   slogan: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#6B7280',
-    letterSpacing: 0.5,
   },
 });
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
-  if (showSplash) {
-    return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SplashScreen onFinish={() => setShowSplash(false)} />
-        <StatusBar style="dark" />
-      </GestureHandlerRootView>
-    );
-  }
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <ToastProvider>
-          <AppNavigator />
-        </ToastProvider>
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <SafeAreaProvider>
+        {showSplash ? (
+          <CustomSplash onFinish={() => setShowSplash(false)} />
+        ) : (
+          <AuthProvider>
+            <ToastProvider>
+              <AlertProvider>
+                <AppNavigator />
+              </AlertProvider>
+            </ToastProvider>
+          </AuthProvider>
+        )}
+        <StatusBar style={showSplash ? 'dark' : 'auto'} />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

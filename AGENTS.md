@@ -930,3 +930,60 @@ Total **16 bugs** ditemukan dan diperbaiki dalam audit kode menyeluruh:
 - **Config cache**: Jangan `config:cache` pas running tests — cached config override env testing (SQLite in-memory). Always `config:clear` before `php artisan test`.
 - **DB seeder**: `DatabaseSeeder` bisa dimodif sementara (comment product seeding) kalo mau reset DB tanpa produk — tinggal `migrate:fresh --seed`. Jangan lupa direstore setelahnya.
 - **`php artisan optimize`** udah jalan — config, events, routes, views, blade-icons, filament all cached.
+
+---
+
+## Mobile App (React Native / Expo)
+
+### Info
+- **Framework**: Expo SDK 57, React Native 0.86, `mobile/` folder
+- **Bundle ID**: `com.hellostore.app`
+- **API**: Token-based auth via SecureStore + Axios `Bearer` header
+- **API_URL**: `mobile/src/config.js` → `API_URL` (ubah ke domain production saat deploy)
+- **Splash**: Custom JS splash (HS logo + slogan) di `App.js` — native splash = solid amber `#FEF3C7`
+- **CustomAlert**: `src/components/CustomAlert.js` + `src/context/AlertContext.js` — GUNAKAN INI, jangan `Alert.alert()`
+
+### CRITICAL: Build Rules
+
+| Rule | Detail |
+|---|---|
+| **JANGAN `expo prebuild --clean`** | Regenerate android folder dari nol — splash fixes hilang, splash PNG broken balik lagi |
+| **PAKAI `gradlew clean && gradlew assembleRelease`** | Full clean build tanpa regenerate android folder — JS bundle di-rebuild otomatis |
+| **Incremental build** | `gradlew assembleRelease` saja (cepat ~26 detik, tapi JS mungkin ga di-rebuild) |
+| **Kapan boleh prebuild** | Hanya saat tambah/hapus native dependency atau Expo plugin |
+| **Setelah prebuild** | WAJIB apply splash fix lagi (hapus PNG, fix colors.xml, buat drawable XML) |
+
+### Image URL Convention (CRITICAL)
+- **Backend WAJIB pakai `/storage/` prefix** untuk semua image URLs
+- **JANGAN pakai `asset()`** — generate `http://localhost:8000/storage/...` yang broken di mobile
+- Mobile `getImageUrl()` di `config.js` otomatis prepend `API_URL` ke relative path
+- Contoh benar: `'/storage/'.$img->image` → mobile jadi `https://domain.com/storage/products/abc.jpg`
+- Contoh salah: `asset('storage/'.$img->image)` → `http://localhost:8000/storage/products/abc.jpg` ❌
+
+### Splash Screen — Dilarang Diotak-atik
+- Native splash: solid amber `#FEF3C7` via `drawable/splashscreen_logo.xml` + `colors.xml`
+- JS splash: HS logo + "Belanja Mudah, Harga Terjangkau" di `App.js` (CustomSplash component)
+- Keduanya seamless karena warna background sama
+- Kalau ada double splash = `expo prebuild` baru dijalankan → apply fix lagi
+
+### Mobile Bug Fixes (9 total)
+
+| # | Bug | Fix | File |
+|---|---|---|---|
+| 1 | Cart ga ilang setelah order | Hapus cart di backend + frontend `setCart(null)` | `OrderController.php`, `CheckoutScreen.js` |
+| 2 | Bukti bayar ga muncul | `formatOrder()` pakai `/storage/` bukan `asset()` | `OrderController.php` |
+| 3 | Stats profile ga load | Fix JSON path `data.data?.meta?.total` | `ProfileScreen.js` |
+| 4 | Gambar produk ga tampil | Prepend `/storage/` di semua image URL | `ProductController.php` |
+| 5 | Gambar detail kebesaran | `resizeMode="contain"` + height 350px | `ProductDetailScreen.js` |
+| 6 | Notifikasi kosong | Override `notifications()` + fix field `body` | `User.php`, `NotificationScreen.js` |
+| 7 | Ikon kategori default 📦 | Fuzzy matching 21 keyword arrays | `HomeScreen.js` |
+| 8 | Splash double | Hapus PNG, amber color, XML layer-list | `colors.xml`, `splashscreen_logo.xml` |
+| 9 | Upload bukti bayar error | `Content-Type: multipart/form-data` untuk FormData | `OrderDetailScreen.js` |
+
+### Access (Mobile)
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@hello-store.test` | `password` |
+| Cashier | `kasir@hello-store.test` | `password` |
+| Customer | `test@example.com` | `password` |
