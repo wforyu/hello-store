@@ -2,18 +2,24 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
+// Minimalist tote bag — small, clean, matching website amber gradient
+// Canvas 432x432, safe zone circle ~296px diameter centered
 const foregroundSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <!-- Tote bag body -->
-  <rect x="116" y="140" width="200" height="160" rx="12" fill="#F59E0B"/>
-  <!-- Bag top fold -->
-  <rect x="108" y="128" width="216" height="24" rx="8" fill="#D97706"/>
+  <defs>
+    <linearGradient id="bag" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <!-- Small tote bag body -->
+  <rect x="164" y="100" width="104" height="110" rx="10" fill="url(#bag)"/>
   <!-- Handle left -->
-  <path d="M170 128 C170 72 178 52 216 48" stroke="#D97706" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <path d="M192 100 C192 68 200 56 216 52" stroke="#d97706" stroke-width="8" stroke-linecap="round" fill="none"/>
   <!-- Handle right -->
-  <path d="M262 128 C262 72 254 52 216 48" stroke="#D97706" stroke-width="12" stroke-linecap="round" fill="none"/>
-  <!-- Text: Hello Store -->
-  <text x="216" y="360" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="52" fill="#111827" letter-spacing="1">Hello Store</text>
+  <path d="M240 100 C240 68 232 56 216 52" stroke="#d97706" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Text -->
+  <text x="216" y="280" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="42" fill="#111827" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const backgroundSvg = Buffer.from(`
@@ -23,11 +29,10 @@ const backgroundSvg = Buffer.from(`
 
 const monochromeSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <rect x="116" y="140" width="200" height="160" rx="12" fill="#000000"/>
-  <rect x="108" y="128" width="216" height="24" rx="8" fill="#000000"/>
-  <path d="M170 128 C170 72 178 52 216 48" stroke="#000000" stroke-width="12" stroke-linecap="round" fill="none"/>
-  <path d="M262 128 C262 72 254 52 216 48" stroke="#000000" stroke-width="12" stroke-linecap="round" fill="none"/>
-  <text x="216" y="360" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="52" fill="#000000" letter-spacing="1">Hello Store</text>
+  <rect x="164" y="100" width="104" height="110" rx="10" fill="#000000"/>
+  <path d="M192 100 C192 68 200 56 216 52" stroke="#000000" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M240 100 C240 68 232 56 216 52" stroke="#000000" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <text x="216" y="280" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="42" fill="#000000" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const densities = {
