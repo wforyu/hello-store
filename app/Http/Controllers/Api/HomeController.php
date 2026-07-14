@@ -26,7 +26,7 @@ class HomeController extends Controller
                 'link_label' => $b->link_label,
             ]);
 
-        $flashSale = FlashSale::active()->with('products')->first();
+        $flashSale = FlashSale::active()->with(['products' => fn ($q) => $q->with('productImages')])->first();
         $flashSaleData = null;
         if ($flashSale) {
             $flashSaleProducts = $flashSale->products->take(8)->map(function ($product) {

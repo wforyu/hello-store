@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Address;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Coupon;
@@ -72,6 +73,19 @@ class OrderController extends Controller
             'coupon_code' => 'nullable|string',
         ]);
 
+        if ($request->filled('address_id')) {
+            $addressOwned = Address::where('id', $request->address_id)
+                ->where('user_id', auth()->id())
+                ->exists();
+            if (! $addressOwned) {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'Alamat tidak ditemukan.',
+                ], 422);
+            }
+        }
+
         $productIds = collect($request->items)->pluck('product_id');
         $liveProducts = Product::whereIn('id', $productIds)->where('is_active', true)->get()->keyBy('id');
         $variantIds = collect($request->items)->pluck('variant_id')->filter();
@@ -126,7 +140,6 @@ class OrderController extends Controller
 
         $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
         $ppnRate = (int) Setting::get('ppn_percentage', 11);
-        $ppnAmount = $ppnEnabled ? round($subtotal * $ppnRate / 100) : 0;
 
         $couponDiscount = 0;
         $couponId = null;
@@ -138,15 +151,18 @@ class OrderController extends Controller
             }
         }
 
+        $ppnBase = max(0, $subtotal - $couponDiscount);
+        $ppnAmount = $ppnEnabled ? round($ppnBase * $ppnRate / 100) : 0;
+
         $usePoints = min((int) ($request->use_points ?? 0), auth()->user()->points);
         $pointDiscount = 0;
         if ($usePoints > 0) {
-            $maxPointDiscount = (int) floor($subtotal * 0.5);
+            $maxPointDiscount = (int) floor($ppnBase * 0.5);
             $usePoints = min($usePoints, $maxPointDiscount);
             $pointDiscount = $usePoints;
         }
 
-        $total = $subtotal - $couponDiscount + $ppnAmount - $pointDiscount;
+        $total = $ppnBase + $ppnAmount - $pointDiscount;
 
         $order = DB::transaction(function () use ($request, $subtotal, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $usePoints, $pointDiscount) {
             $order = Order::create([

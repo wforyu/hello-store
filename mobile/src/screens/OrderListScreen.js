@@ -9,20 +9,7 @@ import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS } from '../config';
-
-const STATUS_COLORS = {
-  pending: '#F59E0B',
-  processing: '#3B82F6',
-  shipped: '#8B5CF6',
-  delivered: '#10B981',
-  cancelled: '#EF4444',
-  refunded: '#6B7280',
-};
-
-const STATUS_LABELS = {
-  pending: 'Menunggu', processing: 'Diproses', shipped: 'Dikirim',
-  delivered: 'Diterima', cancelled: 'Dibatalkan', refunded: 'Dikembalikan',
-};
+import { formatPrice, STATUS_COLORS, STATUS_LABELS } from '../utils';
 
 export default function OrderListScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -65,8 +52,6 @@ export default function OrderListScreen({ navigation }) {
   const loadMore = () => {
     if (page < lastPage) fetchOrders(page + 1);
   };
-
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const reorder = (item) => {
     showAlert({

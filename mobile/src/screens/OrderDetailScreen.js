@@ -1,27 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Image,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Image, RefreshControl,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
-
-const STATUS_COLORS = {
-  pending: '#F59E0B', processing: '#3B82F6', shipped: '#8B5CF6',
-  delivered: '#10B981', cancelled: '#EF4444', refunded: '#6B7280',
-};
-
-const STATUS_LABELS = {
-  pending: 'Menunggu', processing: 'Diproses', shipped: 'Dikirim',
-  delivered: 'Diterima', cancelled: 'Dibatalkan', refunded: 'Dikembalikan',
-};
-
-const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
+import { formatPrice, STATUS_COLORS, STATUS_LABELS } from '../utils';
 
 export default function OrderDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -30,6 +20,13 @@ export default function OrderDetailScreen({ route, navigation }) {
   const { order: initialOrder } = route.params;
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshOrder();
+    }, [order.id])
+  );
 
   const [paymentModal, setPaymentModal] = useState(false);
   const [bankName, setBankName] = useState('');
@@ -51,12 +48,14 @@ export default function OrderDetailScreen({ route, navigation }) {
     return match ? match[1] : null;
   };
 
-  const refreshOrder = async () => {
+  const refreshOrder = async (isPull = false) => {
+    if (isPull) setRefreshing(true);
     try {
       const res = await api.get(`/api/orders/${order.id}`);
       if (res.data?.data) setOrder(res.data.data);
       else if (res.data?.id) setOrder(res.data);
     } catch (_) {}
+    if (isPull) setRefreshing(false);
   };
 
   const pickImage = async () => {
@@ -217,7 +216,12 @@ export default function OrderDetailScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => refreshOrder(true)} colors={[COLORS.primary]} />
+      }
+    >
       <View style={styles.statusBanner}>
         <View style={[styles.badge, { backgroundColor: statusColor + '20' }]}>
           <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>

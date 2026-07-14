@@ -23,6 +23,7 @@ class ProductController extends Controller
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%'.$request->search.'%')
+                    ->orWhere('sku', 'like', '%'.$request->search.'%')
                     ->orWhere('description', 'like', '%'.$request->search.'%');
             });
         }
@@ -32,6 +33,14 @@ class ProductController extends Controller
             if ($category) {
                 $childIds = $category->children()->pluck('id')->push($category->id);
                 $query->whereIn('category_id', $childIds);
+            }
+        }
+
+        if ($request->filled('flash_sale')) {
+            $flashSale = FlashSale::find($request->flash_sale);
+            if ($flashSale) {
+                $flashProductIds = $flashSale->products()->pluck('products.id');
+                $query->whereIn('products.id', $flashProductIds);
             }
         }
 

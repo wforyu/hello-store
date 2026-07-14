@@ -74,6 +74,17 @@ export default function NotificationScreen({ navigation }) {
     }
   };
 
+  const markAllRead = async () => {
+    try {
+      await api.post('/api/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (e) {
+      // silent
+    }
+  };
+
+  const hasUnread = notifications.some((n) => !n.is_read);
+
   const renderNotification = ({ item }) => {
     const config = TYPE_CONFIG[item.type] || { color: COLORS.textSecondary, icon: '📌' };
     return (
@@ -119,6 +130,16 @@ export default function NotificationScreen({ navigation }) {
           renderItem={renderNotification}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Notifikasi</Text>
+              {hasUnread && (
+                <TouchableOpacity onPress={markAllRead}>
+                  <Text style={styles.markAllText}>Tandai Semua</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
           }
@@ -161,4 +182,7 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
   emptyText: { fontSize: 14, color: COLORS.textSecondary },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 2 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  markAllText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
 });

@@ -10,6 +10,7 @@ import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
+import { formatPrice } from '../utils';
 
 export default function WishlistScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -88,8 +89,6 @@ export default function WishlistScreen({ navigation }) {
       ],
     });
   };
-
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const renderItem = ({ item }) => {
     const product = item.product || item;

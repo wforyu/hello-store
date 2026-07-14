@@ -91,6 +91,8 @@ class CouponResource extends Resource
                     ->numeric()
                     ->default(1)
                     ->minValue(1)
+                    ->nullable()
+                    ->helperText('Kosongkan jika tidak terbatas')
                     ->columnSpan(1),
                 DateTimePicker::make('starts_at')
                     ->label('Mulai Berlaku')

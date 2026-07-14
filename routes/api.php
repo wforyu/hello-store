@@ -65,5 +65,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/{product}/review', [ReviewController::class, 'store']);
 
     // Coupons
-    Route::post('/coupons/validate', [CouponController::class, 'validate']);
+    Route::post('/coupons/validate', [CouponController::class, 'check']);
 });

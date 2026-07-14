@@ -9,6 +9,7 @@ import { useAlert } from '../context/AlertContext';
 import { useToast } from '../components/Toast';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
+import { formatPrice } from '../utils';
 
 export default function ProductDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -42,12 +43,11 @@ export default function ProductDetailScreen({ route, navigation }) {
         }
       }
     } catch (e) {
+      showAlert({ title: 'Error', message: 'Gagal memuat detail produk.', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
-
-  const formatPrice = (price) => `Rp${Number(price).toLocaleString('id-ID')}`;
 
   const getPrice = () => {
     if (selectedVariant) return selectedVariant.price;

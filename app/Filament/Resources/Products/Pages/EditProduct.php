@@ -48,6 +48,7 @@ class EditProduct extends EditRecord
 
                     $product = $this->record;
                     $product->increment('stock', $qty);
+                    $product->refresh();
 
                     $reasonLabel = match ($data['reason']) {
                         'restok' => 'Restok dari Gudang',

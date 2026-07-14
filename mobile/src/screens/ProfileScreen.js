@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
@@ -45,13 +46,15 @@ export default function ProfileScreen({ navigation }) {
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
   const [stats, setStats] = useState({ orders: 0, addresses: 0 });
 
-  React.useEffect(() => {
-    (async () => {
-      const saved = await AsyncStorage.getItem(AVATAR_KEY);
-      if (saved) setSelectedAvatarId(saved);
-    })();
-    fetchStats();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const saved = await AsyncStorage.getItem(AVATAR_KEY);
+        if (saved) setSelectedAvatarId(saved);
+      })();
+      fetchStats();
+    }, [])
+  );
 
   const fetchStats = async () => {
     try {

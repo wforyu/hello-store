@@ -9,6 +9,7 @@ import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
+import { formatPrice } from '../utils';
 
 export default function CheckoutScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -34,9 +35,7 @@ export default function CheckoutScreen({ navigation }) {
 
   useEffect(() => {
     if (user) {
-      fetchCart();
-      fetchAddresses();
-      fetchPpnSettings();
+      Promise.all([fetchCart(), fetchAddresses(), fetchPpnSettings()]);
     }
   }, [user]);
 
@@ -98,8 +97,6 @@ export default function CheckoutScreen({ navigation }) {
       // silent
     }
   };
-
-  const formatPrice = (p) => `Rp${Number(p || 0).toLocaleString('id-ID')}`;
 
   const subtotal = cart ? cart.subtotal : 0;
   const discountAmount = couponDiscount || 0;

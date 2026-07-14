@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast';
 import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
 import { COLORS, getImageUrl, API_URL } from '../config';
+import { formatPrice } from '../utils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - 24;
@@ -160,6 +161,7 @@ export default function HomeScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     fetchHomeData();
+    fetchCategories();
     fetchProducts(1, selectedCategory);
   };
 
@@ -193,8 +195,6 @@ export default function HomeScreen({ navigation }) {
       toast(e.response?.data?.message || 'Gagal', 'error');
     }
   };
-
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const renderProductCard = ({ item }) => (
     <TouchableOpacity

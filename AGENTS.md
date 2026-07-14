@@ -212,7 +212,7 @@
 
 ### StoreController (`app/Http/Controllers/StoreController.php`)
 - **home()**: Ambil categories tree, featured + latest products (8 each) with avg rating + count
-- **products()**: Filter by search + category + sort (terbaru/termurah/termahal/nama), pagination 12
+- **products()**: Filter by search (name + SKU) + category + sort (terbaru/termurah/termahal/nama) + flash_sale, pagination 12
 - **productDetail()**: Product with images, related products (same category, 4 items), reviews, user review status, recently viewed session tracking
 - **suggestions()**: JSON search — match name/SKU, min 2 chars, max 6 results
 - **cartIndex()**: Tampilkan session cart
@@ -329,6 +329,8 @@
 
 ### Custom Table Filters
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)" dan "Habis (0)" dengan custom `query()` callback
+- **UsersTable**: `SelectFilter::make('role')` dan `SelectFilter::make('segment')` untuk filter user berdasarkan role dan segmen
+- **StockHistoriesTable**: Type badges untuk `manual`, `order`, `pos`, `adjustment`, `opname`, `return`, `refund`
 - **OrdersTable**: `Filter::make('hari_ini')` (`whereDate('created_at', today())`) dan `Filter::make('menunggu')` (`whereIn('status', ['pending','processing'])`) — toggle filter
 
 ### Phase 2 Resource Notes
@@ -614,6 +616,8 @@
 - **StatsOverviewWidget**: Stat card "Pesanan Hari Ini" → `OrderResource` dengan filter `hari_ini`; "Pesanan Menunggu" → `OrderResource` dengan filter `menunggu`; "Stok Menipis" → `ProductResource` dengan stock filter
 - **OrdersTable**: `Filter::make('hari_ini')` dan `Filter::make('menunggu')` — toggle filter
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)", "Habis (0)"
+- **UsersTable**: `SelectFilter::make('role')` dan `SelectFilter::make('segment')` untuk filter user
+- **StockHistoriesTable**: Type badges untuk `manual`, `order`, `pos`, `adjustment`, `opname`, `return`, `refund`
 
 ### 24. Wishlist ❤️
 - Model `Wishlist` + migration (unique user_id + product_id)
@@ -863,6 +867,7 @@
 - **PPN tax base**: Indonesian PPN is on DPP (Dasar Pengenaan Pajak = price after ALL discounts). Use `max(0, $subtotal - $discountAmount)`, NOT just `$subtotal`.
 - **BelongsToMany Repeaters**: `->relationship()` does NOT work in Filament 5.6. Use `->options()` on Select + manual sync in `mutateFormDataBeforeCreate/Save`/after hooks.
 - **FK cascadeOnDelete**: Deleting a parent (user, supplier) cascades to orders, shifts, expenses, purchase records. Use `nullOnDelete` + nullable FK for business-critical data.
+- **API rate limiting**: `bootstrap/app.php` applies `ThrottleRequests:60,1` (60 req/min) to all API routes. If mobile gets 429 errors, check if too many requests are being made.
 - **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
 
 ---
@@ -881,55 +886,91 @@
 - Feature tests: `Tests\TestCase` (full app boot), SQLite `:memory:`
 - Semua feature tests pakai `RefreshDatabase` (kecuali ExampleTest)
 - 25 tests, 61 assertions — semuanya pass
-- Pint clean: 265 files, 0 issues
+- Pint clean: 300 files, 0 issues
 - Command: `composer test` (config:clear lalu artisan test)
 
 ---
 
-## Bug Fixes & Code Audit (2026-07-08)
+## Bug Fixes & Code Audit (2026-07-08 + 2026-07-15)
 
-Total **16 bugs** ditemukan dan diperbaiki dalam audit kode menyeluruh:
+Total **30 bugs** ditemukan dan diperbaiki dalam 3 ronde audit kode menyeluruh:
 
-### StoreController — 3 Fixes
-| # | File:Ln | Bug | Severity |
-|---|---|---|---|
-| 1 | `StoreController.php:271` | PPN checkout preview mismatch — Alpine.js `ppnAmount` getter pakai `subtotal` tanpa diskon, beda sama `placeOrder()` yg pake `subtotal - discount` (DPP) | Medium |
-| 2 | `StoreController.php:685,693` | `$validated['comment']` undefined key risk pas API request tanpa field `comment` | Low |
-| 3 | `StoreController.php:303` | `(int)` truncate shipping cost (RajaOngkir kadang ada decimal) jadi pake `(float)` | Low |
+### StoreController — 4 Fixes
+| # | File:Ln | Bug | Severity | Date |
+|---|---|---|---|---|
+| 1 | `StoreController.php:271` | PPN checkout preview mismatch — Alpine.js `ppnAmount` getter pakai `subtotal` tanpa diskon, beda sama `placeOrder()` yg pake `subtotal - discount` (DPP) | Medium | 07-08 |
+| 2 | `StoreController.php:685,693` | `$validated['comment']` undefined key risk pas API request tanpa field `comment` | Low | 07-08 |
+| 3 | `StoreController.php:303` | `(int)` truncate shipping cost (RajaOngkir kadang ada decimal) jadi pake `(float)` | Low | 07-08 |
+| 4 | `StoreController.php:51` | Flash sale filter (`?flash_sale=`) gak diimplementasi di query `products()` | Medium | 07-15 |
 
 ### PosController — 8 Fixes
 | # | File:Ln | Bug | Severity |
 |---|---|---|---|
-| 4 | `PosController.php:95` | `add()` gak update `stock` field pas re-add item existing (stale stock display) | Medium |
-| 5 | `PosController.php:184` | `ppn_enabled` admin setting gak dicek server-side — client kirim `ppn: true` tetap diproses walau setting disabled | Medium |
-| 6 | `PosController.php:186` | PPN base kurang `max(0, ...)` guard (defensive) | Low |
-| 7 | `PosController.php:207` | `$activeShift` double query di dalam DB transaction | Low |
-| 8 | `PosController.php:300` | Hold ID confusing `$holds->max('id') + 1 ?: 1` diganti `($holds->max('id') ?? 0) + 1` | Low |
-| 9 | `PosController.php:439` | `openShift()` gak validasi input `opening_balance` — nambah `$request->validate(...)` | Medium |
-| 10 | `PosController.php:527` | **`$shiftExpense->shift->user_id` crash** — shift pake `nullOnDelete`, kalo user dihapus `->shift` jadi null | **High** |
-| 11 | `PosController.php:80` | `add()` gak validasi request — nambah validation `product_id` + `quantity` | Low |
+| 5 | `PosController.php:95` | `add()` gak update `stock` field pas re-add item existing (stale stock display) | Medium |
+| 6 | `PosController.php:184` | `ppn_enabled` admin setting gak dicek server-side — client kirim `ppn: true` tetap diproses walau setting disabled | Medium |
+| 7 | `PosController.php:186` | PPN base kurang `max(0, ...)` guard (defensive) | Low |
+| 8 | `PosController.php:207` | `$activeShift` double query di dalam DB transaction | Low |
+| 9 | `PosController.php:300` | Hold ID confusing `$holds->max('id') + 1 ?: 1` diganti `($holds->max('id') ?? 0) + 1` | Low |
+| 10 | `PosController.php:439` | `openShift()` gak validasi input `opening_balance` — nambah `$request->validate(...)` | Medium |
+| 11 | `PosController.php:527` | **`$shiftExpense->shift->user_id` crash** — shift pake `nullOnDelete`, kalo user dihapus `->shift` jadi null | **High** |
+| 12 | `PosController.php:80` | `add()` gak validasi request — nambah validation `product_id` + `quantity` | Low |
 
 ### Models — 3 Fixes
 | # | File:Ln | Bug | Severity |
 |---|---|---|---|
-| 12 | `Coupon.php:62` | **`usage_per_user = null` bikin kupon gak pernah bisa dipake** — `$usageCount < null` selalu false. Nambah guard `if ($this->usage_per_user === null) return true` | **High** |
-| 13 | `User.php:47` | `redeemPoints()` gak guard negative balance — nambah `min($points, $this->points)` + throw exception | Medium |
-| 14 | `Product.php:129` | Missing `flashSales()` dan `bundles()` BelongsToMany relationships — nambah relasi inverse | Medium |
+| 13 | `Coupon.php:62` | **`usage_per_user = null` bikin kupon gak pernah bisa dipake** — `$usageCount < null` selalu false. Nambah guard `if ($this->usage_per_user === null) return true` | **High** |
+| 14 | `User.php:47` | `redeemPoints()` gak guard negative balance — nambah `min($points, $this->points)` + throw exception | Medium |
+| 15 | `Product.php:129` | Missing `flashSales()` dan `bundles()` BelongsToMany relationships — nambah relasi inverse | Medium |
 
 ### Blade Views — 1 Fix
 | # | File:Ln | Bug | Severity |
 |---|---|---|---|
-| 15 | `shifts.blade.php:34` | `$shift->user->name` crash kalo user dihapus (FK `nullOnDelete`) — pake `$shift->user?->name ?? 'Akun dihapus'` | Medium |
+| 16 | `shifts.blade.php:34` | `$shift->user->name` crash kalo user dihapus (FK `nullOnDelete`) — pake `$shift->user?->name ?? 'Akun dihapus'` | Medium |
 
-### Frontend — 1 Fix
+### Frontend (Web) — 1 Fix
 | # | File:Ln | Bug | Severity |
 |---|---|---|---|
-| 16 | `checkout.blade.php:280` | Alpine.js `ppnAmount` getter pake `this.subtotal` bukan `this.subtotal - this.discount` — PPN preview overestimate pas ada kupon | Medium |
+| 17 | `checkout.blade.php:280` | Alpine.js `ppnAmount` getter pake `this.subtotal` bukan `this.subtotal - this.discount` — PPN preview overestimate pas ada kupon | Medium |
+
+### API Security & Logic — 3 Fixes (07-15)
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 18 | `Api/OrderController.php:127` | PPN DPP mismatch — `discount` gak dipake di mobile checkout PPN calc, beda sama web | Medium |
+| 19 | `Api/OrderController.php:62` | **IDOR vulnerability** — gak ada ownership check `address_id` pas bikin order | **High** |
+| 20 | `Api/ProductController.php` | Search gak include SKU — product gak bisa dicari berdasarkan SKU di mobile | Medium |
+
+### Filament Admin — 6 Fixes (07-15)
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 21 | `EditProduct.php:50` | Stock adjustment `increment()` + `recordStockHistory()` tanpa `$product->refresh()` — in-memory `stock` stale | Medium |
+| 22 | `StockHistoriesTable.php` | Missing type badges: `opname`, `return`, `refund` — semua type gak punya label/warna | Medium |
+| 23 | `UsersTable.php` | Missing `SelectFilter` untuk role dan segment — gak bisa filter user | Medium |
+| 24 | `CouponResource.php` | `usage_per_user` gak nullable — helperText bilang "Kosongkan untuk unlimited" tapi field required | Medium |
+| 25 | `ManageSettings.php:145,151` | Logo/Favicon `FileUpload` gak ada `disk('public')` — upload gagal di production | **High** |
+
+### Infrastructure — 1 Fix (07-15)
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 26 | `bootstrap/app.php` | No API rate limiting — endpoint `/login` `/register` gak ada throttle | Medium |
+
+### Mobile Code Quality — 7 Fixes (07-15)
+| # | File:Ln | Bug | Severity |
+|---|---|---|---|
+| 27 | `SearchScreen.js:47` | Debounce timeout gak di-clear on unmount — memory leak | Medium |
+| 28 | `ProfileScreen.js` | Stats gak refresh pas screen di-focus — data stale setelah navigate back | Medium |
+| 29 | `NotificationScreen.js` | Gak ada "Mark All Read" button — user harus tap satu-satu | Low |
+| 30 | `CartScreen.js` | Gak ada pull-to-refresh | Low |
+
+### Mobile Code Deduplication (07-15)
+- Created `mobile/src/utils.js` — shared `formatPrice`, `STATUS_COLORS`, `STATUS_LABELS`
+- Refactored 7 screens (HomeScreen, ProductDetail, Search, Wishlist, Checkout, Cart, OrderDetail, OrderList) ke shared utilities
+- Menghilangkan duplicate `formatPrice` definitions di semua screens
 
 ### Catatan Penting
 - **Config cache**: Jangan `config:cache` pas running tests — cached config override env testing (SQLite in-memory). Always `config:clear` before `php artisan test`.
 - **DB seeder**: `DatabaseSeeder` bisa dimodif sementara (comment product seeding) kalo mau reset DB tanpa produk — tinggal `migrate:fresh --seed`. Jangan lupa direstore setelahnya.
 - **`php artisan optimize`** udah jalan — config, events, routes, views, blade-icons, filament all cached.
+- **Tests: 25/25 pass, Pint: 300 files clean** setelah semua fix diterapkan.
 
 ---
 
@@ -979,11 +1020,3 @@ Total **16 bugs** ditemukan dan diperbaiki dalam audit kode menyeluruh:
 | 7 | Ikon kategori default 📦 | Fuzzy matching 21 keyword arrays | `HomeScreen.js` |
 | 8 | Splash double | Hapus PNG, amber color, XML layer-list | `colors.xml`, `splashscreen_logo.xml` |
 | 9 | Upload bukti bayar error | `Content-Type: multipart/form-data` untuk FormData | `OrderDetailScreen.js` |
-
-### Access (Mobile)
-
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@hello-store.test` | `password` |
-| Cashier | `kasir@hello-store.test` | `password` |
-| Customer | `test@example.com` | `password` |

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, Image,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
+import { formatPrice } from '../utils';
 
 export default function CartScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -18,6 +19,7 @@ export default function CartScreen({ navigation }) {
   const [items, setItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,6 +48,8 @@ export default function CartScreen({ navigation }) {
       fetchCart();
       refreshCartCount();
     } catch (e) {
+      const msg = e.response?.data?.message || 'Gagal memperbarui jumlah.';
+      showAlert({ title: 'Error', message: msg, type: 'error' });
     }
   };
 
@@ -59,7 +63,10 @@ export default function CartScreen({ navigation }) {
     }
   };
 
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchCart().finally(() => setRefreshing(false));
+  };
 
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
@@ -120,6 +127,9 @@ export default function CartScreen({ navigation }) {
             renderItem={renderItem}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+            }
           />
           <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View>

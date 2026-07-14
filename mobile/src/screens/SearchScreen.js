@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
+import { formatPrice } from '../utils';
 
 export default function SearchScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -20,6 +21,7 @@ export default function SearchScreen({ navigation }) {
 
   React.useEffect(() => {
     inputRef.current?.focus();
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, []);
 
   const doSearch = useCallback(async (q) => {
@@ -53,8 +55,6 @@ export default function SearchScreen({ navigation }) {
     Keyboard.dismiss();
     doSearch(query);
   };
-
-  const formatPrice = (p) => `Rp${Number(p).toLocaleString('id-ID')}`;
 
   const renderItem = ({ item }) => (
     <TouchableOpacity

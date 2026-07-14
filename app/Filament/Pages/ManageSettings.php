@@ -145,12 +145,14 @@ class ManageSettings extends Page
                         FileUpload::make('logo')
                             ->label('Logo Toko')
                             ->image()
+                            ->disk('public')
                             ->directory('settings')
                             ->imageEditor()
                             ->helperText('Upload logo toko (format: JPG, PNG, SVG)'),
                         FileUpload::make('favicon')
                             ->label('Favicon')
                             ->image()
+                            ->disk('public')
                             ->directory('settings')
                             ->helperText('Upload favicon (32x32px, format: ICO/PNG)'),
                         TextInput::make('whatsapp')

@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class CouponController extends Controller
 {
-    public function validate(Request $request): JsonResponse
+    public function check(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'code' => 'required|string',

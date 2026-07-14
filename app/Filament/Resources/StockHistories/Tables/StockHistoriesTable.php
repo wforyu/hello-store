@@ -23,6 +23,9 @@ class StockHistoriesTable
                         'order' => 'info',
                         'pos' => 'warning',
                         'adjustment' => 'danger',
+                        'opname' => 'success',
+                        'return' => 'warning',
+                        'refund' => 'danger',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
@@ -30,6 +33,9 @@ class StockHistoriesTable
                         'order' => 'Pesanan Online',
                         'pos' => 'POS',
                         'adjustment' => 'Penyesuaian',
+                        'opname' => 'Stok Opname',
+                        'return' => 'Retur ke Supplier',
+                        'refund' => 'Refund',
                         default => $state,
                     }),
                 TextColumn::make('quantity_change')
