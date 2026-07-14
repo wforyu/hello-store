@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shopping bag body -->
+    <path
+        android:pathData="M36,40 L72,40 L68,80 L40,80 Z"
+        android:fillColor="#000000"/>
+
+    <!-- Bag top rim -->
+    <path
+        android:pathData="M34,40 L74,40 L72,46 L36,46 Z"
+        android:fillColor="#000000"/>
+
+    <!-- Handle left -->
+    <path
+        android:pathData="M44,40 C44,30 46,26 50,24"
+        android:strokeColor="#000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"/>
+
+    <!-- Handle right -->
+    <path
+        android:pathData="M64,40 C64,30 62,26 58,24"
+        android:strokeColor="#000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"/>
+
+    <!-- H -->
+    <path android:pathData="M44,56 L44,72 L47,72 L47,64 L51,64 L51,72 L54,72 L54,56 L51,56 L51,62 L47,62 L47,56 Z"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- S -->
+    <path android:pathData="M58,56 L66,56 L66,59 L61,59 L58,62 L66,62 L66,72 L58,72 L58,69 L63,69 L66,66 L63,66 L58,66 Z"
+        android:fillColor="#FFFFFF"/>
+</vector>
