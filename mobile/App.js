@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +8,8 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
+
+SplashScreen.preventAutoHideAsync();
 
 function CustomSplash({ onFinish }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -31,7 +34,10 @@ function CustomSplash({ onFinish }) {
         toValue: 0,
         duration: 350,
         useNativeDriver: true,
-      }).start(() => onFinish());
+      }).start(() => {
+        SplashScreen.hideAsync();
+        onFinish();
+      });
     }, 2000);
 
     return () => clearTimeout(timer);
