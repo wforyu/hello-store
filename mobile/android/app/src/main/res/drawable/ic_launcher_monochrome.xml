@@ -7,35 +7,78 @@
 
     <!-- Shopping bag body -->
     <path
-        android:pathData="M36,40 L72,40 L68,80 L40,80 Z"
+        android:pathData="M38,18 L70,18 L66,52 L42,52 Z"
         android:fillColor="#000000"/>
 
     <!-- Bag top rim -->
     <path
-        android:pathData="M34,40 L74,40 L72,46 L36,46 Z"
+        android:pathData="M36,18 L72,18 L70,23 L38,23 Z"
         android:fillColor="#000000"/>
 
     <!-- Handle left -->
     <path
-        android:pathData="M44,40 C44,30 46,26 50,24"
+        android:pathData="M46,18 C46,10 48,8 51,6"
         android:strokeColor="#000000"
-        android:strokeWidth="3"
+        android:strokeWidth="2.5"
         android:strokeLineCap="round"
         android:fillColor="#00000000"/>
 
     <!-- Handle right -->
     <path
-        android:pathData="M64,40 C64,30 62,26 58,24"
+        android:pathData="M62,18 C62,10 60,8 57,6"
         android:strokeColor="#000000"
-        android:strokeWidth="3"
+        android:strokeWidth="2.5"
         android:strokeLineCap="round"
         android:fillColor="#00000000"/>
 
     <!-- H -->
-    <path android:pathData="M44,56 L44,72 L47,72 L47,64 L51,64 L51,72 L54,72 L54,56 L51,56 L51,62 L47,62 L47,56 Z"
-        android:fillColor="#FFFFFF"/>
+    <path android:pathData="M26,64 L27,64 L27,72 L26,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M30,64 L31,64 L31,72 L30,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M26,67 L31,67 L31,68 L26,68 Z" android:fillColor="#000000"/>
+
+    <!-- e -->
+    <path android:pathData="M33,64 L38,64 L38,65 L33,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M33,64 L34,64 L34,72 L33,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M33,68 L37,68 L37,69 L33,69 Z" android:fillColor="#000000"/>
+    <path android:pathData="M33,71 L38,71 L38,72 L33,72 Z" android:fillColor="#000000"/>
+
+    <!-- l -->
+    <path android:pathData="M40,64 L41,64 L41,72 L40,72 Z" android:fillColor="#000000"/>
+
+    <!-- l -->
+    <path android:pathData="M43,64 L44,64 L44,72 L43,72 Z" android:fillColor="#000000"/>
+
+    <!-- o -->
+    <path android:pathData="M46,64 L51,64 L51,65 L46,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M46,64 L47,64 L47,72 L46,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M50,64 L51,64 L51,72 L50,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M46,71 L51,71 L51,72 L46,72 Z" android:fillColor="#000000"/>
 
     <!-- S -->
-    <path android:pathData="M58,56 L66,56 L66,59 L61,59 L58,62 L66,62 L66,72 L58,72 L58,69 L63,69 L66,66 L63,66 L58,66 Z"
-        android:fillColor="#FFFFFF"/>
+    <path android:pathData="M55,64 L60,64 L60,65 L55,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M55,64 L56,64 L56,67 L55,67 Z" android:fillColor="#000000"/>
+    <path android:pathData="M55,67 L60,67 L60,68 L55,68 Z" android:fillColor="#000000"/>
+    <path android:pathData="M59,68 L60,68 L60,72 L59,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M55,71 L60,71 L60,72 L55,72 Z" android:fillColor="#000000"/>
+
+    <!-- t -->
+    <path android:pathData="M62,64 L65,64 L65,65 L62,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M63,64 L64,64 L64,72 L63,72 Z" android:fillColor="#000000"/>
+
+    <!-- o -->
+    <path android:pathData="M67,64 L72,64 L72,65 L67,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M67,64 L68,64 L68,72 L67,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M71,64 L72,64 L72,72 L71,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M67,71 L72,71 L72,72 L67,72 Z" android:fillColor="#000000"/>
+
+    <!-- r -->
+    <path android:pathData="M74,64 L75,64 L75,72 L74,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M74,64 L78,64 L78,65 L74,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M77,65 L78,65 L78,67 L77,67 Z" android:fillColor="#000000"/>
+
+    <!-- e -->
+    <path android:pathData="M80,64 L85,64 L85,65 L80,65 Z" android:fillColor="#000000"/>
+    <path android:pathData="M80,64 L81,64 L81,72 L80,72 Z" android:fillColor="#000000"/>
+    <path android:pathData="M80,68 L84,68 L84,69 L80,69 Z" android:fillColor="#000000"/>
+    <path android:pathData="M80,71 L85,71 L85,72 L80,72 Z" android:fillColor="#000000"/>
 </vector>
