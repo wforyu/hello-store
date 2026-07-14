@@ -13,11 +13,11 @@ const foregroundSvg = Buffer.from(`
     </linearGradient>
   </defs>
   <!-- Exact bag from website: scaled 11x, centered, white stroke outlined bag -->
-  <g transform="translate(84,68) scale(11)" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g transform="translate(96,72) scale(9.5)" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
   </g>
   <!-- Hello Store text -->
-  <text x="216" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#111827" letter-spacing="1">Hello Store</text>
+  <text x="216" y="336" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="38" fill="#111827" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const backgroundSvg = Buffer.from(`
@@ -33,10 +33,10 @@ const backgroundSvg = Buffer.from(`
 
 const monochromeSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <g transform="translate(84,68) scale(11)" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <g transform="translate(96,72) scale(9.5)" stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
   </g>
-  <text x="216" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#ffffff" letter-spacing="1">Hello Store</text>
+  <text x="216" y="336" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="38" fill="#ffffff" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const densities = {
