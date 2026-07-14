@@ -378,7 +378,7 @@
                 </div>
             </div>
             <div class="border-t border-gray-100 mt-8 pt-6 text-center text-xs text-gray-400">
-                &copy; {{ date('Y') }} Hello Store. All rights reserved.
+                &copy; {{ date('Y') }} Hello Store. All rights reserved. <a href="{{ route('privacy-policy') }}" class="hover:text-amber-600 transition">Kebijakan Privasi</a>
             </div>
         </div>
     </footer>

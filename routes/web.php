@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StoreController::class, 'home'])->name('home');
 
+Route::get('/privacy-policy', fn () => view('store.privacy-policy'))->name('privacy-policy');
+
 Route::get('/products', [StoreController::class, 'products'])->name('products.index');
 Route::get('/product/{slug}', [StoreController::class, 'productDetail'])->name('products.show');
 Route::get('/products/suggestions', [StoreController::class, 'suggestions'])->name('products.suggestions');
