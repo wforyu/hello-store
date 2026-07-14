@@ -2,38 +2,41 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-// Adaptive icon canvas: 432dp, safe zone circle ~130px radius centered at 216,216
-// Everything must fit within ~y=86 to y=346, ~x=86 to x=346
-
+// Match website storefront bag exactly:
+// gradient amber-500 to orange-600, white outlined bag stroke, "Hello Store" text
 const foregroundSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bag" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#d97706"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#ea580c"/>
     </linearGradient>
   </defs>
-  <!-- Handle left — keep within safe zone top y=96+ -->
-  <path d="M186 148 C186 112 196 98 216 96" stroke="#d97706" stroke-width="9" stroke-linecap="round" fill="none"/>
-  <!-- Handle right -->
-  <path d="M246 148 C246 112 236 98 216 96" stroke="#d97706" stroke-width="9" stroke-linecap="round" fill="none"/>
-  <!-- Bag body -->
-  <rect x="162" y="148" width="108" height="120" rx="10" fill="url(#bag)"/>
+  <!-- Exact bag from website: scaled 11x, centered, white stroke outlined bag -->
+  <g transform="translate(84,68) scale(11)" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+  </g>
   <!-- Hello Store text -->
-  <text x="216" y="328" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#111827" letter-spacing="1">Hello Store</text>
+  <text x="216" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#111827" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const backgroundSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <rect width="432" height="432" fill="#FEF3C7"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="432" height="432" rx="96" fill="url(#bg)"/>
 </svg>`);
 
 const monochromeSvg = Buffer.from(`
 <svg width="432" height="432" viewBox="0 0 432 432" xmlns="http://www.w3.org/2000/svg">
-  <path d="M186 148 C186 112 196 98 216 96" stroke="#000000" stroke-width="9" stroke-linecap="round" fill="none"/>
-  <path d="M246 148 C246 112 236 98 216 96" stroke="#000000" stroke-width="9" stroke-linecap="round" fill="none"/>
-  <rect x="162" y="148" width="108" height="120" rx="10" fill="#000000"/>
-  <text x="216" y="328" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#000000" letter-spacing="1">Hello Store</text>
+  <g transform="translate(84,68) scale(11)" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+  </g>
+  <text x="216" y="358" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="40" fill="#ffffff" letter-spacing="1">Hello Store</text>
 </svg>`);
 
 const densities = {
@@ -54,6 +57,7 @@ async function generate() {
     await sharp(backgroundSvg).resize(size, size).png().toFile(path.join(dir, 'ic_launcher_background.png'));
     await sharp(monochromeSvg).resize(size, size).png().toFile(path.join(dir, 'ic_launcher_monochrome.png'));
 
+    // Full icon = background composited with foreground
     const bg = await sharp(backgroundSvg).resize(size, size).png().toBuffer();
     const fg = await sharp(foregroundSvg).resize(size, size).png().toBuffer();
     const composed = await sharp(bg).composite([{ input: fg, top: 0, left: 0 }]).png().toBuffer();
