@@ -26,6 +26,10 @@ class HomeController extends Controller
                 'link_label' => $b->link_label,
             ]);
 
+        $popup = Banner::active()
+            ->where('type', 'popup')
+            ->first();
+
         $flashSale = FlashSale::active()->with(['products' => fn ($q) => $q->with('productImages')])->first();
         $flashSaleData = null;
         if ($flashSale) {
@@ -107,6 +111,14 @@ class HomeController extends Controller
             'success' => true,
             'data' => [
                 'banners' => $banners,
+                'popup' => $popup ? [
+                    'id' => $popup->id,
+                    'title' => $popup->title,
+                    'description' => $popup->description,
+                    'image' => $popup->image ? '/storage/'.$popup->image : null,
+                    'link' => $popup->link,
+                    'link_label' => $popup->link_label,
+                ] : null,
                 'flash_sale' => $flashSaleData,
                 'featured_products' => $featuredProducts,
                 'latest_products' => $latestProducts,

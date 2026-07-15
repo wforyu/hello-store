@@ -10,6 +10,7 @@ import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
 import { COLORS, getImageUrl, API_URL } from '../config';
 import { formatPrice } from '../utils';
+import PromoPopup from '../components/PromoPopup';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - 24;
@@ -245,9 +246,11 @@ export default function HomeScreen({ navigation }) {
   const latestProducts = homeData?.latest_products || [];
   const bundles = homeData?.bundles || [];
   const banners = homeData?.banners || [];
+  const popup = homeData?.popup || null;
 
   return (
     <View style={styles.container}>
+      <PromoPopup popup={popup} />
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerTop}>

@@ -136,6 +136,7 @@ export default function ProductDetailScreen({ route, navigation }) {
       if (response.data?.success) {
         toast(response.data.message || 'Ditambahkan ke keranjang 🛒', 'success');
         refreshCartCount();
+        navigation.navigate('Cart');
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menambahkan ke keranjang.';

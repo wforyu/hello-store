@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Image,
   StyleSheet, TextInput, ActivityIndicator,
@@ -33,6 +33,10 @@ export default function CheckoutScreen({ navigation }) {
   const [ppnEnabled, setPpnEnabled] = useState(false);
   const [ppnRate, setPpnRate] = useState(11);
 
+  const [shippingRates, setShippingRates] = useState([]);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+
   useEffect(() => {
     if (user) {
       Promise.all([fetchCart(), fetchAddresses(), fetchPpnSettings()]);
@@ -52,6 +56,15 @@ export default function CheckoutScreen({ navigation }) {
     });
     return unsubscribe;
   }, [navigation, user]);
+
+  useEffect(() => {
+    if (selectedAddress) {
+      fetchShippingRates();
+    } else {
+      setShippingRates([]);
+      setSelectedShipping(null);
+    }
+  }, [selectedAddress?.id]);
 
   if (!user) {
     return <LoginPrompt navigation={navigation} message="Silakan login untuk melanjutkan checkout." />;
@@ -98,13 +111,30 @@ export default function CheckoutScreen({ navigation }) {
     }
   };
 
+  const fetchShippingRates = async () => {
+    setShippingLoading(true);
+    setSelectedShipping(null);
+    try {
+      const response = await api.post('/api/shipping/rates', {
+        address_id: selectedAddress.id,
+      });
+      if (response.data?.success) {
+        setShippingRates(response.data.data.rates || []);
+      }
+    } catch (e) {
+      setShippingRates([]);
+    } finally {
+      setShippingLoading(false);
+    }
+  };
+
   const subtotal = cart ? cart.subtotal : 0;
   const discountAmount = couponDiscount || 0;
   const dpp = Math.max(0, subtotal - discountAmount);
   const ppnAmount = ppnEnabled ? Math.round(dpp * ppnRate / 100) : 0;
-  const grandTotal = usePoints
-    ? Math.max(0, dpp + ppnAmount - Math.min(user.points || 0, Math.floor(dpp * 0.5)))
-    : dpp + ppnAmount;
+  const shippingCost = selectedShipping ? selectedShipping.cost : 0;
+  const pointsToRedeem = usePoints ? Math.min(user.points || 0, Math.floor((dpp + shippingCost + ppnAmount) * 0.5)) : 0;
+  const grandTotal = dpp + shippingCost + ppnAmount - pointsToRedeem;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -137,12 +167,13 @@ export default function CheckoutScreen({ navigation }) {
     setCouponName('');
   };
 
-  const maxRedeemable = Math.floor((dpp + ppnAmount) * 0.5);
-  const pointsToRedeem = usePoints ? Math.min(user.points || 0, maxRedeemable) : 0;
-
   const placeOrder = async () => {
     if (!selectedAddress) {
       showAlert({ title: 'Alamat', message: 'Silakan pilih alamat pengiriman terlebih dahulu.', type: 'warning' });
+      return;
+    }
+    if (!selectedShipping) {
+      showAlert({ title: 'Kurir', message: 'Silakan pilih jasa pengiriman terlebih dahulu.', type: 'warning' });
       return;
     }
 
@@ -160,6 +191,8 @@ export default function CheckoutScreen({ navigation }) {
         payment_method: 'manual_transfer',
         notes,
         use_points: usePoints ? 1 : 0,
+        shipping_courier: `${selectedShipping.code} - ${selectedShipping.service}`,
+        shipping_cost: selectedShipping.cost,
         ...(couponDiscount ? { coupon_code: couponCode.trim() } : {}),
       };
 
@@ -235,6 +268,58 @@ export default function CheckoutScreen({ navigation }) {
         )}
       </View>
 
+      {/* Shipping Section */}
+      {selectedAddress && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🚚 Jasa Pengiriman</Text>
+          {shippingLoading ? (
+            <View style={styles.shippingLoading}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <Text style={styles.shippingLoadingText}>Memuat ongkos kirim...</Text>
+            </View>
+          ) : shippingRates.length > 0 ? (
+            shippingRates.map((courier) => (
+              <View key={courier.code} style={styles.courierBlock}>
+                <Text style={styles.courierName}>{courier.name}</Text>
+                {courier.services.map((service) => {
+                  const isSelected = selectedShipping?.code === courier.code && selectedShipping?.service === service.service;
+                  return (
+                    <TouchableOpacity
+                      key={service.service}
+                      style={[styles.serviceItem, isSelected && styles.serviceItemActive]}
+                      onPress={() => setSelectedShipping({
+                        code: courier.code,
+                        name: courier.name,
+                        service: service.service,
+                        description: service.description,
+                        cost: service.cost,
+                        etd: service.etd,
+                      })}
+                    >
+                      <View style={styles.serviceInfo}>
+                        <View style={styles.serviceRadio}>
+                          <View style={[styles.radio, isSelected && styles.radioActive]} />
+                        </View>
+                        <View style={styles.serviceDetails}>
+                          <Text style={styles.serviceName}>{service.service}</Text>
+                          <Text style={styles.serviceDesc}>{service.description}</Text>
+                          <Text style={styles.serviceEtd}>Estimasi {service.etd} hari</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.serviceCost, isSelected && styles.serviceCostActive]}>
+                        {service.cost_formatted}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))
+          ) : selectedAddress ? (
+            <Text style={styles.shippingEmpty}>Tidak ada opsi pengiriman untuk alamat ini.</Text>
+          ) : null}
+        </View>
+      )}
+
       {/* Order Items */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>🛒 Ringkasan Belanja ({cart.items.length} item)</Text>
@@ -307,7 +392,7 @@ export default function CheckoutScreen({ navigation }) {
           <View style={styles.pointsRow}>
             <View style={styles.pointsInfo}>
               <Text style={styles.pointsAvailable}>Poin tersedia: {user.points}</Text>
-              <Text style={styles.pointsNote}>Maksimal 50% total ({formatPrice(maxRedeemable)})</Text>
+              <Text style={styles.pointsNote}>Maksimal 50% total ({formatPrice(Math.floor((dpp + shippingCost + ppnAmount) * 0.5))})</Text>
             </View>
             <TouchableOpacity
               style={[styles.pointsToggle, usePoints && styles.pointsToggleActive]}
@@ -363,6 +448,10 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(couponDiscount)}</Text>
           </View>
         )}
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Ongkos Kirim{selectedShipping ? ` (${selectedShipping.code} ${selectedShipping.service})` : ''}</Text>
+          <Text style={styles.summaryValue}>{selectedShipping ? formatPrice(shippingCost) : '-'}</Text>
+        </View>
         {usePoints && pointsToRedeem > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Poin Digunakan</Text>
@@ -384,9 +473,9 @@ export default function CheckoutScreen({ navigation }) {
 
       {/* Submit Button */}
       <TouchableOpacity
-        style={[styles.orderBtn, (submitting || !selectedAddress) && styles.orderBtnDisabled]}
+        style={[styles.orderBtn, (submitting || !selectedAddress || !selectedShipping) && styles.orderBtnDisabled]}
         onPress={placeOrder}
-        disabled={submitting || !selectedAddress}
+        disabled={submitting || !selectedAddress || !selectedShipping}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -429,6 +518,32 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 16, alignItems: 'center',
   },
   addressBtnText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
+
+  // Shipping
+  shippingLoading: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  shippingLoadingText: { marginLeft: 8, fontSize: 13, color: COLORS.textSecondary },
+  shippingEmpty: { fontSize: 13, color: COLORS.textLight, fontStyle: 'italic' },
+  courierBlock: { marginBottom: 12 },
+  courierName: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  serviceItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, paddingHorizontal: 12, marginBottom: 6,
+    borderRadius: 10, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  serviceItemActive: { borderColor: COLORS.primary, backgroundColor: '#FEF3C7' },
+  serviceInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  serviceRadio: { marginRight: 10 },
+  radio: {
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: COLORS.border,
+  },
+  radioActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  serviceDetails: { flex: 1 },
+  serviceName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  serviceDesc: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  serviceEtd: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
+  serviceCost: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginLeft: 8 },
+  serviceCostActive: { color: COLORS.primary },
 
   // Items
   itemRow: {
@@ -505,7 +620,6 @@ const styles = StyleSheet.create({
   summaryDivider: { borderTopWidth: 1, borderTopColor: COLORS.border, marginVertical: 8 },
   grandTotalLabel: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   grandTotalValue: { fontSize: 18, fontWeight: '700', color: COLORS.primary },
-  summaryNote: { fontSize: 11, color: COLORS.textLight, marginTop: 4 },
 
   // Submit
   orderBtn: {

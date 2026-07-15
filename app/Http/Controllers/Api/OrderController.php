@@ -68,22 +68,22 @@ class OrderController extends Controller
             'items.*.variant_id' => 'nullable|exists:product_variants,id',
             'payment_method' => 'required|in:manual_transfer,cod',
             'notes' => 'nullable|string|max:500',
-            'address_id' => 'nullable|exists:addresses,id',
+            'address_id' => 'required|exists:addresses,id',
             'use_points' => 'nullable|integer|min:0',
             'coupon_code' => 'nullable|string',
+            'shipping_courier' => 'required|string',
+            'shipping_cost' => 'required|numeric|min:0',
         ]);
 
-        if ($request->filled('address_id')) {
-            $addressOwned = Address::where('id', $request->address_id)
-                ->where('user_id', auth()->id())
-                ->exists();
-            if (! $addressOwned) {
-                return response()->json([
-                    'success' => false,
-                    'data' => null,
-                    'message' => 'Alamat tidak ditemukan.',
-                ], 422);
-            }
+        $addressOwned = Address::where('id', $request->address_id)
+            ->where('user_id', auth()->id())
+            ->exists();
+        if (! $addressOwned) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Alamat tidak ditemukan.',
+            ], 422);
         }
 
         $productIds = collect($request->items)->pluck('product_id');
@@ -154,23 +154,26 @@ class OrderController extends Controller
         $ppnBase = max(0, $subtotal - $couponDiscount);
         $ppnAmount = $ppnEnabled ? round($ppnBase * $ppnRate / 100) : 0;
 
+        $shippingCost = (float) $request->shipping_cost;
+
         $usePoints = min((int) ($request->use_points ?? 0), auth()->user()->points);
         $pointDiscount = 0;
         if ($usePoints > 0) {
-            $maxPointDiscount = (int) floor($ppnBase * 0.5);
+            $maxPointDiscount = (int) floor(($ppnBase + $shippingCost) * 0.5);
             $usePoints = min($usePoints, $maxPointDiscount);
             $pointDiscount = $usePoints;
         }
 
-        $total = $ppnBase + $ppnAmount - $pointDiscount;
+        $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount;
 
-        $order = DB::transaction(function () use ($request, $subtotal, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $usePoints, $pointDiscount) {
+        $order = DB::transaction(function () use ($request, $subtotal, $shippingCost, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $usePoints, $pointDiscount) {
             $order = Order::create([
                 'user_id' => auth()->id(),
                 'order_number' => 'ORD-'.strtoupper(Str::random(8)),
                 'status' => 'pending',
                 'subtotal' => $subtotal,
-                'shipping_cost' => 0,
+                'shipping_cost' => $shippingCost,
+                'shipping_courier' => $request->shipping_courier,
                 'discount' => $couponDiscount,
                 'coupon_id' => $couponId,
                 'total' => $total,
@@ -531,6 +534,7 @@ class OrderController extends Controller
             'subtotal' => (float) $order->subtotal,
             'subtotal_formatted' => 'Rp'.number_format($order->subtotal, 0, ',', '.'),
             'shipping_cost' => (float) $order->shipping_cost,
+            'shipping_courier' => $order->shipping_courier,
             'total' => (float) $order->total,
             'total_formatted' => 'Rp'.number_format($order->total, 0, ',', '.'),
             'payment_method' => $order->payment_method,

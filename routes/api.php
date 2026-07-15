@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\ShippingController;
 use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,4 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Coupons
     Route::post('/coupons/validate', [CouponController::class, 'check']);
+
+    // Shipping
+    Route::post('/shipping/rates', [ShippingController::class, 'rates']);
 });

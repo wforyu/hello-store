@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cetak Pesanan #{{ $order->order_number }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         @page {
             margin: 0;
@@ -132,6 +133,14 @@
             .header h1 {
                 font-size: 14px;
             }
+            #qr-tracking img {
+                width: 80px !important;
+                height: 80px !important;
+            }
+            #qr-tracking canvas {
+                width: 80px !important;
+                height: 80px !important;
+            }
         }
     </style>
 </head>
@@ -168,15 +177,19 @@
     {{-- Courier --}}
     @if($order->shipping_courier)
         <div class="section">
-            <div class="section-title">Kurir</div>
+            <div class="section-title">Kurir Pengiriman</div>
             <div class="row">
-                <span class="label">Layanan</span>
-                <span class="value">{{ $order->shipping_courier }}</span>
+                <span class="label">Jasa Kurir</span>
+                <span class="value">{{ strtoupper($order->shipping_courier) }}</span>
             </div>
             @if($order->shipping_tracking_number)
                 <div class="row">
                     <span class="label">No Resi</span>
-                    <span class="value">{{ $order->shipping_tracking_number }}</span>
+                    <span class="value" style="letter-spacing:1px">{{ $order->shipping_tracking_number }}</span>
+                </div>
+                <div style="text-align:center;margin:8px 0 4px 0">
+                    <div id="qr-tracking" style="display:inline-block"></div>
+                    <p style="font-size:8px;color:#555;margin-top:2px">Scan untuk lacak pengiriman</p>
                 </div>
             @endif
         </div>
@@ -266,6 +279,22 @@
         <p>Terima kasih telah berbelanja di Hello Store!</p>
         <p style="margin-top:2px;font-size:8px">{{ $order->order_number }} | {{ $order->created_at->format('d/m/Y H:i') }}</p>
     </div>
+
+    @if($order->shipping_tracking_number)
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var el = document.getElementById('qr-tracking');
+            if (el) {
+                new QRCode(el, {
+                    text: '{{ $order->shipping_tracking_number }}',
+                    width: 100,
+                    height: 100,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+        });
+    </script>
+    @endif
 
 </body>
 </html>
