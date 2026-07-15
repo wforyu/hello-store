@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal, FlatList,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Modal, FlatList, Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -62,6 +62,9 @@ export default function ProfileScreen({ navigation }) {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
   const [stats, setStats] = useState({ orders: 0, addresses: 0 });
+  const [socialRules, setSocialRules] = useState([]);
+  const [socialStatus, setSocialStatus] = useState({});
+  const [claiming, setClaiming] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,6 +73,7 @@ export default function ProfileScreen({ navigation }) {
         if (saved) setSelectedAvatarId(saved);
       })();
       fetchStats();
+      fetchSocialData();
     }, [])
   );
 
@@ -85,6 +89,32 @@ export default function ProfileScreen({ navigation }) {
       setStats({ orders: ordersTotal, addresses: addrTotal });
     } catch (e) {
       // silent
+    }
+  };
+
+  const fetchSocialData = async () => {
+    try {
+      const [rulesRes, statusRes] = await Promise.all([
+        api.get('/api/social-follow/rules'),
+        api.get('/api/social-follow/status'),
+      ]);
+      setSocialRules(rulesRes.data?.data?.rules || []);
+      setSocialStatus(statusRes.data?.data || {});
+    } catch (e) {
+      // silent
+    }
+  };
+
+  const claimFollow = async (platform) => {
+    setClaiming(platform);
+    try {
+      const res = await api.post(`/api/social-follow/claim/${platform}`);
+      toast(res.data?.message || 'Claim berhasil diajukan', 'success');
+      fetchSocialData();
+    } catch (e) {
+      toast(e.response?.data?.message || 'Gagal mengajukan claim', 'error');
+    } finally {
+      setClaiming(null);
     }
   };
 
@@ -223,6 +253,67 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.statValue}>{stats.addresses}</Text>
             <Text style={styles.statLabel}>Alamat</Text>
           </View>
+        </View>
+      )}
+
+      {/* Social Follow Rewards */}
+      {!editing && socialRules.length > 0 && (
+        <View style={styles.socialSection}>
+          <Text style={styles.menuSectionTitle}>Ikuti & Dapatkan Reward</Text>
+          {socialRules.map((rule) => {
+            const status = socialStatus[rule.platform]?.status || 'none';
+            const isClaiming = claiming === rule.platform;
+            const isApproved = status === 'approved';
+            const isPending = status === 'pending';
+            return (
+              <View key={rule.platform} style={styles.socialCard}>
+                <View style={styles.socialInfo}>
+                  <Text style={styles.socialPlatform}>
+                    {rule.platform === 'instagram' ? '📷 Instagram' : '🎵 TikTok'}
+                  </Text>
+                  <Text style={styles.socialReward}>
+                    Reward: {rule.reward_tier ? rule.reward_tier.charAt(0).toUpperCase() + rule.reward_tier.slice(1) : '-'}
+                    {rule.reward_points > 0 ? ` + ${rule.reward_points} poin` : ''}
+                  </Text>
+                  {rule.message ? <Text style={styles.socialMessage}>{rule.message}</Text> : null}
+                </View>
+                <View style={styles.socialActions}>
+                  <TouchableOpacity
+                    style={[styles.socialFollowBtn, isApproved && styles.socialFollowBtnDone]}
+                    onPress={() => {
+                      if (rule.url) Linking.openURL(rule.url);
+                    }}
+                    disabled={isApproved}
+                  >
+                    <Text style={[styles.socialFollowBtnText, isApproved && { color: COLORS.success }]}>
+                      {isApproved ? '✓ Followed' : 'Follow'}
+                    </Text>
+                  </TouchableOpacity>
+                  {!isApproved && !isPending && (
+                    <TouchableOpacity
+                      style={[styles.socialClaimBtn, isClaiming && { opacity: 0.6 }]}
+                      onPress={() => claimFollow(rule.platform)}
+                      disabled={isClaiming}
+                    >
+                      <Text style={styles.socialClaimBtnText}>
+                        {isClaiming ? '...' : 'Saya Sudah Follow'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {isPending && (
+                    <View style={styles.socialPendingBadge}>
+                      <Text style={styles.socialPendingText}>Menunggu Review</Text>
+                    </View>
+                  )}
+                  {isApproved && (
+                    <View style={styles.socialApprovedBadge}>
+                      <Text style={styles.socialApprovedText}>✓ Disetujui</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -426,4 +517,38 @@ const styles = StyleSheet.create({
   avatarOptionActive: { backgroundColor: '#FEF3C7', borderWidth: 2, borderColor: COLORS.primary },
   avatarOptionEmoji: { fontSize: 32, marginBottom: 4 },
   avatarOptionLabel: { fontSize: 10, color: COLORS.textSecondary },
+
+  // Social Follow Rewards
+  socialSection: { paddingHorizontal: 12, marginTop: 12 },
+  socialCard: {
+    backgroundColor: COLORS.white, borderRadius: 12, padding: 14, marginBottom: 8,
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3,
+  },
+  socialInfo: { marginBottom: 10 },
+  socialPlatform: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  socialReward: { fontSize: 13, color: COLORS.primary, fontWeight: '600' },
+  socialMessage: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
+  socialActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  socialFollowBtn: {
+    flex: 1, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 8,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  socialFollowBtnDone: { borderColor: COLORS.success, backgroundColor: '#ECFDF5' },
+  socialFollowBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  socialClaimBtn: {
+    flex: 1, backgroundColor: COLORS.primary, borderRadius: 8,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  socialClaimBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  socialPendingBadge: {
+    flex: 1, backgroundColor: '#FEF3C7', borderRadius: 8,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  socialPendingText: { fontSize: 13, fontWeight: '600', color: '#D97706' },
+  socialApprovedBadge: {
+    flex: 1, backgroundColor: '#ECFDF5', borderRadius: 8,
+    paddingVertical: 8, alignItems: 'center',
+  },
+  socialApprovedText: { fontSize: 13, fontWeight: '600', color: COLORS.success },
 });

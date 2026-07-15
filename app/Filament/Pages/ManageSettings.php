@@ -61,6 +61,8 @@ class ManageSettings extends Page
             'body_scripts' => Setting::get('body_scripts'),
             'points_rate' => Setting::get('points_rate', '10'),
             'points_max_redeem' => Setting::get('points_max_redeem', '50'),
+            'social_follow_enabled' => Setting::get('social_follow_enabled', '0') === '1',
+            'social_follow_rules' => Setting::get('social_follow_rules', []),
         ]);
     }
 
@@ -151,6 +153,58 @@ class ManageSettings extends Page
                             ->helperText('Tier otomatis berdasarkan total belanja customer. Diskon: Silver 5%, Gold 10%, Platinum 15%, Diamond 20%.'),
                     ])
                     ->columns(2),
+                Section::make('Social Follow Rewards')
+                    ->description('Reward untuk customer yang follow media sosial toko')
+                    ->schema([
+                        Toggle::make('social_follow_enabled')
+                            ->label('Aktifkan Fitur Social Follow Rewards')
+                            ->helperText('Jika diaktifkan, customer bisa claim reward dengan follow media sosial toko'),
+                        Repeater::make('social_follow_rules')
+                            ->label('')
+                            ->schema([
+                                Select::make('platform')
+                                    ->label('Platform')
+                                    ->options([
+                                        'instagram' => 'Instagram',
+                                        'tiktok' => 'TikTok',
+                                    ])
+                                    ->required()
+                                    ->reactive()
+                                    ->helperText('Pilih platform sosial media'),
+                                TextInput::make('url')
+                                    ->label('URL Profil')
+                                    ->url()
+                                    ->required()
+                                    ->helperText('Link ke profil toko di platform ini'),
+                                Select::make('reward_tier')
+                                    ->label('Reward Tier')
+                                    ->options([
+                                        'silver' => 'Silver (5% diskon)',
+                                        'gold' => 'Gold (10% diskon)',
+                                        'platinum' => 'Platinum (15% diskon)',
+                                        'diamond' => 'Diamond (20% diskon)',
+                                    ])
+                                    ->required()
+                                    ->helperText('Tier yang didapat customer setelah follow'),
+                                TextInput::make('reward_points')
+                                    ->label('Bonus Poin')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->minValue(0)
+                                    ->helperText('Poin tambahan yang didapat (0 = tanpa poin bonus)'),
+                                TextInput::make('message')
+                                    ->label('Pesan untuk Customer')
+                                    ->placeholder('Follow Instagram kami dan dapatkan reward!')
+                                    ->helperText('Pesan yang ditampilkan ke customer (opsional)'),
+                            ])
+                            ->columns(2)
+                            ->addActionLabel('Tambah Platform')
+                            ->reorderable(false)
+                            ->defaultItems(2)
+                            ->maxItems(5),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
                 Section::make('Rekening Bank')
                     ->description('Nomor rekening yang ditampilkan untuk pembayaran transfer')
                     ->schema([
@@ -286,7 +340,7 @@ class ManageSettings extends Page
         $data = $this->form->getState();
 
         foreach ($data as $key => $value) {
-            if ($key === 'bank_accounts') {
+            if ($key === 'bank_accounts' || $key === 'social_follow_rules') {
                 $value = json_encode($value);
             }
             if (is_bool($value)) {

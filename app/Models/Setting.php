@@ -38,6 +38,10 @@ class Setting extends Model
             return json_decode($value, true) ?? [];
         }
 
+        if ($key === 'social_follow_rules') {
+            return json_decode($value, true) ?? [];
+        }
+
         return $value;
     }
 }

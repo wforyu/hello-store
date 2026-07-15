@@ -207,4 +207,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notification::class);
     }
+
+    public function socialFollowClaims(): HasMany
+    {
+        return $this->hasMany(SocialFollowClaim::class);
+    }
 }

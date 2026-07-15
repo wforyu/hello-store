@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\ShippingController;
+use App\Http\Controllers\Api\SocialFollowController;
 use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,7 @@ Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/settings/ppn', [SettingsController::class, 'ppn']);
 Route::get('/settings/member-tiers', [SettingsController::class, 'memberTiers']);
+Route::get('/social-follow/rules', [SocialFollowController::class, 'rules']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -71,4 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Shipping
     Route::post('/shipping/rates', [ShippingController::class, 'rates']);
+
+    // Social Follow Rewards
+    Route::get('/social-follow/status', [SocialFollowController::class, 'status']);
+    Route::post('/social-follow/claim/{platform}', [SocialFollowController::class, 'claim']);
 });
