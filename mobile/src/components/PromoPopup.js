@@ -74,14 +74,14 @@ export default function PromoPopup({ popup }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   card: {
     width: Math.min(SCREEN_WIDTH - 40, 400),
-    backgroundColor: COLORS.white,
+    backgroundColor: 'transparent',
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 10,
@@ -92,11 +92,13 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#1a1a2e',
+    height: 220,
+    borderRadius: 16,
   },
   content: {
-    padding: 20,
+    padding: 16,
+    paddingTop: 8,
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
