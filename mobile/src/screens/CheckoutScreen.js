@@ -9,7 +9,10 @@ import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
-import { formatPrice } from '../utils';
+import { formatPrice, STATUS_COLORS } from '../utils';
+
+const TIER_DISCOUNT = { diamond: 0.20, platinum: 0.15, gold: 0.10, silver: 0.05, bronze: 0 };
+const TIER_LABELS = { diamond: '💎 Diamond', platinum: '🏆 Platinum', gold: '🥇 Gold', silver: '🥈 Silver', bronze: '🥉 Bronze' };
 
 export default function CheckoutScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -133,8 +136,10 @@ export default function CheckoutScreen({ navigation }) {
   const dpp = Math.max(0, subtotal - discountAmount);
   const ppnAmount = ppnEnabled ? Math.round(dpp * ppnRate / 100) : 0;
   const shippingCost = selectedShipping ? selectedShipping.cost : 0;
-  const pointsToRedeem = usePoints ? Math.min(user.points || 0, Math.floor((dpp + shippingCost + ppnAmount) * 0.5)) : 0;
-  const grandTotal = dpp + shippingCost + ppnAmount - pointsToRedeem;
+  const memberDiscountRate = TIER_DISCOUNT[user?.segment] || 0;
+  const memberDiscount = memberDiscountRate > 0 ? Math.round(dpp * memberDiscountRate) : 0;
+  const pointsToRedeem = usePoints ? Math.min(user.points || 0, Math.floor((dpp + shippingCost + ppnAmount - memberDiscount) * 0.5)) : 0;
+  const grandTotal = dpp + shippingCost + ppnAmount - memberDiscount - pointsToRedeem;
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -453,6 +458,12 @@ export default function CheckoutScreen({ navigation }) {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Diskon Kupon</Text>
             <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(couponDiscount)}</Text>
+          </View>
+        )}
+        {memberDiscount > 0 && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Diskon Member ({TIER_LABELS[user?.segment]})</Text>
+            <Text style={[styles.summaryValue, { color: COLORS.success }]}>-{formatPrice(memberDiscount)}</Text>
           </View>
         )}
         <View style={styles.summaryRow}>

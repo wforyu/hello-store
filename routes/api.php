@@ -23,6 +23,7 @@ Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/settings/ppn', [SettingsController::class, 'ppn']);
+Route::get('/settings/member-tiers', [SettingsController::class, 'memberTiers']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

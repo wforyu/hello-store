@@ -164,7 +164,10 @@ class OrderController extends Controller
             $pointDiscount = $usePoints;
         }
 
-        $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount;
+        $memberDiscountRate = auth()->user()->getSegmentDiscountRate();
+        $memberDiscount = $memberDiscountRate > 0 ? (int) round($ppnBase * $memberDiscountRate) : 0;
+
+        $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount - $memberDiscount;
 
         $order = DB::transaction(function () use ($request, $subtotal, $shippingCost, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $usePoints, $pointDiscount) {
             $order = Order::create([
@@ -179,7 +182,7 @@ class OrderController extends Controller
                 'total' => $total,
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'unpaid',
-                'notes' => ($request->notes ?? '').($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : '').($couponDiscount > 0 ? ' | Kupon: -Rp '.number_format($couponDiscount, 0, ',', '.') : ''),
+                'notes' => ($request->notes ?? '').($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : '').($couponDiscount > 0 ? ' | Kupon: -Rp '.number_format($couponDiscount, 0, ',', '.') : '').($memberDiscount > 0 ? ' | Diskon Member '.strtoupper(auth()->user()->segment).': -Rp '.number_format($memberDiscount, 0, ',', '.') : ''),
                 'address_id' => $request->address_id,
             ]);
 
@@ -357,10 +360,16 @@ class OrderController extends Controller
                 'payment_status' => 'paid',
             ]);
 
-            $pointsEarned = (int) floor($order->total * 0.1);
+            $user = auth()->user();
+            $user->increment('total_spent', $order->total);
+
+            $pointsRate = $user->getPointsRate();
+            $pointsEarned = (int) floor($order->total * $pointsRate);
             if ($pointsEarned > 0) {
-                auth()->user()->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
+                $user->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
             }
+
+            $user->autoUpgradeSegment();
         });
 
         Notification::createForUser(

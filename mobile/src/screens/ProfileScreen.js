@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
 import { COLORS } from '../config';
+import { formatPrice, STATUS_COLORS } from '../utils';
 
 const AVATARS = [
   { id: 'bear', emoji: '🐻', label: 'Beruang' },
@@ -32,6 +33,22 @@ const AVATARS = [
 ];
 
 const AVATAR_KEY = 'user_avatar';
+
+const TIER_COLORS = {
+  diamond: '#8B5CF6',
+  platinum: '#10B981',
+  gold: '#F59E0B',
+  silver: '#9CA3AF',
+  bronze: '#D97706',
+};
+
+const TIER_LABELS = {
+  diamond: '💎 Diamond',
+  platinum: '🏆 Platinum',
+  gold: '🥇 Gold',
+  silver: '🥈 Silver',
+  bronze: '🥉 Bronze',
+};
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -169,6 +186,21 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.name}>{user?.name}</Text>
             <Text style={styles.email}>{user?.email}</Text>
             <Text style={styles.role}>{user?.role === 'customer' ? 'Pelanggan' : user?.role}</Text>
+            {user?.segment && (
+              <View style={styles.tierBadge}>
+                <Text style={[styles.tierBadgeText, { color: TIER_COLORS[user.segment] || COLORS.primary }]}>
+                  {TIER_LABELS[user.segment] || user.segment}
+                </Text>
+                {user.total_spent > 0 && (
+                  <Text style={styles.tierSpent}>Total belanja: {formatPrice(user.total_spent)}</Text>
+                )}
+              </View>
+            )}
+            {user?.points > 0 && (
+              <View style={styles.pointsBadge}>
+                <Text style={styles.pointsBadgeText}>⭐ {user.points} poin</Text>
+              </View>
+            )}
           </>
         )}
       </View>
@@ -310,6 +342,14 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
   email: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 4 },
   role: { fontSize: 13, color: COLORS.textLight },
+  tierBadge: { alignItems: 'center', marginTop: 8 },
+  tierBadgeText: { fontSize: 15, fontWeight: '700' },
+  tierSpent: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  pointsBadge: {
+    marginTop: 6, backgroundColor: '#FEF3C7', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 4,
+  },
+  pointsBadgeText: { fontSize: 13, fontWeight: '600', color: '#D97706' },
 
   // Stats
   statsRow: {

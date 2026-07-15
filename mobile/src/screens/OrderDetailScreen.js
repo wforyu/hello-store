@@ -224,14 +224,23 @@ export default function OrderDetailScreen({ route, navigation }) {
     });
   };
 
+  if (!user) {
+    return <LoginPrompt navigation={navigation} message="Silakan login untuk melihat detail pesanan." />;
+  }
+
+  if (loading || !order) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: 12, color: COLORS.textSecondary }}>Memuat detail pesanan...</Text>
+      </View>
+    );
+  }
+
   const statusColor = STATUS_COLORS[order.status] || COLORS.textSecondary;
   const statusLabel = STATUS_LABELS[order.status] || order.status;
   const ppn = parsePPN(order.notes);
   const shippingCost = parseShipping(order.notes);
-
-  if (!user) {
-    return <LoginPrompt navigation={navigation} message="Silakan login untuk melihat detail pesanan." />;
-  }
 
   return (
     <ScrollView
@@ -525,4 +534,5 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 1, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   modalBtnText: { fontSize: 15, fontWeight: '600' },
   proofImage: { width: '100%', height: 200, borderRadius: 10, backgroundColor: COLORS.border },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

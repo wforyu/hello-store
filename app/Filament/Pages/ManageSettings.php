@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Setting;
+use App\Models\User;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
@@ -12,6 +13,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Placeholder;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use UnitEnum;
@@ -57,6 +59,8 @@ class ManageSettings extends Page
             'facebook_pixel_id' => Setting::get('facebook_pixel_id'),
             'head_scripts' => Setting::get('head_scripts'),
             'body_scripts' => Setting::get('body_scripts'),
+            'points_rate' => Setting::get('points_rate', '10'),
+            'points_max_redeem' => Setting::get('points_max_redeem', '50'),
         ]);
     }
 
@@ -112,6 +116,39 @@ class ManageSettings extends Page
                             ->suffix('%')
                             ->default(11)
                             ->helperText('Persentase PPN yang berlaku (contoh: 11)'),
+                    ])
+                    ->columns(2),
+                Section::make('Poin & Member Tier')
+                    ->description('Pengaturan sistem poin dan tier member otomatis')
+                    ->schema([
+                        TextInput::make('points_rate')
+                            ->label('Persentase Poin')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(100)
+                            ->suffix('%')
+                            ->default(10)
+                            ->helperText('Persentase dari total belanja yang menjadi poin (contoh: 10 = 10% dari Rp100.000 = 10.000 poin).'),
+                        TextInput::make('points_max_redeem')
+                            ->label('Maksimal Tukar Poin')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(100)
+                            ->suffix('%')
+                            ->default(50)
+                            ->helperText('Maksimal persentase total belanja yang bisa dibayar pakai poin (contoh: 50 = max 50% total).'),
+                        Placeholder::make('member_tiers_info')
+                            ->label('Tier Member & Threshold')
+                            ->content(function () {
+                                $tiers = User::getSegmentThresholds();
+                                $lines = [];
+                                foreach ($tiers as $tier => $threshold) {
+                                    $lines[] = ucfirst($tier).': belanja minimal Rp'.number_format($threshold, 0, ',', '.');
+                                }
+
+                                return implode("\n", $lines);
+                            })
+                            ->helperText('Tier otomatis berdasarkan total belanja customer. Diskon: Silver 5%, Gold 10%, Platinum 15%, Diamond 20%.'),
                     ])
                     ->columns(2),
                 Section::make('Rekening Bank')

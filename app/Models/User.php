@@ -14,7 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role', 'points', 'segment'])]
+#[Fillable(['name', 'email', 'password', 'role', 'points', 'segment', 'total_spent'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,12 +28,14 @@ class User extends Authenticatable
             'password' => 'hashed',
             'points' => 'integer',
             'segment' => 'string',
+            'total_spent' => 'decimal:2',
         ];
     }
 
     public function getSegmentPointsMultiplier(): float
     {
         return match ($this->segment) {
+            'diamond' => 2.5,
             'platinum' => 2.0,
             'gold' => 1.5,
             'silver' => 1.2,
@@ -44,11 +46,79 @@ class User extends Authenticatable
     public function getSegmentDiscountRate(): float
     {
         return match ($this->segment) {
+            'diamond' => 0.20,
             'platinum' => 0.15,
             'gold' => 0.10,
             'silver' => 0.05,
             default => 0,
         };
+    }
+
+    public function getSegmentLabel(): string
+    {
+        return match ($this->segment) {
+            'diamond' => 'Diamond',
+            'platinum' => 'Platinum',
+            'gold' => 'Gold',
+            'silver' => 'Silver',
+            default => 'Bronze',
+        };
+    }
+
+    public function getSegmentColor(): string
+    {
+        return match ($this->segment) {
+            'diamond' => '#8B5CF6',
+            'platinum' => '#10B981',
+            'gold' => '#F59E0B',
+            'silver' => '#9CA3AF',
+            default => '#D97706',
+        };
+    }
+
+    public static function getSegmentThresholds(): array
+    {
+        return [
+            'bronze' => 0,
+            'silver' => 500000,
+            'gold' => 2000000,
+            'platinum' => 5000000,
+            'diamond' => 15000000,
+        ];
+    }
+
+    public function autoUpgradeSegment(): void
+    {
+        $thresholds = self::getSegmentThresholds();
+        $newSegment = 'bronze';
+        foreach (array_reverse($thresholds, true) as $segment => $threshold) {
+            if ($this->total_spent >= $threshold) {
+                $newSegment = $segment;
+                break;
+            }
+        }
+        if ($newSegment !== $this->segment) {
+            $oldSegment = $this->segment;
+            $this->update(['segment' => $newSegment]);
+            Notification::createForUser(
+                $this->id,
+                'tier',
+                'Selamat! Tier Anda naik ke '.ucfirst($newSegment),
+                'Tier Anda berubah dari '.ucfirst($oldSegment).' ke '.ucfirst($newSegment).'.',
+                null,
+                null
+            );
+        }
+    }
+
+    public function getPointsRate(): float
+    {
+        return (float) (Setting::get('points_rate', '10')) / 100;
+    }
+
+    public function getMaxRedeemPercent(): float
+    {
+        return (float) (Setting::get('points_max_redeem', '50')) / 100;
     }
 
     public function addPoints(int $points, string $description, ?Model $reference = null): PointTransaction
