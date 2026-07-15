@@ -48,12 +48,51 @@ gradlew clean → gradlew assembleRelease
 
 ## Build Commands
 
-| Perintah | Fungsi |
-|---|---|
-| `gradlew clean && gradlew assembleRelease` | Full clean build release APK (PAKAI INI) |
-| `gradlew assembleRelease` | Incremental build (cepat, ~26 detik) |
-| `npx expo prebuild --platform android --clean` | **JANGAN PAKAI** kecuali native dependency berubah |
-| `npx expo export --platform android` | Export JS bundle saja |
+### Keystore (Signing)
+- **File**: `android/keystore/hello-store.keystore` (sudah di-commit ke GitHub)
+- **Store password**: `hellostore123`
+- **Key alias**: `hello-store`
+- **Key password**: `hellostore123`
+- **Distinguished Name**: `CN=Hello Store, OU=Dev, O=HelloStore, L=Bandung, ST=JawaBarat, C=ID`
+- **Validity**: 10,000 hari (~27 tahun)
+- **PENTING**: Keystore ini WAJIB dipakai untuk semua build. Kalau hilang, user harus uninstall APK lama dulu.
+- **Config reference**: `android/app/build.gradle` → `signingConfigs.release`
+
+### Build (Release)
+
+| Perintah | Fungsi | Waktu |
+|---|---|---|
+| `gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a` | **Recommended** — build cuma arm64 (99% device) | ~1-2 menit |
+| `gradlew assembleRelease` | Full build semua arsitektur (arm64, armv7, x86, x86_64) | ~3-5 menit |
+| `gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a` | Build untuk 32-bit + 64-bit | ~2-3 menit |
+| `npx expo export --platform android` | Export JS bundle saja (bukan APK) | ~30 detik |
+
+### Build Checklist
+1. Bump `versionCode` di `mobile/app.json` (sekarang: 101)
+2. Pastikan keystore ada di `android/keystore/hello-store.keystore`
+3. Jalankan build command di atas (working directory: `mobile/android/`)
+4. APK output: `mobile/android/app/build/outputs/apk/release/app-release.apk`
+5. Copy ke `mobile/HelloStore-v1.0.0-{versionCode}.apk` untuk distribusi
+
+### Incremental Build (Perubahan JS/React saja)
+Kalau cuma ubah JS/React (bukan native code), pakai incremental build:
+```
+.\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+Tidak perlu `clean` — Gradle otomatis rebuild JS bundle.
+
+### Full Clean Build (Native code berubah)
+Hanya kalau ada perubahan native (splash, permissions, plugins):
+```
+Remove-Item -Recurse -Force "android\app\.cxx" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "android\build" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "android\app\build" -ErrorAction SilentlyContinue
+.\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+
+### Yang TIDAK BOLEH
+- `npx expo prebuild --clean` — kecuali native dependency berubah
+- Build tanpa keystore — akan gagal di `validateSigningRelease`
 
 ## Bug Fixes Log
 
