@@ -17,16 +17,34 @@ export default function OrderDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showAlert } = useAlert();
-  const { order: initialOrder } = route.params;
-  const [order, setOrder] = useState(initialOrder);
-  const [loading, setLoading] = useState(false);
+  const { order: initialOrder, orderId } = route.params || {};
+  const [order, setOrder] = useState(initialOrder || null);
+  const [loading, setLoading] = useState(!initialOrder);
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      refreshOrder();
-    }, [order.id])
+      if (order?.id) {
+        refreshOrder();
+      } else if (orderId) {
+        fetchOrderById(orderId);
+      }
+    }, [order?.id, orderId])
   );
+
+  const fetchOrderById = async (id) => {
+    setLoading(true);
+    try {
+      const response = await api.get(`/api/orders/${id}`);
+      if (response.data?.success) {
+        setOrder(response.data.data);
+      }
+    } catch (e) {
+      showAlert({ title: 'Error', message: 'Gagal memuat detail pesanan.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [paymentModal, setPaymentModal] = useState(false);
   const [bankName, setBankName] = useState('');

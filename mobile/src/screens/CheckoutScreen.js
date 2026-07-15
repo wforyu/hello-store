@@ -200,7 +200,14 @@ export default function CheckoutScreen({ navigation }) {
       if (response.data?.success) {
         setCart(null);
         refreshCartCount();
-        showAlert({ title: 'Berhasil', message: `Pesanan #${response.data.data.order_number} berhasil dibuat!`, type: 'success', buttons: [{ text: 'OK', onPress: () => navigation.navigate('Orders') }] });
+        const orderId = response.data.data.id;
+        const orderNumber = response.data.data.order_number;
+        showAlert({
+          title: 'Pesanan Dibuat!',
+          message: `Pesanan #${orderNumber} berhasil dibuat. Silakan lanjutkan pembayaran.`,
+          type: 'success',
+          buttons: [{ text: 'Bayar Sekarang', onPress: () => navigation.navigate('OrderDetail', { orderId }) }],
+        });
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal membuat pesanan.';
