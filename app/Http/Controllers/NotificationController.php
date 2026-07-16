@@ -72,10 +72,41 @@ class NotificationController extends Controller
                 'body' => $n->body,
                 'icon' => $n->icon,
                 'link_url' => $n->link_url,
+                'admin_url' => $this->computeAdminUrl($n),
                 'is_read' => (bool) $n->is_read,
                 'created_at' => $n->created_at->diffForHumans(),
             ]);
 
         return response()->json(['notifications' => $notifications]);
+    }
+
+    private function computeAdminUrl(Notification $n): ?string
+    {
+        $url = $n->link_url;
+        if (! $url) {
+            return null;
+        }
+
+        if (preg_match('#/orders/(\d+)/payment#', $url, $m)) {
+            return '/admin/resources/orders/'.$m[1].'/edit';
+        }
+
+        if (preg_match('#/orders/(\d+)#', $url, $m)) {
+            return '/admin/resources/orders/'.$m[1].'/edit';
+        }
+
+        if (preg_match('#/products/(\d+)/review#', $url, $m)) {
+            return '/admin/resources/reviews/'.$m[1].'/edit';
+        }
+
+        if (str_contains($url, '/products/')) {
+            return '/admin/resources/products';
+        }
+
+        if (str_contains($url, '/notifications')) {
+            return null;
+        }
+
+        return $url;
     }
 }

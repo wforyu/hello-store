@@ -76,6 +76,14 @@
                 })
                 .catch(() => {});
         },
+        navigateTo(n) {
+            if (!n.is_read) this.markRead(n.id);
+            var url = n.admin_url || n.link_url;
+            if (url) {
+                this.open = false;
+                window.location.href = url;
+            }
+        },
         markAllRead() {
             fetch('/notifications/read-all', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } })
                 .then(() => {
@@ -192,7 +200,7 @@
             {{-- Items --}}
             <template x-for="n in notifications" :key="n.id">
                 <div
-                    @click="if (!n.is_read) markRead(n.id)"
+                    @click="navigateTo(n)"
                     :style="'display:flex;gap:12px;padding:12px;margin-bottom:6px;border-radius:10px;cursor:pointer;transition:background 0.15s;border:1px solid ' + (n.is_read ? 'transparent' : 'var(--primary-200,#fef3c7)') + ';background:' + (n.is_read ? 'transparent' : 'var(--primary-50,#fffbeb)') + ';'"
                     onmouseover="this.style.background='var(--gray-100,#f3f4f6)'"
                     onmouseout="this.style.background=n.is_read?'transparent':'var(--primary-50,#fffbeb)'"
