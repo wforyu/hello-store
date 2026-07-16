@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('index');
         Route::get('/unread-count', [NotificationController::class, 'unreadCount'])->name('unread');
+        Route::get('/json', [NotificationController::class, 'indexJson'])->name('json');
         Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
         Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
         Route::post('/{notification}/read-json', [NotificationController::class, 'markAsReadJson'])->name('read-json');

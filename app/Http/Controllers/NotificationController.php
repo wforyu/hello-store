@@ -58,4 +58,24 @@ class NotificationController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    public function indexJson()
+    {
+        $notifications = Notification::where('user_id', auth()->id())
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                'type' => $n->type,
+                'title' => $n->title,
+                'body' => $n->body,
+                'icon' => $n->icon,
+                'link_url' => $n->link_url,
+                'is_read' => (bool) $n->is_read,
+                'created_at' => $n->created_at->diffForHumans(),
+            ]);
+
+        return response()->json(['notifications' => $notifications]);
+    }
 }
