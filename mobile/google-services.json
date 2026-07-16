@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "974746803263",
+    "project_id": "hello-store-37904",
+    "storage_bucket": "hello-store-37904.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:974746803263:android:141fc3c5ea60d2ddc0ac8a",
+        "android_client_info": {
+          "package_name": "com.hellostore.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkh0uqnXqthRYVr2ru1wQxvOdbgd6j_3o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
