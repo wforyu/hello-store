@@ -1,11 +1,18 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { API_URL } from '../config';
+import { getApiUrl, API_URL_KEY, FALLBACK_API_URL } from '../config';
 
 const TOKEN_KEY = 'auth_token';
 
+let cachedBaseUrl = null;
+
+const getBaseUrl = async () => {
+  if (cachedBaseUrl) return cachedBaseUrl;
+  cachedBaseUrl = await getApiUrl();
+  return cachedBaseUrl;
+};
+
 const api = axios.create({
-  baseURL: API_URL,
   timeout: 15000,
   headers: {
     Accept: 'application/json',
@@ -15,19 +22,21 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  const baseURL = await getBaseUrl();
+  config.baseURL = baseURL;
+
   try {
     const token = await SecureStore.getItemAsync(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-  } catch (e) {
-  }
+  } catch (e) {}
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
       SecureStore.deleteItemAsync(TOKEN_KEY);
     }
@@ -51,5 +60,9 @@ export const setToken = async (token) => {
 export const getToken = () => SecureStore.getItemAsync(TOKEN_KEY);
 
 export const clearToken = () => SecureStore.deleteItemAsync(TOKEN_KEY);
+
+export const refreshBaseUrl = () => {
+  cachedBaseUrl = null;
+};
 
 export default api;

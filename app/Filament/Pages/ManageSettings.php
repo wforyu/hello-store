@@ -63,6 +63,7 @@ class ManageSettings extends Page
             'points_max_redeem' => Setting::get('points_max_redeem', '50'),
             'social_follow_enabled' => Setting::get('social_follow_enabled', '0') === '1',
             'social_follow_rules' => Setting::get('social_follow_rules', []),
+            'mobile_api_url' => Setting::get('mobile_api_url', ''),
         ]);
     }
 
@@ -202,6 +203,18 @@ class ManageSettings extends Page
                             ->reorderable(false)
                             ->defaultItems(2)
                             ->maxItems(5),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+                Section::make('Mobile App')
+                    ->description('Pengaturan API URL untuk aplikasi mobile')
+                    ->schema([
+                        TextInput::make('mobile_api_url')
+                            ->label('API URL')
+                            ->url()
+                            ->placeholder('https://domain-anda.com')
+                            ->helperText('URL API server yang dipakai mobile app. Ganti ini saat pindah hosting/VPS. Mobile app akan auto-fetch URL ini dari server.')
+                            ->columnSpanFull(),
                     ])
                     ->collapsible()
                     ->collapsed(),

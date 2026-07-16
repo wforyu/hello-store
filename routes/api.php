@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\CouponController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
+Route::get('/config', [ConfigController::class, 'index']);
 Route::get('/home', [HomeController::class, 'index']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);

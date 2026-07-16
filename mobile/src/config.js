@@ -1,9 +1,35 @@
-export const API_URL = 'https://yard-steed-ferris.ngrok-free.dev';
+import * as SecureStore from 'expo-secure-store';
+
+export const API_URL_KEY = 'api_url';
+export const FALLBACK_API_URL = 'https://yard-steed-ferris.ngrok-free.dev';
+
+let _cachedUrl = null;
+
+export const getApiUrl = async () => {
+  if (_cachedUrl) return _cachedUrl;
+  try {
+    const stored = await SecureStore.getItemAsync(API_URL_KEY);
+    if (stored) {
+      _cachedUrl = stored;
+      return stored;
+    }
+  } catch (e) {}
+  _cachedUrl = FALLBACK_API_URL;
+  return FALLBACK_API_URL;
+};
+
+export const setApiUrl = async (url) => {
+  if (url) {
+    _cachedUrl = url;
+    await SecureStore.setItemAsync(API_URL_KEY, url);
+  }
+};
 
 export const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/200';
   if (url.startsWith('http')) return url;
-  return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  const base = _cachedUrl || FALLBACK_API_URL;
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 export const COLORS = {

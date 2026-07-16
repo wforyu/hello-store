@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
-import { COLORS, getImageUrl, API_URL } from '../config';
+import { COLORS, getImageUrl } from '../config';
 import { formatPrice } from '../utils';
 import PromoPopup from '../components/PromoPopup';
 
