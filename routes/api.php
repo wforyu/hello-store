@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\CouponController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\Api\OrderController;
@@ -79,4 +80,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Social Follow Rewards
     Route::get('/social-follow/status', [SocialFollowController::class, 'status']);
     Route::post('/social-follow/claim/{platform}', [SocialFollowController::class, 'claim']);
+
+    // Device Push Notifications
+    Route::post('/devices/register', [DeviceController::class, 'register']);
+    Route::post('/devices/unregister', [DeviceController::class, 'unregister']);
 });

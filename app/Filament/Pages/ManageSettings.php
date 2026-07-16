@@ -64,6 +64,7 @@ class ManageSettings extends Page
             'social_follow_enabled' => Setting::get('social_follow_enabled', '0') === '1',
             'social_follow_rules' => Setting::get('social_follow_rules', []),
             'mobile_api_url' => Setting::get('mobile_api_url', ''),
+            'firebase_service_account' => Setting::get('firebase_service_account', ''),
         ]);
     }
 
@@ -215,6 +216,32 @@ class ManageSettings extends Page
                             ->placeholder('https://domain-anda.com')
                             ->helperText('URL API server yang dipakai mobile app. Ganti ini saat pindah hosting/VPS. Mobile app akan auto-fetch URL ini dari server.')
                             ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+                Section::make('Push Notifications (Firebase)')
+                    ->description('Konfigurasi Firebase untuk push notification ke mobile app')
+                    ->schema([
+                        Textarea::make('firebase_service_account')
+                            ->label('Firebase Service Account JSON')
+                            ->placeholder('Paste isi file service-account.json dari Firebase Console')
+                            ->helperText('Download dari Firebase Console > Project Settings > Service Accounts > Generate New Private Key. Paste seluruh isi JSON di sini. Diperlukan untuk push notification.')
+                            ->rows(8)
+                            ->columnSpanFull(),
+                        Placeholder::make('firebase_setup_guide')
+                            ->label('Cara Setup')
+                            ->content(function () {
+                                $steps = "1. Buka Firebase Console: https://console.firebase.google.com\n";
+                                $steps .= "2. Pilih project hello-store-37904\n";
+                                $steps .= "3. Klik gear icon > Project Settings\n";
+                                $steps .= "4. Tab 'Service Accounts'\n";
+                                $steps .= "5. Klik 'Generate New Private Key'\n";
+                                $steps .= "6. Buka file JSON yang didownload\n";
+                                $steps .= '7. Copy paste SEMUA isi JSON ke field di atas';
+
+                                return $steps;
+                            })
+                            ->helperText('Pastikan Firebase Cloud Messaging aktif di project settings'),
                     ])
                     ->collapsible()
                     ->collapsed(),

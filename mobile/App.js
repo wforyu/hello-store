@@ -9,6 +9,7 @@ import { ToastProvider } from './src/components/Toast';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { setApiUrl, getApiUrl, FALLBACK_API_URL } from './src/config';
+import { registerForPushNotificationsAsync, sendTokenToServer } from './src/utils/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -113,11 +114,21 @@ export default function App() {
     fetchServerConfig();
   }, []);
 
+  const handleSplashFinish = async () => {
+    setShowSplash(false);
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        await sendTokenToServer(token);
+      }
+    } catch (e) {}
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         {showSplash ? (
-          <CustomSplash onFinish={() => setShowSplash(false)} />
+          <CustomSplash onFinish={handleSplashFinish} />
         ) : (
           <AuthProvider>
             <ToastProvider>

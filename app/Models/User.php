@@ -212,4 +212,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(SocialFollowClaim::class);
     }
+
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
 }

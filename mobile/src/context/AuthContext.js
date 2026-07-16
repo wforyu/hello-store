@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api, { setToken, clearToken } from '../api/client';
+import { registerForPushNotificationsAsync, sendTokenToServer } from '../utils/notifications';
 
 const AuthContext = createContext(null);
 
@@ -48,6 +49,10 @@ export function AuthProvider({ children }) {
       await setToken(response.data.data.token);
       setUser(response.data.data.user);
       fetchCartCount();
+      try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) await sendTokenToServer(pushToken);
+      } catch (e) {}
     }
     return response.data;
   };
@@ -63,6 +68,10 @@ export function AuthProvider({ children }) {
       await setToken(response.data.data.token);
       setUser(response.data.data.user);
       fetchCartCount();
+      try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) await sendTokenToServer(pushToken);
+      } catch (e) {}
     }
     return response.data;
   };

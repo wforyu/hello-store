@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, View, Text, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../context/AuthContext';
 import { COLORS } from '../config';
 
@@ -102,6 +103,17 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { loading } = useAuth();
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.screen && navigationRef.current) {
+        navigationRef.current.navigate(data.screen, data.params || {});
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   if (loading) {
     return (
@@ -113,7 +125,7 @@ export default function AppNavigator() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator>
           <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <Stack.Screen
