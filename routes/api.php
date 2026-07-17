@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BundleController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\CouponController;
@@ -25,6 +26,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
+Route::get('/bundles/{bundle}', [BundleController::class, 'show']);
 Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/settings/ppn', [SettingsController::class, 'ppn']);
 Route::get('/settings/member-tiers', [SettingsController::class, 'memberTiers']);
@@ -42,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cart/add/{product}', [CartController::class, 'add']);
     Route::post('/cart/update', [CartController::class, 'update']);
     Route::delete('/cart/remove/{productId}', [CartController::class, 'remove']);
+    Route::post('/bundles/{bundle}/add-to-cart', [BundleController::class, 'addToCart']);
 
     // Notifications
     Route::get('/notifications', [ApiNotificationController::class, 'index']);

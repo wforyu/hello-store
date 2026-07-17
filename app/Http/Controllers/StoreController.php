@@ -65,9 +65,16 @@ class StoreController extends Controller
 
         $brands = $showBrands ? Brand::where('is_active', true)->orderBy('name')->get() : collect();
 
+        $activeBundles = ProductBundle::where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('start_time')->orWhere('start_time', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('end_time')->orWhere('end_time', '>=', now()))
+            ->with('products.productImages')
+            ->take(4)
+            ->get();
+
         return view('store.home', compact(
             'categories', 'featuredProducts', 'latestProducts',
-            'activeFlashSale', 'flashSaleMap', 'sliders', 'brands',
+            'activeFlashSale', 'flashSaleMap', 'sliders', 'brands', 'activeBundles',
             'showSliders', 'showCategories', 'showFeatured',
             'showLatest', 'showFlashSale', 'showBrands'
         ));

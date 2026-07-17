@@ -6,7 +6,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
-import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
 import { COLORS, getImageUrl } from '../config';
 import { formatPrice } from '../utils';
@@ -56,7 +55,6 @@ export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user, refreshCartCount } = useAuth();
   const toast = useToast();
-  const { showAlert } = useAlert();
   const [homeData, setHomeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -416,11 +414,7 @@ export default function HomeScreen({ navigation }) {
                     key={bundle.id}
                     style={styles.bundleCard}
                     activeOpacity={0.7}
-                    onPress={() => showAlert({
-                      title: bundle.name,
-                      message: `${bundle.description || 'Paket hemat ' + bundle.product_count + ' produk'}\n\nHarga: ${bundle.bundle_price_formatted}\nHemat: ${bundle.savings_formatted}`,
-                      type: 'info',
-                    })}
+                    onPress={() => navigation.navigate('BundleDetail', { bundleId: bundle.id })}
                   >
                     {bundle.image ? (
                       <Image source={{ uri: getImageUrl(bundle.image) }} style={styles.bundleImage} resizeMode="cover" />

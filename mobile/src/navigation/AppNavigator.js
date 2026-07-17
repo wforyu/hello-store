@@ -21,6 +21,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import AddressScreen from '../screens/AddressScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import SearchScreen from '../screens/SearchScreen';
+import BundleDetailScreen from '../screens/BundleDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -157,6 +158,11 @@ export default function AppNavigator() {
           name="Search"
           component={SearchScreen}
           options={{ title: 'Cari Produk', headerTintColor: COLORS.text }}
+        />
+        <Stack.Screen
+          name="BundleDetail"
+          component={BundleDetailScreen}
+          options={{ title: 'Detail Paket', headerTintColor: COLORS.text }}
         />
         <Stack.Screen
           name="Login"

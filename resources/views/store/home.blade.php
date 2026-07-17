@@ -173,6 +173,59 @@
         </section>
     @endif
 
+    {{-- Bundles --}}
+    @if(isset($activeBundles) && $activeBundles->isNotEmpty())
+        <section class="mb-8 lg:mb-12">
+            <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-lg">🎁</div>
+                    <div>
+                        <h2 class="text-xl lg:text-2xl font-bold text-gray-900">Paket Hemat</h2>
+                        <p class="text-xs text-gray-400">Beli paket, lebih hemat!</p>
+                    </div>
+                </div>
+                <a href="{{ route('products.bundles') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition">Lihat Semua &rarr;</a>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                @foreach($activeBundles as $bundle)
+                    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-purple-100/50 transition-all duration-300 group">
+                        @if($bundle->image)
+                            <div class="aspect-[4/3] bg-gray-100 overflow-hidden">
+                                <img src="{{ Storage::url($bundle->image) }}" alt="{{ $bundle->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            </div>
+                        @else
+                            <div class="aspect-[4/3] bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+                                <span class="text-5xl">🎁</span>
+                            </div>
+                        @endif
+                        <div class="p-4">
+                            <h3 class="text-sm font-bold text-gray-900 mb-1 truncate">{{ $bundle->name }}</h3>
+                            @if($bundle->description)
+                                <p class="text-xs text-gray-400 mb-3 line-clamp-1">{{ $bundle->description }}</p>
+                            @endif
+                            <div class="text-xs text-gray-400 mb-3">{{ $bundle->products->count() }} produk dalam paket</div>
+                            <div class="flex items-baseline gap-2 mb-3">
+                                <span class="text-lg font-extrabold text-purple-600">Rp{{ number_format($bundle->bundle_price, 0, ',', '.') }}</span>
+                                @if($bundle->total_original_price > $bundle->bundle_price)
+                                    <span class="text-xs text-gray-400 line-through">Rp{{ number_format($bundle->total_original_price, 0, ',', '.') }}</span>
+                                @endif
+                            </div>
+                            @if($bundle->total_original_price > $bundle->bundle_price)
+                                <span class="inline-block text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg mb-3">Hemat Rp{{ number_format($bundle->total_original_price - $bundle->bundle_price, 0, ',', '.') }}</span>
+                            @endif
+                            <form action="{{ route('cart.add-bundle', $bundle) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl transition-colors text-sm">
+                                    Tambah ke Keranjang
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     {{-- Categories --}}
     @if($categories->isNotEmpty())
         <section class="mb-8 lg:mb-12">
