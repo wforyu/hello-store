@@ -922,6 +922,7 @@
 - **Remote**: `origin → https://github.com/wforyu/hello-store.git`, branch `master`
 - Multiple commits up to latest — includes all Phase 1 + Phase 1.5 features
 - Push command: `git push origin master`
+- **APK WAJIB ikut push**: Setiap kali ada perubahan mobile code & build APK baru, file APK (`mobile/HelloStore-v1.0.0-{versionCode}.apk`) WAJIB di-commit & push bersamaan. Jangan biarkan APK hanya di lokal.
 
 ---
 
