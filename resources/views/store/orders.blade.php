@@ -29,16 +29,7 @@
                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                             <span class="text-sm font-mono font-semibold text-gray-800">{{ $order->order_number }}</span>
                         </div>
-                        <span class="text-xs font-bold px-3 py-1.5 rounded-full
-                            @if($order->status === 'pending') bg-yellow-50 text-yellow-700 border border-yellow-200
-                            @elseif($order->status === 'confirmed') bg-blue-50 text-blue-700 border border-blue-200
-                            @elseif($order->status === 'processing') bg-cyan-50 text-cyan-700 border border-cyan-200
-                            @elseif($order->status === 'shipped') bg-purple-50 text-purple-700 border border-purple-200
-                            @elseif($order->status === 'delivered') bg-emerald-50 text-emerald-700 border border-emerald-200
-                            @elseif($order->status === 'refunded') bg-red-50 text-red-700 border border-red-200
-                            @else bg-gray-50 text-gray-700 border border-gray-200 @endif">
-                            {{ $order->status === 'refunded' ? 'Diretur' : ucfirst($order->status) }}
-                        </span>
+                        <x-status-badge :status="$order->status" />
                     </a>
                     <a href="{{ route('orders.show', $order) }}" class="flex items-center justify-between">
                         <div>

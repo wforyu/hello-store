@@ -127,6 +127,14 @@ export default function CartScreen({ navigation }) {
             renderItem={renderItem}
             keyExtractor={(item) => String(item.id)}
             contentContainerStyle={styles.list}
+            ListHeaderComponent={
+              <TouchableOpacity
+                style={styles.continueShopping}
+                onPress={() => navigation.navigate('Home')}
+              >
+                <Text style={styles.continueShoppingText}>← Lanjut Belanja</Text>
+              </TouchableOpacity>
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
             }
@@ -184,4 +192,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyText: { fontSize: 16, color: COLORS.textSecondary, marginBottom: 12 },
   shopLink: { fontSize: 16, color: COLORS.primary, fontWeight: '600' },
+  continueShopping: { marginBottom: 12, paddingVertical: 4 },
+  continueShoppingText: { fontSize: 14, color: COLORS.primary, fontWeight: '600' },
 });

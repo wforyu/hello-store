@@ -15,7 +15,7 @@ class TopCashiersTableWidget extends BaseTableWidget
 
     protected int|string|array $columnSpan = 4;
 
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 8;
 
     public function table(Table $table): Table
     {

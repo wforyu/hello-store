@@ -233,8 +233,8 @@ export default function HomeScreen({ navigation }) {
           {item.rating > 0 && (
             <Text style={styles.productRating}>★ {Number(item.rating).toFixed(1)}</Text>
           )}
-          {item.review_count > 0 && (
-            <Text style={styles.productSold}>| {item.review_count} ulasan</Text>
+          {item.total_sold > 0 && (
+            <Text style={styles.productSold}>| {item.total_sold} terjual</Text>
           )}
         </View>
       </View>

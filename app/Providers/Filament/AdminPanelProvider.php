@@ -10,6 +10,7 @@ use App\Filament\Widgets\PurchaseAnalyticsWidget;
 use App\Filament\Widgets\RecentOrdersWidget;
 use App\Filament\Widgets\RevenueChart;
 use App\Filament\Widgets\RevenueChartWidget;
+use App\Filament\Widgets\SalesComparisonWidget;
 use App\Filament\Widgets\TopCashiersTableWidget;
 use App\Filament\Widgets\TopCategoriesTableWidget;
 use App\Filament\Widgets\TopProductsTableWidget;
@@ -64,6 +65,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->widgets([
                 EnhancedStatsOverviewWidget::class,
+                SalesComparisonWidget::class,
                 FinanceOverview::class,
                 PurchaseAnalyticsWidget::class,
                 RevenueChart::class,

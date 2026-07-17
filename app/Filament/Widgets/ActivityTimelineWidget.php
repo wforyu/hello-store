@@ -9,7 +9,7 @@ use Filament\Widgets\TableWidget as BaseTableWidget;
 
 class ActivityTimelineWidget extends BaseTableWidget
 {
-    protected static ?int $sort = 6;
+    protected static ?int $sort = 10;
 
     protected int|string|array $columnSpan = 'full';
 

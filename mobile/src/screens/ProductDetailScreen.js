@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, TextInput,
+  StyleSheet, ActivityIndicator, TextInput, Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,8 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descOverflow, setDescOverflow] = useState(false);
 
   useEffect(() => {
     fetchDetail();
@@ -115,7 +117,7 @@ export default function ProductDetailScreen({ route, navigation }) {
     }
   };
 
-  const addToCart = async () => {
+  const addToCart = async (goToCheckout = false) => {
     if (!user) {
       showAlert({
         title: 'Login Diperlukan',
@@ -136,7 +138,11 @@ export default function ProductDetailScreen({ route, navigation }) {
       if (response.data?.success) {
         toast(response.data.message || 'Ditambahkan ke keranjang 🛒', 'success');
         refreshCartCount();
-        navigation.navigate('Cart');
+        if (goToCheckout) {
+          navigation.navigate('Checkout');
+        } else {
+          navigation.navigate('Cart');
+        }
       }
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menambahkan ke keranjang.';
@@ -144,152 +150,197 @@ export default function ProductDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleShare = async () => {
+    const url = `https://hellostore.test/product/${product.slug || product.id}`;
+    try {
+      await Share.share({
+        message: `Cek produk ini di Hello Store: ${product.name}\n${url}`,
+        url,
+        title: product.name,
+      });
+    } catch (e) {
+      // silent
+    }
+  };
+
   const images = product.images?.length ? product.images : [{ url: product.image }];
+  const description = (product.description || '').replace(/<[^>]*>/g, '');
+  const sold = product.total_sold || 0;
 
   return (
-    <ScrollView style={styles.container}>
-      {loading && product.id === initialProduct.id ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <>
-          <Image
-            source={{ uri: getImageUrl(images[selectedImage]?.url || product.image) }}
-            style={styles.mainImage}
-            resizeMode="contain"
-          />
-          {images.length > 1 && (
-            <ScrollView horizontal style={styles.thumbnails}>
-              {images.map((img, idx) => (
-                <TouchableOpacity key={idx} onPress={() => setSelectedImage(idx)}>
-                  <Image
-                    source={{ uri: getImageUrl(img.url) }}
-                    style={[
-                      styles.thumb,
-                      idx === selectedImage && styles.thumbActive,
-                    ]}
-                  />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-
-          <View style={styles.info}>
-            <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
-              <TouchableOpacity
-                style={styles.wishlistBtn}
-                onPress={toggleWishlist}
-                disabled={wishLoading}
-              >
-                <Text style={styles.wishlistIcon}>{isWished ? '♥' : '♡'}</Text>
-              </TouchableOpacity>
-            </View>
-            {product.category && (
-              <Text style={styles.category}>{product.category}</Text>
-            )}
-            <Text style={styles.price}>{formatPrice(getPrice())}</Text>
-            {product.compare_price && product.compare_price > getPrice() && (
-              <Text style={styles.compare}>{formatPrice(product.compare_price)}</Text>
-            )}
-
-            <View style={styles.stockRow}>
-              <Text style={styles.stockLabel}>Stok: </Text>
-              <Text style={[styles.stockValue, getStock() <= 5 && { color: COLORS.error }]}>
-                {getStock()}
-              </Text>
-            </View>
-
-            {product.variants?.length > 0 && (
-              <View style={styles.variantSection}>
-                <Text style={styles.sectionTitle}>Varian</Text>
-                <View style={styles.variantList}>
-                  {product.variants.map((v) => (
-                    <TouchableOpacity
-                      key={v.id}
+    <View style={styles.root}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 90 }}>
+        {loading && product.id === initialProduct.id ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <>
+            <Image
+              source={{ uri: getImageUrl(images[selectedImage]?.url || product.image) }}
+              style={styles.mainImage}
+              resizeMode="contain"
+            />
+            {images.length > 1 && (
+              <ScrollView horizontal style={styles.thumbnails}>
+                {images.map((img, idx) => (
+                  <TouchableOpacity key={idx} onPress={() => setSelectedImage(idx)}>
+                    <Image
+                      source={{ uri: getImageUrl(img.url) }}
                       style={[
-                        styles.variantChip,
-                        selectedVariant?.id === v.id && styles.variantChipActive,
+                        styles.thumb,
+                        idx === selectedImage && styles.thumbActive,
                       ]}
-                      onPress={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}
-                    >
-                      <Text
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
+            <View style={styles.info}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
+                    <Text style={styles.shareIcon}>↗</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.wishlistBtn}
+                    onPress={toggleWishlist}
+                    disabled={wishLoading}
+                  >
+                    <Text style={styles.wishlistIcon}>{isWished ? '♥' : '♡'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {product.category && (
+                <Text style={styles.category}>{product.category}</Text>
+              )}
+              <Text style={styles.price}>{formatPrice(getPrice())}</Text>
+              {product.compare_price && product.compare_price > getPrice() && (
+                <Text style={styles.compare}>{formatPrice(product.compare_price)}</Text>
+              )}
+
+              <View style={styles.soldRow}>
+                <View style={styles.stockRow}>
+                  <Text style={styles.stockLabel}>Stok: </Text>
+                  <Text style={[styles.stockValue, getStock() <= 5 && { color: COLORS.error }]}>
+                    {getStock()}
+                  </Text>
+                </View>
+                {sold > 0 && (
+                  <Text style={styles.soldText}>{sold} terjual</Text>
+                )}
+              </View>
+
+              {product.variants?.length > 0 && (
+                <View style={styles.variantSection}>
+                  <Text style={styles.sectionTitle}>Varian</Text>
+                  <View style={styles.variantList}>
+                    {product.variants.map((v) => (
+                      <TouchableOpacity
+                        key={v.id}
                         style={[
-                          styles.variantText,
-                          selectedVariant?.id === v.id && styles.variantTextActive,
+                          styles.variantChip,
+                          selectedVariant?.id === v.id && styles.variantChipActive,
                         ]}
+                        onPress={() => setSelectedVariant(selectedVariant?.id === v.id ? null : v)}
                       >
-                        {v.name}
+                        <Text
+                          style={[
+                            styles.variantText,
+                            selectedVariant?.id === v.id && styles.variantTextActive,
+                          ]}
+                        >
+                          {v.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {description ? (
+                <View style={styles.description}>
+                  <Text style={styles.sectionTitle}>Deskripsi</Text>
+                  <Text
+                    style={styles.descriptionText}
+                    numberOfLines={descExpanded ? undefined : 4}
+                    onTextLayout={(e) => {
+                      if (!descOverflow && e.nativeEvent.lines.length > 4) {
+                        setDescOverflow(true);
+                      }
+                    }}
+                  >
+                    {description}
+                  </Text>
+                  {descOverflow && (
+                    <TouchableOpacity onPress={() => setDescExpanded(!descExpanded)}>
+                      <Text style={styles.expandBtn}>
+                        {descExpanded ? 'Tutup' : 'Lihat Selengkapnya'}
                       </Text>
                     </TouchableOpacity>
-                  ))}
+                  )}
                 </View>
-              </View>
-            )}
+              ) : null}
 
-            {product.description && (
-              <View style={styles.description}>
-                <Text style={styles.sectionTitle}>Deskripsi</Text>
-                <Text style={styles.descriptionText}>{product.description.replace(/<[^>]*>/g, '')}</Text>
-              </View>
-            )}
-
-            <View style={styles.reviews}>
-              <Text style={styles.sectionTitle}>
-                Ulasan ({product.review_stats?.total || product.reviews?.length || 0})
-              </Text>
-              {product.reviews?.slice(0, 3).map((review) => (
-                <View key={review.id} style={styles.reviewItem}>
-                  <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewUser}>{review.user_name}</Text>
-                    <Text style={styles.reviewRating}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text>
+              <View style={styles.reviews}>
+                <Text style={styles.sectionTitle}>
+                  Ulasan ({product.review_stats?.total || product.reviews?.length || 0})
+                </Text>
+                {product.reviews?.slice(0, 3).map((review) => (
+                  <View key={review.id} style={styles.reviewItem}>
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewUser}>{review.user_name}</Text>
+                      <Text style={styles.reviewRating}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text>
+                    </View>
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
                   </View>
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                ))}
+                {(!product.reviews || product.reviews.length === 0) && (
+                  <Text style={styles.emptyReview}>Belum ada ulasan.</Text>
+                )}
+              </View>
+
+              {user && (
+                <View style={styles.reviewForm}>
+                  <Text style={styles.sectionTitle}>Tulis Ulasan</Text>
+                  <Text style={styles.reviewFormLabel}>Rating</Text>
+                  <View style={styles.starPicker}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                        <Text style={[styles.star, star <= reviewRating && styles.starActive]}>
+                          {star <= reviewRating ? '★' : '☆'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={styles.reviewInput}
+                    placeholder="Tulis komentar (opsional)..."
+                    placeholderTextColor={COLORS.textLight}
+                    value={reviewComment}
+                    onChangeText={setReviewComment}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                  <TouchableOpacity
+                    style={[styles.submitBtn, reviewSubmitting && styles.submitBtnDisabled]}
+                    onPress={submitReview}
+                    disabled={reviewSubmitting}
+                  >
+                    <Text style={styles.submitBtnText}>
+                      {reviewSubmitting ? 'Mengirim...' : 'Kirim Ulasan'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              ))}
-              {(!product.reviews || product.reviews.length === 0) && (
-                <Text style={styles.emptyReview}>Belum ada ulasan.</Text>
               )}
             </View>
+          </>
+        )}
+      </ScrollView>
 
-            {user && (
-              <View style={styles.reviewForm}>
-                <Text style={styles.sectionTitle}>Tulis Ulasan</Text>
-                <Text style={styles.reviewFormLabel}>Rating</Text>
-                <View style={styles.starPicker}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
-                      <Text style={[styles.star, star <= reviewRating && styles.starActive]}>
-                        {star <= reviewRating ? '★' : '☆'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TextInput
-                  style={styles.reviewInput}
-                  placeholder="Tulis komentar (opsional)..."
-                  placeholderTextColor={COLORS.textLight}
-                  value={reviewComment}
-                  onChangeText={setReviewComment}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-                <TouchableOpacity
-                  style={[styles.submitBtn, reviewSubmitting && styles.submitBtnDisabled]}
-                  onPress={submitReview}
-                  disabled={reviewSubmitting}
-                >
-                  <Text style={styles.submitBtnText}>
-                    {reviewSubmitting ? 'Mengirim...' : 'Kirim Ulasan'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </>
-      )}
-
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      {/* Sticky Bottom Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <View style={styles.qtyControl}>
           <TouchableOpacity
             style={styles.qtyBtn}
@@ -305,15 +356,19 @@ export default function ProductDetailScreen({ route, navigation }) {
             <Text style={styles.qtyBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={addToCart}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => addToCart(false)}>
           <Text style={styles.addBtnText}>+ Keranjang</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.buyNowBtn} onPress={() => addToCart(true)}>
+          <Text style={styles.buyNowText}>Beli</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.white },
   container: { flex: 1, backgroundColor: COLORS.white },
   mainImage: { width: '100%', height: 350, backgroundColor: '#F9FAFB' },
   thumbnails: { paddingHorizontal: 12, paddingVertical: 8 },
@@ -322,14 +377,19 @@ const styles = StyleSheet.create({
   info: { padding: 16 },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   name: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4, flex: 1, marginRight: 8 },
-  wishlistBtn: { padding: 4, marginTop: 2 },
+  actionRow: { flexDirection: 'row', alignItems: 'center' },
+  shareBtn: { padding: 6, marginRight: 4 },
+  shareIcon: { fontSize: 20, color: COLORS.textSecondary },
+  wishlistBtn: { padding: 4 },
   wishlistIcon: { fontSize: 24, color: COLORS.error },
   category: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 8 },
   price: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
   compare: { fontSize: 14, color: COLORS.textLight, textDecorationLine: 'line-through', marginTop: 2 },
-  stockRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  soldRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  stockRow: { flexDirection: 'row', alignItems: 'center' },
   stockLabel: { fontSize: 14, color: COLORS.textSecondary },
   stockValue: { fontSize: 14, fontWeight: '600', color: COLORS.success },
+  soldText: { fontSize: 13, color: COLORS.textSecondary, marginLeft: 12 },
   variantSection: { marginTop: 16 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
   variantList: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -342,6 +402,7 @@ const styles = StyleSheet.create({
   variantTextActive: { color: COLORS.primary },
   description: { marginTop: 16 },
   descriptionText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20 },
+  expandBtn: { fontSize: 14, color: COLORS.primary, fontWeight: '600', marginTop: 6 },
   reviews: { marginTop: 16 },
   emptyReview: { fontSize: 13, color: COLORS.textLight, fontStyle: 'italic' },
   reviewItem: { marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
@@ -366,19 +427,27 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   bottomBar: {
-    flexDirection: 'row', alignItems: 'center', padding: 16,
+    flexDirection: 'row', alignItems: 'center', padding: 12,
     borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.white,
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1, shadowRadius: 4,
   },
-  qtyControl: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
+  qtyControl: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   qtyBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.background,
+    width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.background,
     justifyContent: 'center', alignItems: 'center',
   },
-  qtyBtnText: { fontSize: 20, fontWeight: '600', color: COLORS.text },
-  qtyValue: { fontSize: 18, fontWeight: '600', marginHorizontal: 16, color: COLORS.text },
+  qtyBtnText: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  qtyValue: { fontSize: 16, fontWeight: '600', marginHorizontal: 12, color: COLORS.text },
   addBtn: {
-    flex: 1, backgroundColor: COLORS.primary, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center',
+    flex: 1, backgroundColor: '#FEF3C7', borderRadius: 12,
+    paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary,
   },
-  addBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  addBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
+  buyNowBtn: {
+    flex: 1, backgroundColor: COLORS.primary, borderRadius: 12,
+    paddingVertical: 12, alignItems: 'center', marginLeft: 8,
+  },
+  buyNowText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

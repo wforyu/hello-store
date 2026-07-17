@@ -18,7 +18,8 @@ class ProductController extends Controller
         $query = Product::with(['productImages', 'brand', 'category'])
             ->where('is_active', true)
             ->withCount('approvedReviews')
-            ->withAvg('approvedReviews', 'rating');
+            ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity');
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -81,7 +82,8 @@ class ProductController extends Controller
 
         $product->load(['productImages', 'variants' => fn ($q) => $q->where('is_active', true), 'attributes', 'brand', 'category'])
             ->loadCount('approvedReviews')
-            ->loadAvg('approvedReviews', 'rating');
+            ->loadAvg('approvedReviews', 'rating')
+            ->loadSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity');
 
         $reviews = $product->approvedReviews()->with('user:id,name')->latest()->get();
 
@@ -131,6 +133,7 @@ class ProductController extends Controller
             ->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->take(4)
             ->get()
             ->map(fn ($p) => $this->formatProduct($p, $flashSaleMap));
@@ -194,6 +197,7 @@ class ProductController extends Controller
             'is_digital' => $product->is_digital,
             'rating' => round($product->approved_reviews_avg_rating ?? 0, 1),
             'review_count' => (int) ($product->approved_reviews_count ?? 0),
+            'total_sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'image' => $product->productImages->first() ? '/storage/'.$product->productImages->first()->image : null,
             'category' => $product->category?->name,
             'brand' => $product->brand?->name,

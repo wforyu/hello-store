@@ -22,7 +22,7 @@
                         <div class="absolute inset-0 bg-cover bg-center blur-sm scale-110" style="background-image: url('{{ $sliderImgUrl }}')"></div>
                         <div class="absolute inset-0 bg-gray-900/70"></div>
                         {{-- actual image, contained --}}
-                        <img src="{{ $sliderImgUrl }}" alt="{{ $slider->title ?? 'Slider' }}" class="absolute inset-0 w-full h-full object-contain">
+                        <img src="{{ $sliderImgUrl }}" alt="{{ $slider->title ?? 'Slider' }}" class="absolute inset-0 w-full h-full object-contain" loading="lazy">
                     @else
                         <div class="absolute inset-0 bg-gradient-to-br from-amber-500 via-orange-500 to-orange-600"></div>
                     @endif
@@ -48,16 +48,18 @@
                 <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                     @foreach($sliders as $i => $slider)
                         <button @click="current = {{ $i }}" class="w-2.5 h-2.5 rounded-full transition-all"
-                            :class="current === {{ $i }} ? 'bg-white scale-110' : 'bg-white/50 hover:bg-white/70'"></button>
+                            :class="current === {{ $i }} ? 'bg-white scale-110' : 'bg-white/50 hover:bg-white/70'"
+                            :aria-label="'Slide ' + {{ $i + 1 }}"
+                            :aria-current="current === {{ $i }}"></button>
                     @endforeach
                 </div>
             @endif
             {{-- Prev/Next arrows --}}
             @if($sliders->count() > 1)
-                <button @click="prev()" class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition">
+                <button @click="prev()" class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition" aria-label="Slide sebelumnya">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                 </button>
-                <button @click="next()" class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition">
+                <button @click="next()" class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition" aria-label="Slide berikutnya">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                 </button>
             @endif
@@ -145,10 +147,27 @@
                         Lihat Semua
                     </a>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
-                    @foreach($activeFlashSale->products->take(4) as $product)
-                        <x-product-card :product="$product" :flashSaleMap="$flashSaleMap" />
-                    @endforeach
+                {{-- Horizontal Scroll (Shopee-style) --}}
+                <div x-data="{ scrollLeft: 0 }" class="relative group/fs">
+                    <div x-ref="fsScroll"
+                        @scroll="scrollLeft = $el.scrollLeft"
+                        class="flex gap-3 lg:gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+                        style="scrollbar-width: none; -ms-overflow-style: none;">
+                        @foreach($activeFlashSale->products as $product)
+                            <div class="snap-start shrink-0 w-[45%] sm:w-[30%] md:w-[23%] lg:w-[calc(25%-9px)]">
+                                <x-product-card :product="$product" :flashSaleMap="$flashSaleMap" />
+                            </div>
+                        @endforeach
+                    </div>
+                    {{-- Scroll Arrows --}}
+                    <button type="button" x-show="scrollLeft > 0" @click="$refs.fsScroll.scrollBy({ left: -300, behavior: 'smooth' })"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-amber-600 transition opacity-0 group-hover/fs:opacity-100 z-10">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button type="button" @click="$refs.fsScroll.scrollBy({ left: 300, behavior: 'smooth' })"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-amber-600 transition opacity-0 group-hover/fs:opacity-100 z-10">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
                 </div>
             </div>
         </section>

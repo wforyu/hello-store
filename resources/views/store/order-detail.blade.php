@@ -20,16 +20,7 @@
                 <p class="text-sm text-gray-400 mt-1">{{ $order->created_at->format('d M Y, H:i') }}</p>
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-sm font-bold px-4 py-2 rounded-full w-fit
-                    @if($order->status === 'pending') bg-yellow-50 text-yellow-700 border border-yellow-200
-                    @elseif($order->status === 'confirmed') bg-blue-50 text-blue-700 border border-blue-200
-                    @elseif($order->status === 'processing') bg-cyan-50 text-cyan-700 border border-cyan-200
-                    @elseif($order->status === 'shipped') bg-purple-50 text-purple-700 border border-purple-200
-                    @elseif($order->status === 'delivered') bg-emerald-50 text-emerald-700 border border-emerald-200
-                    @elseif($order->status === 'refunded') bg-red-50 text-red-700 border border-red-200
-                    @else bg-gray-50 text-gray-700 border border-gray-200 @endif">
-                    {{ $order->status === 'refunded' ? 'Diretur' : ucfirst($order->status) }}
-                </span>
+                <x-status-badge :status="$order->status" size="lg" />
 
                 @if($order->status === 'delivered')
                     <form action="{{ route('orders.reorder', $order) }}" method="POST">
@@ -193,15 +184,35 @@
                 <div class="mt-6 p-5 bg-red-50 border-2 border-red-200 rounded-2xl text-center">
                     <svg class="w-10 h-10 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
                     <p class="text-sm font-semibold text-red-800 mb-3">Retur pesanan ini? Stok barang akan dikembalikan.</p>
-                    <form action="{{ route('orders.refund', $order) }}" method="POST"
-                        onsubmit="return confirm('Yakin ingin meretur pesanan ini? Stok barang akan dikembalikan.');">
-                        @csrf
-                        <button type="submit"
+                    <div x-data="{ showRefund: false }">
+                        <button type="button" @click="showRefund = true"
                             class="inline-flex items-center gap-2 bg-red-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-600 transition shadow-sm">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
                             Retur Pesanan
                         </button>
-                    </form>
+
+                        <div x-cloak x-show="showRefund" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+                            @keydown.escape.window="showRefund = false">
+                            <div @click.outside="showRefund = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+                                <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                                    <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-gray-900 mb-2">Retur Pesanan?</h3>
+                                <p class="text-sm text-gray-500 mb-6">Pesanan #{{ $order->order_number }} akan diretur. Stok barang akan dikembalikan.</p>
+                                <div class="flex gap-3">
+                                    <button type="button" @click="showRefund = false"
+                                        class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition">Batal</button>
+                                    <form action="{{ route('orders.refund', $order) }}" method="POST" class="flex-1">
+                                        @csrf
+                                        <button type="submit"
+                                            class="w-full px-4 py-3 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 shadow-sm transition">
+                                            Ya, Retur
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             @endif
         @endcan

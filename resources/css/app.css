@@ -8,6 +8,13 @@
     .animate-marquee {
         animation: marquee 30s linear infinite;
     }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 [x-cloak] {

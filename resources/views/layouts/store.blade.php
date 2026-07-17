@@ -54,6 +54,11 @@
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased">
 
+    {{-- Skip to content --}}
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:bg-white focus:text-amber-700 focus:font-bold focus:px-4 focus:py-2 focus:rounded-xl focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+        Langsung ke konten
+    </a>
+
     {{-- Announcement Bar --}}
     <div class="bg-gradient-to-r from-amber-600 to-orange-500 text-white text-center text-xs sm:text-sm py-2 px-4 font-medium overflow-hidden">
         @if($announcements->isNotEmpty())
@@ -98,8 +103,16 @@
                         <input type="text" name="search" x-model="query"
                             @input.debounce.300ms="fetchSuggestions"
                             @focus="if (results.length) show = true"
+                            @keydown.down.prevent="selectedIndex = Math.min(selectedIndex + 1, results.length - 1)"
+                            @keydown.up.prevent="selectedIndex = Math.max(selectedIndex - 1, 0)"
+                            @keydown.enter.prevent="if (show && results.length && selectedIndex >= 0) { window.location.href = '{{ url('product') }}/' + results[selectedIndex].slug }"
+                            @keydown.escape="show = false"
                             placeholder="Cari produk..."
                             autocomplete="off"
+                            role="combobox"
+                            aria-expanded="false"
+                            aria-autocomplete="list"
+                            aria-label="Cari produk"
                             class="w-full pl-10 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:bg-white text-sm transition">
                         <svg class="absolute left-3.5 top-3 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -108,11 +121,15 @@
                         {{-- Suggestions Dropdown --}}
                         <div x-show="show && results.length"
                             x-cloak
+                            role="listbox"
                             class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden">
                             <template x-for="(p, i) in results" :key="p.id">
                                 <a :href="'{{ url('product') }}/' + p.slug"
                                     class="flex items-center gap-3 px-4 py-3 hover:bg-amber-50 transition"
-                                    :class="{ 'border-t border-gray-100': i > 0 }">
+                                    :class="{ 'border-t border-gray-100': i > 0, 'bg-amber-50': selectedIndex === i }"
+                                    role="option"
+                                    :aria-selected="selectedIndex === i"
+                                    @mouseenter="selectedIndex = i">
                                     <img :src="p.image" :alt="p.name"
                                         class="w-10 h-10 rounded-lg object-contain bg-gray-50 shrink-0">
                                     <div class="min-w-0 flex-1">
@@ -135,7 +152,7 @@
                     </a>
 
                     {{-- Mobile Search Trigger --}}
-                    <button type="button" onclick="this.closest('nav').querySelector('.mobile-search').classList.toggle('hidden')" class="sm:hidden text-gray-500 hover:text-amber-600 transition p-1">
+                    <button type="button" onclick="this.closest('nav').querySelector('.mobile-search').classList.toggle('hidden')" class="sm:hidden text-gray-500 hover:text-amber-600 transition p-1" aria-label="Cari produk">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
@@ -143,7 +160,7 @@
 
                     {{-- Notifications --}}
                     @auth
-                    <a href="{{ route('notifications.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1" title="Notifikasi">
+                    <a href="{{ route('notifications.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1" aria-label="Notifikasi">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                         </svg>
@@ -152,13 +169,14 @@
                                 .then(r => r.json())
                                 .then(d => { notifCount = d.count; prevCount = d.count; });
                             setInterval(() => {
+                                if (document.hidden) return;
                                 fetch('{{ route('notifications.unread') }}')
                                     .then(r => r.json())
                                     .then(d => {
                                         if (d.count > notifCount) playNotifSound();
                                         notifCount = d.count;
                                     });
-                            }, 10000)"
+                            }, 30000)"
                             x-show="notifCount > 0"
                             x-cloak
                             class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
@@ -169,7 +187,7 @@
 
                     {{-- Wishlist --}}
                     @auth
-                    <a href="{{ route('wishlist.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1">
+                    <a href="{{ route('wishlist.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1" aria-label="Wishlist">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                         </svg>
@@ -184,21 +202,27 @@
 
                     {{-- Cart (hidden for cashier) --}}
                     @if(!auth()->check() || auth()->user()->role !== 'cashier')
-                    <a href="{{ route('cart.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1">
+                    <a href="{{ route('cart.index') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1" aria-label="Keranjang"
+                        x-data="{ count: {{ collect(session('cart', []))->sum('quantity') }} }"
+                        @cart-updated.window="
+                            if ($event.detail?.cart) {
+                                count = $event.detail.cart.reduce((s, i) => s + i.quantity, 0);
+                            } else {
+                                fetch('/cart/count').then(r => r.json()).then(d => { if (d.count !== undefined) count = d.count; }).catch(() => {});
+                            }
+                        ">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/>
                         </svg>
-                        @php $cartCount = collect(session('cart', []))->sum('quantity'); @endphp
-                        @if($cartCount > 0)
-                            <span class="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
-                                {{ $cartCount > 99 ? '99+' : $cartCount }}
-                            </span>
-                        @endif
+                        <span x-show="count > 0" x-cloak
+                            class="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
+                            <span x-text="count > 99 ? '99+' : count"></span>
+                        </span>
                     </a>
                     @endif
 
-                    {{-- Compare --}}
-                    <a href="{{ route('products.compare') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1" title="Bandingkan">
+                    {{-- Compare (hidden on mobile, accessible from product cards) --}}
+                    <a href="{{ route('products.compare') }}" class="relative text-gray-500 hover:text-amber-600 transition p-1 hidden sm:flex" aria-label="Bandingkan Produk" title="Bandingkan">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                         </svg>
@@ -213,7 +237,7 @@
                     {{-- User --}}
                     @auth
                         <div class="relative" x-data="{ open: false }" @click.outside="open = false">
-                            <button @click="open = !open" class="flex items-center gap-2 text-gray-500 hover:text-amber-600 transition p-1">
+                            <button @click="open = !open" class="flex items-center gap-2 text-gray-500 hover:text-amber-600 transition p-1" aria-label="Menu akun" aria-haspopup="true" :aria-expanded="open">
                                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
@@ -265,7 +289,7 @@
     </nav>
 
     {{-- Main Content --}}
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+    <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         @if(session('success'))
             <div class="mb-5 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-sm flex items-center gap-3 shadow-sm">
                 <svg class="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
@@ -456,19 +480,23 @@
                 query: '{{ request('search') }}',
                 results: [],
                 show: false,
+                selectedIndex: -1,
                 async fetchSuggestions() {
                     if (this.query.length < 2) {
                         this.results = [];
                         this.show = false;
+                        this.selectedIndex = -1;
                         return;
                     }
                     try {
                         const res = await fetch('{{ route('products.suggestions') }}?q=' + encodeURIComponent(this.query));
                         this.results = await res.json();
                         this.show = this.results.length > 0;
+                        this.selectedIndex = -1;
                     } catch {
                         this.results = [];
                         this.show = false;
+                        this.selectedIndex = -1;
                     }
                 }
             }));

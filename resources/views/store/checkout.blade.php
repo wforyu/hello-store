@@ -8,7 +8,7 @@
         <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">Checkout</h1>
     </div>
 
-    <form action="{{ route('checkout.place') }}" method="POST" x-data="checkoutForm()" x-init="subtotal = {{ $subtotal }}">
+    <form action="{{ route('checkout.place') }}" method="POST" x-data="checkoutForm()" x-init="subtotal = {{ $subtotal }}" @submit="if (submitting) return; submitting = true">
         @csrf
 
         <div class="grid lg:grid-cols-3 gap-6 lg:gap-8">
@@ -41,9 +41,11 @@
                     @else
                         <div class="space-y-3">
                             @foreach($addresses as $address)
-                                <label class="flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('address_id') == $address->id ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                                <label class="flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition"
+                                    :class="selectedAddress == '{{ $address->id }}' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200'">
                                     <input type="radio" name="address_id" value="{{ $address->id }}"
-                                        {{ old('address_id') == $address->id || $loop->first ? 'checked' : '' }}
+                                        {{ old('address_id', $loop->first ? $address->id : '') == $address->id ? 'checked' : '' }}
+                                        @change="selectedAddress = '{{ $address->id }}'"
                                         class="mt-0.5 text-amber-500 focus:ring-amber-500">
                                     <div>
                                         <p class="font-semibold text-gray-900">
@@ -132,17 +134,22 @@
                         Metode Pembayaran
                     </h2>
                     <div class="space-y-3">
-                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('payment_method', 'manual_transfer') === 'manual_transfer' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition"
+                            :class="selectedPayment === 'manual_transfer' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200'">
                             <input type="radio" name="payment_method" value="manual_transfer"
                                 {{ old('payment_method', 'manual_transfer') === 'manual_transfer' ? 'checked' : '' }}
+                                @change="selectedPayment = 'manual_transfer'"
                                 class="text-amber-500 focus:ring-amber-500">
                             <div>
                                 <p class="font-semibold text-gray-900">Transfer Manual</p>
                                 <p class="text-sm text-gray-400">Bayar via transfer bank, upload bukti setelah pesan</p>
                             </div>
                         </label>
-                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition {{ old('payment_method') === 'cod' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200' }}">
+                        <label class="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition"
+                            :class="selectedPayment === 'cod' ? 'border-amber-500 bg-amber-50/50' : 'border-gray-100 hover:border-amber-200'">
                             <input type="radio" name="payment_method" value="cod"
+                                {{ old('payment_method') === 'cod' ? 'checked' : '' }}
+                                @change="selectedPayment = 'cod'"
                                 class="text-amber-500 focus:ring-amber-500">
                             <div>
                                 <p class="font-semibold text-gray-900">COD (Bayar di Tempat)</p>
@@ -247,10 +254,20 @@
                         @endif
                     @endauth
 
-                    <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2"
-                        {{ $addresses->isEmpty() ? 'disabled opacity-60 cursor-not-allowed' : '' }}>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Buat Pesanan
+                    <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        :disabled="{{ $addresses->isEmpty() ? 'true' : 'false' }} || submitting">
+                        <template x-if="!submitting">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Buat Pesanan
+                            </span>
+                        </template>
+                        <template x-if="submitting">
+                            <span class="flex items-center gap-2">
+                                <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Memproses...
+                            </span>
+                        </template>
                     </button>
                 </div>
             </div>
@@ -265,6 +282,8 @@
             selectedCourier: @json(old('shipping_courier', '')),
             selectedService: @json(old('shipping_service', '')),
             selectedCost: {{ old('shipping_cost', !empty($shippingRates) ? 0 : 15000) }},
+            selectedAddress: @json(old('address_id', $addresses->first()?->id ?? '')),
+            selectedPayment: @json(old('payment_method', 'manual_transfer')),
             subtotal: {{ $subtotal }},
             ppnEnabled: @json($ppnEnabled),
             ppnRate: {{ $ppnRate }},
@@ -274,6 +293,7 @@
             discount: 0,
             discountFormatted: '0',
             loading: false,
+            submitting: false,
             message: '',
             valid: false,
 

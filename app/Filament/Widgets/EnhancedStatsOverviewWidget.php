@@ -15,7 +15,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class EnhancedStatsOverviewWidget extends BaseWidget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 0;
 
     protected int|string|array $columnSpan = 'full';
 

@@ -88,6 +88,38 @@
                 </div>
             </div>
 
+            {{-- Active Filter Chips --}}
+            @if(request()->hasAny(['search', 'category', 'brand', 'sort']))
+                @php
+                    $activeFilters = [];
+                    if (request('search')) $activeFilters[] = ['label' => '"' . request('search') . '"', 'url' => request()->fullUrlWithoutQuery('search')];
+                    if (request('category')) {
+                        $cat = $categories->firstWhere('slug', request('category'));
+                        $activeFilters[] = ['label' => $cat?->name ?? request('category'), 'url' => request()->fullUrlWithoutQuery('category')];
+                    }
+                    if (request('brand')) {
+                        $br = $brands->firstWhere('slug', request('brand'));
+                        $activeFilters[] = ['label' => $br?->name ?? request('brand'), 'url' => request()->fullUrlWithoutQuery('brand')];
+                    }
+                    if (request('sort') && request('sort') !== 'terbaru') {
+                        $sortLabels = ['termurah' => 'Harga Termurah', 'termahal' => 'Harga Termahal', 'nama' => 'Nama A-Z'];
+                        $activeFilters[] = ['label' => $sortLabels[request('sort')] ?? request('sort'), 'url' => request()->fullUrlWithoutQuery('sort')];
+                    }
+                @endphp
+                @if(count($activeFilters) > 0)
+                    <div class="flex flex-wrap items-center gap-2 mb-4">
+                        @foreach($activeFilters as $filter)
+                            <a href="{{ $filter['url'] }}"
+                                class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-medium px-3 py-1.5 rounded-full border border-amber-200 hover:bg-amber-100 transition">
+                                {{ $filter['label'] }}
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </a>
+                        @endforeach
+                        <a href="{{ route('products.index') }}" class="text-xs font-medium text-gray-400 hover:text-red-500 transition">Hapus Semua</a>
+                    </div>
+                @endif
+            @endif
+
             {{-- Products Grid --}}
             @if($products->isEmpty())
                 <div class="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">

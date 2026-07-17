@@ -75,6 +75,7 @@ class HomeController extends Controller
             ->where('featured', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->take(8)
             ->get()
             ->map(fn ($p) => $this->formatProduct($p));
@@ -83,6 +84,7 @@ class HomeController extends Controller
             ->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->latest()
             ->take(8)
             ->get()
@@ -142,6 +144,7 @@ class HomeController extends Controller
             'featured' => $product->featured,
             'rating' => round($product->approved_reviews_avg_rating ?? 0, 1),
             'review_count' => (int) ($product->approved_reviews_count ?? 0),
+            'total_sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'image' => $product->main_image,
             'category' => $product->category?->name,
             'brand' => $product->brand?->name,

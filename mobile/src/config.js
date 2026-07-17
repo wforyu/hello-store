@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 export const API_URL_KEY = 'api_url';
-export const FALLBACK_API_URL = 'https://yard-steed-ferris.ngrok-free.dev';
+export const FALLBACK_API_URL = 'https://change-passivism-implode.ngrok-free.dev';
 
 let _cachedUrl = null;
 

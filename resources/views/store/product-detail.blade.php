@@ -68,7 +68,7 @@
             <div class="bg-gradient-to-b from-gray-50 to-gray-100 p-4 md:p-8 flex flex-col items-center justify-center min-h-[300px] md:min-h-[400px]">
                 @if($product->productImages->isNotEmpty())
                     <div class="flex-1 flex items-center justify-center w-full mb-4">
-                        <img :src="variantImage || images[activeImage]" alt="{{ $product->name }}"
+                        <img :src="variantImage || images[activeImage]" alt="{{ $product->name }}" loading="lazy"
                             class="max-w-full max-h-[300px] md:max-h-[350px] object-contain hover:scale-105 transition-transform duration-500">
                     </div>
                     <div class="flex gap-2 overflow-x-auto pb-2 max-w-full"
@@ -140,20 +140,41 @@
                 <div class="flex flex-wrap gap-4 mb-6">
                     <div class="flex items-center gap-2 text-sm">
                         <template x-if="displayStock > 0">
-                            <span><span class="inline-block w-2 h-2 bg-emerald-500 rounded-full"></span> <span class="text-emerald-600 font-medium" x-text="'Stok: ' + displayStock"></span></span>
+                            <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 bg-emerald-500 rounded-full"></span> <span class="text-emerald-600 font-medium" x-text="'Stok: ' + displayStock"></span></span>
                         </template>
                         <template x-if="displayStock === 0">
-                            <span><span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span> <span class="text-red-600 font-medium">Stok Habis</span></span>
+                            <span class="flex items-center gap-1.5"><span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span> <span class="text-red-600 font-medium">Stok Habis</span></span>
                         </template>
-                        <span class="inline-block w-2 h-2 bg-emerald-500 rounded-full" x-show="displayStock > 0" style="display:none"></span>
-                        <span class="text-emerald-600 font-medium" x-show="displayStock > 0" style="display:none">Stok: {{ $product->stock }}</span>
-                        <span class="inline-block w-2 h-2 bg-red-500 rounded-full" x-show="displayStock === 0" style="display:none"></span>
-                        <span class="text-red-600 font-medium" x-show="displayStock === 0" style="display:none">Stok Habis</span>
                     </div>
                     <div class="flex items-center gap-1.5 text-sm text-gray-500">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
                         <span x-text="displayWeight + ' kg'">{{ $product->weight }} kg</span>
                     </div>
+                </div>
+
+                {{-- Share Button --}}
+                <div class="flex gap-2 mb-4" x-data="{ showShare: false }">
+                    <button type="button" @click="showShare = !showShare"
+                        class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-amber-600 border border-gray-200 hover:border-amber-300 px-3 py-1.5 rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        Bagikan
+                    </button>
+                    <template x-if="showShare" x-cloak x-transition>
+                        <div class="flex gap-1.5">
+                            <a :href="'https://wa.me/?text=' + encodeURIComponent({{ Js::from($product->name) }} + ' - Rp{{ number_format($effectiveBasePrice, 0, ',', '.') }}\n' + window.location.href)"
+                                target="_blank" rel="noopener"
+                                class="inline-flex items-center gap-1 text-xs font-medium text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 rounded-lg transition">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                WhatsApp
+                            </a>
+                            <button type="button"
+                                @click="navigator.clipboard.writeText(window.location.href); $el.textContent = 'Disalin!'; setTimeout(() => $el.textContent = 'Salin Link', 1500)"
+                                class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                Salin Link
+                            </button>
+                        </div>
+                    </template>
                 </div>
 
                 {{-- Variant Selector --}}
@@ -194,9 +215,17 @@
                 @endif
 
                 {{-- Description --}}
-                <div class="prose prose-sm text-gray-600 mb-6 max-w-none border-t border-gray-100 pt-5">
+                <div class="prose prose-sm text-gray-600 mb-6 max-w-none border-t border-gray-100 pt-5" x-data="{ expanded: false }">
                     <h4 class="text-sm font-semibold text-gray-900 mb-2">Deskripsi Produk</h4>
-                    {{ $product->description }}
+                    <div class="relative" :class="{ 'max-h-32 overflow-hidden': !expanded }">
+                        {!! nl2br(e($product->description)) !!}
+                        <div x-show="!expanded" class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white to-transparent"></div>
+                    </div>
+                    <button type="button" @click="expanded = !expanded"
+                        class="mt-2 text-xs font-semibold text-amber-600 hover:text-amber-700 transition flex items-center gap-1">
+                        <span x-text="expanded ? 'Tutup' : 'Lihat Selengkapnya'"></span>
+                        <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
                 </div>
 
                 {{-- Add to Cart --}}
@@ -216,6 +245,18 @@
                             class="w-full sm:flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
                             <span x-text="hasVariants && !selectedVariantId ? 'Pilih Varian' : '+ Keranjang'">+ Keranjang</span>
+                        </button>
+                    </form>
+                    {{-- Buy Now Button (Shopee-style) --}}
+                    <form action="{{ route('cart.add', $product) }}" method="POST" class="mt-3">
+                        @csrf
+                        <input type="hidden" name="variant_id" x-model="selectedVariantId">
+                        <input type="hidden" name="quantity" x-model="qty">
+                        <input type="hidden" name="buy_now" value="1">
+                        <button type="submit" :disabled="hasVariants && !selectedVariantId"
+                            class="w-full bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-700 shadow-sm hover:shadow transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            Beli Sekarang
                         </button>
                     </form>
                 </div>
@@ -333,15 +374,6 @@
     @endif
 
     {{-- Recently Viewed --}}
-    @php
-        $recentIds = collect(session('recently_viewed', []))->filter(fn ($id) => $id !== $product->id)->take(8)->toArray();
-        $recentProducts = !empty($recentIds) ? \App\Models\Product::with('productImages', 'brand')
-            ->withCount('approvedReviews')
-            ->withAvg('approvedReviews', 'rating')
-            ->whereIn('id', $recentIds)
-            ->where('is_active', true)
-            ->get()->sortBy(fn ($p) => array_search($p->id, $recentIds)) : collect();
-    @endphp
     @if($recentProducts->isNotEmpty())
         <section class="mt-10 lg:mt-14">
             <div class="flex items-center justify-between mb-5">
@@ -354,6 +386,39 @@
             </div>
         </section>
     @endif
+
+    {{-- Sticky Mobile Add to Cart (Shopee-style) --}}
+    <div x-data="productVariant({ variants: {{ Js::from($product->variants->where('is_active', true)->values()->map(fn($v) => ['id' => $v->id, 'price' => (float) $v->price, 'stock' => $v->stock, 'attribute_ids' => $v->attributeValues->pluck('id')->sort()->values()->all(), 'image' => $v->image ? (str_starts_with($v->image, 'http') ? $v->image : Storage::url($v->image)) : null])) }}, attributes: {{ Js::from($attrGroups) }}, requiredTypes: {{ Js::from($requiredAttrTypes) }}, basePrice: {{ (float) $effectiveBasePrice }}, baseStock: {{ $product->stock }}, baseWeight: {{ (float) ($product->weight ?? 200) }}, baseImage: '{{ $product->main_image }}', images: {{ $product->productImages->pluck('url')->toJson() }}, hasVariants: {{ $hasVariants ? 'true' : 'false' }}, flashPrice: {{ $flashPrice ? $flashPrice : 'null' }}, flashStock: {{ $flashProductData ? ($flashProductData['max_qty'] ?? 0) - ($flashProductData['sold_count'] ?? 0) : 'null' }}, flashProductData: {{ $flashProductData ? Js::from($flashProductData) : 'null' }}, selectedVariantId: null, qty: 1, selectedAttributes: {} })"
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-3 z-40 lg:hidden"
+        x-show="displayStock > 0">
+        <div class="max-w-7xl mx-auto flex gap-3">
+            <a href="{{ route('cart.index') }}" class="flex flex-col items-center justify-center text-gray-500 hover:text-amber-600 transition px-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                <span class="text-[10px] mt-0.5">Keranjang</span>
+            </a>
+            <form action="{{ route('cart.add', $product) }}" method="POST" class="flex-1 flex gap-2">
+                @csrf
+                <input type="hidden" name="variant_id" x-model="selectedVariantId">
+                <input type="hidden" name="quantity" x-model="qty">
+                <button type="submit" :disabled="hasVariants && !selectedVariantId"
+                    class="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold text-sm hover:from-amber-600 hover:to-orange-600 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span x-text="hasVariants && !selectedVariantId ? 'Pilih Varian' : '+ Keranjang'">+ Keranjang</span>
+                </button>
+            </form>
+            <form action="{{ route('cart.add', $product) }}" method="POST" class="flex-1">
+                @csrf
+                <input type="hidden" name="variant_id" x-model="selectedVariantId">
+                <input type="hidden" name="quantity" x-model="qty">
+                <input type="hidden" name="buy_now" value="1">
+                <button type="submit" :disabled="hasVariants && !selectedVariantId"
+                    class="w-full bg-amber-600 text-white rounded-xl font-semibold text-sm hover:bg-amber-700 shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Beli Sekarang
+                </button>
+            </form>
+        </div>
+    </div>
+    {{-- Spacer to prevent content being hidden by sticky bar on mobile --}}
+    <div class="h-20 lg:hidden"></div>
 @endsection
 
 @push('scripts')

@@ -34,13 +34,15 @@ class StoreController extends Controller
         $featuredProducts = Product::with('productImages', 'brand')->where('featured', true)->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->latest()->take(8)->get();
         $latestProducts = Product::with('productImages', 'brand')->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->latest()->take(8)->get();
 
-        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $activeFlashSale = FlashSale::active()->with(['products.brand', 'products.productImages'])->first();
         $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
 
         $sliders = Slider::active()->get();
@@ -52,7 +54,8 @@ class StoreController extends Controller
     {
         $query = Product::with('productImages', 'brand')->where('is_active', true)
             ->withCount('approvedReviews')
-            ->withAvg('approvedReviews', 'rating');
+            ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity');
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -97,7 +100,7 @@ class StoreController extends Controller
         $categories = Category::whereNull('parent_id')->with('children')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
-        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $activeFlashSale = FlashSale::active()->with(['products.brand', 'products.productImages'])->first();
         $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
 
         return view('store.products', compact('products', 'categories', 'brands', 'flashSaleMap'));
@@ -114,6 +117,7 @@ class StoreController extends Controller
             ->where('is_active', true)
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
             ->take(4)
             ->get();
 
@@ -131,10 +135,24 @@ class StoreController extends Controller
             ->toArray();
         session(['recently_viewed' => $recentlyViewed]);
 
-        $activeFlashSale = FlashSale::active()->with('products.brand')->first();
+        $activeFlashSale = FlashSale::active()->with(['products.brand', 'products.productImages'])->first();
         $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
 
-        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview', 'flashSaleMap', 'activeFlashSale'));
+        $recentIds = collect(session('recently_viewed', []))
+            ->filter(fn ($id) => $id !== $product->id)
+            ->take(8)
+            ->toArray();
+        $recentProducts = ! empty($recentIds) ? Product::with('productImages', 'brand')
+            ->withCount('approvedReviews')
+            ->withAvg('approvedReviews', 'rating')
+            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
+            ->whereIn('id', $recentIds)
+            ->where('is_active', true)
+            ->get()
+            ->sortBy(fn ($p) => array_search($p->id, $recentIds))
+            ->values() : collect();
+
+        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview', 'flashSaleMap', 'activeFlashSale', 'recentProducts'));
     }
 
     public function cartIndex()
@@ -142,6 +160,13 @@ class StoreController extends Controller
         $cart = collect(session('cart', []));
 
         return view('store.cart', compact('cart'));
+    }
+
+    public function cartCount()
+    {
+        $count = collect(session('cart', []))->sum('quantity');
+
+        return response()->json(['count' => $count]);
     }
 
     public function cartAdd(Request $request, Product $product)
@@ -153,10 +178,18 @@ class StoreController extends Controller
         if ($variantId) {
             $variant = $product->variants()->where('is_active', true)->find($variantId);
             if (! $variant) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Varian tidak ditemukan!'], 422);
+                }
+
                 return redirect()->back()->with('error', 'Varian tidak ditemukan!');
             }
 
             if ($variant->stock < 1) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Stok varian habis!'], 422);
+                }
+
                 return redirect()->back()->with('error', 'Stok varian habis!');
             }
 
@@ -168,6 +201,10 @@ class StoreController extends Controller
                 : $product->main_image;
         } else {
             if ($product->stock < 1) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Stok produk habis!'], 422);
+                }
+
                 return redirect()->back()->with('error', 'Stok produk habis!');
             }
 
@@ -207,6 +244,20 @@ class StoreController extends Controller
         }
 
         session(['cart' => $cart]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'cart' => $cart->values()->all(),
+                'total' => $cart->sum(fn ($i) => $i['price'] * $i['quantity']),
+                'count' => $cart->sum('quantity'),
+            ]);
+        }
+
+        // Buy Now: add to cart then redirect to checkout
+        if ($request->boolean('buy_now')) {
+            return redirect()->route('checkout');
+        }
 
         return redirect()->back()->with('success', 'Produk ditambahkan ke keranjang!');
     }
@@ -251,6 +302,13 @@ class StoreController extends Controller
         });
 
         session(['cart' => $cart]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'cart' => $cart->values()->all(),
+                'total' => $cart->sum(fn ($i) => $i['price'] * $i['quantity']),
+            ]);
+        }
 
         return redirect()->route('cart.index')->with('success', 'Keranjang diperbarui!');
     }
@@ -974,6 +1032,8 @@ class StoreController extends Controller
                 'discount_type' => $pivot->discount_type,
                 'discount_value' => $pivot->discount_value,
                 'flash_price' => round($flashPrice),
+                'max_qty' => $pivot->max_qty ?? 0,
+                'sold_count' => $pivot->sold_count ?? 0,
             ];
         }
 

@@ -19,6 +19,7 @@ Route::get('/product/{slug}', [StoreController::class, 'productDetail'])->name('
 Route::get('/products/suggestions', [StoreController::class, 'suggestions'])->name('products.suggestions');
 
 Route::get('/cart', [StoreController::class, 'cartIndex'])->name('cart.index');
+Route::get('/cart/count', [StoreController::class, 'cartCount'])->name('cart.count');
 Route::post('/cart/add/{product}', [StoreController::class, 'cartAdd'])->name('cart.add');
 Route::post('/cart/add-bundle/{bundle}', [StoreController::class, 'cartAddBundle'])->name('cart.add-bundle');
 Route::post('/cart/update', [StoreController::class, 'cartUpdate'])->name('cart.update');

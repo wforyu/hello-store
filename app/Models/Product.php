@@ -147,4 +147,16 @@ class Product extends Model
             ->withPivot('quantity')
             ->withTimestamps();
     }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function getTotalSoldAttribute(): int
+    {
+        return $this->orderItems()
+            ->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))
+            ->sum('quantity');
+    }
 }

@@ -4,9 +4,10 @@
     $flashData = $flashSaleMap?->get($product->id);
     $displayPrice = $flashData ? $flashData['flash_price'] : $product->price;
     $displayCompare = $flashData ? $product->price : ($product->compare_price ?? 0);
+    $soldCount = $product->order_items_sum_quantity ?? 0;
 @endphp
 
-<a href="{{ route('products.show', $product->slug) }}" class="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg hover:shadow-amber-100/30 transition-all duration-300">
+<div class="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg hover:shadow-amber-100/30 transition-all duration-300">
     {{-- Wishlist Heart Button --}}
     @auth
         <button @click="fetch('{{ route('wishlist.toggle', $product) }}', { method: 'POST', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' } }).then(r => r.json()).then(d => { if(d.status === 'added') { $el.querySelector('svg').classList.add('text-red-500'); $el.querySelector('svg').classList.remove('text-gray-400'); $el.querySelector('svg').setAttribute('fill','currentColor'); } else { $el.querySelector('svg').classList.remove('text-red-500'); $el.querySelector('svg').classList.add('text-gray-400'); $el.querySelector('svg').setAttribute('fill','none'); } })"
@@ -51,28 +52,69 @@
         </div>
     @endif
 
-    {{-- Image --}}
-    <div class="aspect-square bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center p-5 relative overflow-hidden">
+    {{-- Image Area --}}
+    <a href="{{ route('products.show', $product->slug) }}" class="block aspect-square bg-gradient-to-b from-gray-50 to-gray-100 relative overflow-hidden">
         @if($product->productImages?->isNotEmpty())
-            <img src="{{ $product->main_image }}" alt="{{ $product->name }}"
-                class="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500">
+            <img src="{{ $product->main_image }}" alt="{{ $product->name }}" loading="lazy"
+                class="w-full h-full object-contain p-5 group-hover:scale-110 transition-transform duration-500">
         @else
-            <svg class="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
+            <div class="w-full h-full flex items-center justify-center">
+                <svg class="h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+        @endif
+
+        {{-- Quick Add to Cart Overlay (Shopee-style) --}}
+        @if($product->stock > 0)
+            <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-3">
+                <button type="button"
+                    x-data="{ adding: false, added: false }"
+                    @click.prevent.stop="
+                        if (adding || added) return;
+                        adding = true;
+                        const fd = new FormData();
+                        fd.append('_token', '{{ csrf_token() }}');
+                        fd.append('quantity', 1);
+                        fetch('{{ route('cart.add', $product) }}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
+                            .then(r => r.json())
+                            .then(d => { adding = false; if (d.success) { added = true; setTimeout(() => added = false, 1500); window.dispatchEvent(new CustomEvent('cart-updated', { detail: d })); } })
+                            .catch(() => { adding = false; window.location.href = '{{ route('products.show', $product->slug) }}'; });
+                    "
+                    class="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg hover:bg-amber-50 transition-all duration-200 flex items-center gap-2"
+                    :class="added ? 'bg-emerald-50' : ''">
+                    <template x-if="!adding && !added">
+                        <span class="flex items-center gap-1.5 text-amber-700 text-xs font-semibold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+                            + Keranjang
+                        </span>
+                    </template>
+                    <template x-if="adding">
+                        <svg class="w-4 h-4 text-amber-600 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    </template>
+                    <template x-if="added">
+                        <span class="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Ditambahkan
+                        </span>
+                    </template>
+                </button>
+            </div>
         @endif
 
         {{-- Quick View Overlay --}}
-        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100">
+        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 flex items-end justify-center pb-14 opacity-0 group-hover:opacity-100">
             <span class="bg-white/90 backdrop-blur-sm text-amber-700 text-xs font-semibold px-4 py-2 rounded-xl shadow-sm translate-y-2 group-hover:translate-y-0 transition-all duration-300">
                 Lihat Detail
             </span>
         </div>
-    </div>
+    </a>
 
     {{-- Info --}}
     <div class="p-3.5 lg:p-4">
-        <h3 class="text-sm font-medium text-gray-900 truncate group-hover:text-amber-700 transition-colors">{{ $product->name }}</h3>
+        <a href="{{ route('products.show', $product->slug) }}" class="block">
+            <h3 class="text-sm font-medium text-gray-900 truncate group-hover:text-amber-700 transition-colors">{{ $product->name }}</h3>
+        </a>
         @if($product->brand)
             <p class="text-[11px] text-gray-400 truncate">{{ $product->brand->name }}</p>
         @endif
@@ -85,7 +127,7 @@
             @endif
         </div>
 
-        {{-- Rating --}}
+        {{-- Rating + Sold --}}
         <div class="flex items-center gap-1 mt-1.5">
             <div class="flex">
                 @for($i = 0; $i < 5; $i++)
@@ -96,6 +138,9 @@
             </div>
             @if(($product->approved_reviews_count ?? 0) > 0)
                 <span class="text-[10px] text-gray-400">({{ $product->approved_reviews_count }})</span>
+            @endif
+            @if($soldCount > 0)
+                <span class="text-[10px] text-gray-400 ml-auto">{{ number_format($soldCount) }} terjual</span>
             @endif
         </div>
 
@@ -108,4 +153,4 @@
             <p class="text-[10px] text-red-500 font-medium mt-1">Stok habis</p>
         @endif
     </div>
-</a>
+</div>

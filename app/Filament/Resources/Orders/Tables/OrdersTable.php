@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Orders\Tables;
 
+use App\Models\Notification;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification as FilamentNotification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -107,7 +110,7 @@ class OrdersTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('delivered_at')
                     ->label('Diterima')
-                    ->dateTime('d M Y, H:i')
+                    ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cancelled_at')
@@ -149,7 +152,89 @@ class OrdersTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
+
+                    BulkAction::make('bulkMarkProcessing')
+                        ->label('Set Processing')
+                        ->icon('heroicon-o-cog-6-tooth')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Ubah Status ke Processing')
+                        ->modalDescription('Tandai pesanan yang dipilih sebagai sedang diproses.')
+                        ->modalSubmitActionLabel('Ya, Proses')
+                        ->action(fn ($records) => static::bulkUpdateStatus($records, 'processing')),
+
+                    BulkAction::make('bulkMarkShipped')
+                        ->label('Set Shipped')
+                        ->icon('heroicon-o-truck')
+                        ->color('primary')
+                        ->requiresConfirmation()
+                        ->modalHeading('Ubah Status ke Shipped')
+                        ->modalDescription('Tandai pesanan yang dipilih sebagai sudah dikirim.')
+                        ->modalSubmitActionLabel('Ya, Kirim')
+                        ->action(fn ($records) => static::bulkUpdateStatus($records, 'shipped')),
+
+                    BulkAction::make('bulkMarkDelivered')
+                        ->label('Set Delivered')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Ubah Status ke Delivered')
+                        ->modalDescription('Tandai pesanan yang dipilih sebagai sudah diterima.')
+                        ->modalSubmitActionLabel('Ya, Selesai')
+                        ->action(fn ($records) => static::bulkUpdateStatus($records, 'delivered')),
                 ]),
             ]);
+    }
+
+    public static function bulkUpdateStatus($records, string $newStatus): void
+    {
+        $validTransitions = [
+            'processing' => ['pending'],
+            'shipped' => ['processing'],
+            'delivered' => ['shipped'],
+        ];
+
+        $allowed = $validTransitions[$newStatus] ?? [];
+        $updated = 0;
+        $skipped = 0;
+
+        foreach ($records as $order) {
+            if (! in_array($order->status, $allowed)) {
+                $skipped++;
+
+                continue;
+            }
+
+            $data = ['status' => $newStatus];
+            if ($newStatus === 'shipped') {
+                $data['shipped_at'] = now();
+            } elseif ($newStatus === 'delivered') {
+                $data['delivered_at'] = now();
+            }
+
+            $order->update($data);
+
+            Notification::createForUser(
+                $order->user_id,
+                'order_status',
+                'Status Pesanan Diperbarui',
+                "Pesanan #{$order->order_number} sekarang berstatus {$newStatus}.",
+                null,
+                '/orders/'.$order->id
+            );
+
+            $updated++;
+        }
+
+        $message = "{$updated} pesanan berhasil diupdate.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} pesanan dilewati (status tidak valid).";
+        }
+
+        FilamentNotification::make()
+            ->title('Bulk Update Selesai')
+            ->body($message)
+            ->success()
+            ->send();
     }
 }
