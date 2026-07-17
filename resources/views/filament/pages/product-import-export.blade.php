@@ -39,16 +39,16 @@
             </div>
 
             <form wire:submit="handleImport" style="display: flex; flex-direction: column; gap: 16px;">
-                <x-filament::form
-                    :schema="[
-                        \Filament\Forms\Components\FileUpload::make('importFile')
-                            ->label('File CSV')
-                            ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
-                            ->maxSize(10240)
-                            ->directory('imports')
-                            ->required(),
-                    ]"
-                />
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--gray-300); display: block; margin-bottom: 6px;">File CSV</label>
+                    <input
+                        type="file"
+                        wire:model.live="importFile"
+                        accept=".csv,text/csv,text/plain"
+                        style="display: block; width: 100%; font-size: 13px; color: var(--gray-300); padding: 8px 12px; background: var(--gray-900); border: 1px solid var(--gray-600); border-radius: 8px;"
+                    />
+                    <p style="font-size: 11px; color: var(--gray-500); margin-top: 4px;">Maksimal 10MB. Format: CSV.</p>
+                </div>
 
                 <x-filament::button type="submit" icon="heroicon-o-arrow-up-tray" color="primary" size="lg">
                     Import CSV
