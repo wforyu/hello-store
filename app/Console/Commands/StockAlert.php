@@ -60,7 +60,7 @@ class StockAlert extends Command
                 'Stok Habis!',
                 $body,
                 'heroicon-o-x-circle',
-                '/admin/products',
+                '/admin/resources/products',
             );
 
             $this->warn("STOK HABIS: {$totalOut} produk");
@@ -80,7 +80,7 @@ class StockAlert extends Command
                 'Stok Menipis',
                 $body,
                 'heroicon-o-exclamation-triangle',
-                '/admin/products',
+                '/admin/resources/products',
             );
 
             $this->warn("STOK MENIPIS: {$totalLow} produk");

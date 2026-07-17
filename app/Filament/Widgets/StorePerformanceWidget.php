@@ -86,7 +86,7 @@ class StorePerformanceWidget extends BaseWidget
 
             Stat::make('Menunggu Diproses', (string) $pendingOrders)
                 ->description('Pesanan pending')
-                ->descriptionIcon('heroicon-o-hourglass')
+                ->descriptionIcon('heroicon-o-clock')
                 ->color($pendingOrders > 10 ? 'danger' : 'warning'),
 
             Stat::make('Sedang Diproses', (string) $processingOrders)

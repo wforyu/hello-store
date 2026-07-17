@@ -33,7 +33,15 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         if ($notification->link_url) {
-            return redirect($notification->link_url);
+            $url = $notification->link_url;
+
+            if (auth()->user()->role === 'admin' && preg_match('#/orders/(\d+)$#', $url)) {
+                preg_match('#/orders/(\d+)$#', $url, $m);
+
+                return redirect('/admin/resources/orders/'.$m[1].'/edit');
+            }
+
+            return redirect($url);
         }
 
         return back();
@@ -85,6 +93,10 @@ class NotificationController extends Controller
         $url = $n->link_url;
         if (! $url) {
             return null;
+        }
+
+        if (str_starts_with($url, '/admin/resources/') || str_starts_with($url, '/admin/pages/')) {
+            return $url;
         }
 
         if (preg_match('#/orders/(\d+)/payment#', $url, $m)) {

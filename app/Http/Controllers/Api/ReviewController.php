@@ -36,7 +36,7 @@ class ReviewController extends Controller
             'Ulasan Baru',
             $request->user()->name.' memberikan ulasan bintang '.$validated['rating'].' untuk produk '.$product->name,
             'star',
-            '/admin/products/'.$product->id.'/edit'
+            '/admin/resources/products/'.$product->id.'/edit'
         );
 
         return response()->json([

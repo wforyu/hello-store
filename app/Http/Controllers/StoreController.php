@@ -534,7 +534,7 @@ class StoreController extends Controller
             'Pesanan Baru #'.$order->order_number,
             'Pesanan baru dari '.auth()->user()->name,
             null,
-            route('orders.show', $order)
+            '/admin/resources/orders/'.$order->id.'/edit'
         );
 
         session()->forget('cart');
