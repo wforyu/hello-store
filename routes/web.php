@@ -5,6 +5,7 @@ use App\Http\Controllers\AddressController;
 use App\Http\Controllers\BarcodeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\ProductExportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StoreController;
@@ -94,6 +95,8 @@ Route::middleware(['auth', 'can:access-pos'])->group(function () {
 Route::middleware(['auth', 'can:admin'])->group(function () {
     Route::get('/admin/reports/export', [ReportController::class, 'export'])
         ->name('admin.reports.export');
+    Route::get('/admin/products/export', [ProductExportController::class, 'export'])
+        ->name('admin.products.export');
     Route::get('/admin/barcode', [BarcodeController::class, 'index'])->name('barcode.index');
     Route::post('/admin/barcode/generate', [BarcodeController::class, 'generate'])->name('barcode.generate');
     Route::get('/admin/barcode/product/{product}', [BarcodeController::class, 'generateForProduct'])->name('barcode.product');

@@ -57,6 +57,11 @@ class ProductsTable
                     ->label('Stok')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('views_count')
+                    ->label('Views')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable(),

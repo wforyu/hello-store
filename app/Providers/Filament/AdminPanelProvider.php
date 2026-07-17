@@ -4,13 +4,17 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Reports;
 use App\Filament\Widgets\ActivityTimelineWidget;
+use App\Filament\Widgets\CustomerSegmentationWidget;
 use App\Filament\Widgets\EnhancedStatsOverviewWidget;
 use App\Filament\Widgets\FinanceOverview;
+use App\Filament\Widgets\ProductAnalyticsWidget;
 use App\Filament\Widgets\PurchaseAnalyticsWidget;
 use App\Filament\Widgets\RecentOrdersWidget;
 use App\Filament\Widgets\RevenueChart;
 use App\Filament\Widgets\RevenueChartWidget;
 use App\Filament\Widgets\SalesComparisonWidget;
+use App\Filament\Widgets\SalesTargetWidget;
+use App\Filament\Widgets\StorePerformanceWidget;
 use App\Filament\Widgets\TopCashiersTableWidget;
 use App\Filament\Widgets\TopCategoriesTableWidget;
 use App\Filament\Widgets\TopProductsTableWidget;
@@ -73,6 +77,10 @@ class AdminPanelProvider extends PanelProvider
                 TopProductsTableWidget::class,
                 TopCategoriesTableWidget::class,
                 TopCashiersTableWidget::class,
+                ProductAnalyticsWidget::class,
+                StorePerformanceWidget::class,
+                CustomerSegmentationWidget::class,
+                SalesTargetWidget::class,
                 RecentOrdersWidget::class,
                 ActivityTimelineWidget::class,
             ])

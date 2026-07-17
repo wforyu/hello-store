@@ -15,6 +15,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductBundle;
 use App\Models\ProductVariant;
+use App\Models\ProductView;
 use App\Models\Review;
 use App\Models\Setting;
 use App\Models\Slider;
@@ -30,24 +31,46 @@ class StoreController extends Controller
 {
     public function home()
     {
-        $categories = Category::whereNull('parent_id')->with('children')->get();
-        $featuredProducts = Product::with('productImages', 'brand')->where('featured', true)->where('is_active', true)
-            ->withCount('approvedReviews')
-            ->withAvg('approvedReviews', 'rating')
-            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
-            ->latest()->take(8)->get();
-        $latestProducts = Product::with('productImages', 'brand')->where('is_active', true)
-            ->withCount('approvedReviews')
-            ->withAvg('approvedReviews', 'rating')
-            ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
-            ->latest()->take(8)->get();
+        $showSliders = Setting::get('show_sliders', '1') === '1';
+        $showCategories = Setting::get('show_categories', '1') === '1';
+        $showFeatured = Setting::get('show_featured', '1') === '1';
+        $showLatest = Setting::get('show_latest', '1') === '1';
+        $showFlashSale = Setting::get('show_flash_sale', '1') === '1';
+        $showBrands = Setting::get('show_brands', '1') === '1';
 
-        $activeFlashSale = FlashSale::active()->with(['products.brand', 'products.productImages'])->first();
-        $flashSaleMap = $this->getFlashSaleMap($activeFlashSale);
+        $categories = $showCategories
+            ? Category::whereNull('parent_id')->with('children')->get()
+            : collect();
+        $featuredProducts = $showFeatured
+            ? Product::with('productImages', 'brand')->where('featured', true)->where('is_active', true)
+                ->withCount('approvedReviews')
+                ->withAvg('approvedReviews', 'rating')
+                ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
+                ->latest()->take(8)->get()
+            : collect();
+        $latestProducts = $showLatest
+            ? Product::with('productImages', 'brand')->where('is_active', true)
+                ->withCount('approvedReviews')
+                ->withAvg('approvedReviews', 'rating')
+                ->withSum(['orderItems' => fn ($q) => $q->whereHas('order', fn ($q) => $q->whereIn('status', ['delivered', 'completed']))], 'quantity')
+                ->latest()->take(8)->get()
+            : collect();
 
-        $sliders = Slider::active()->get();
+        $activeFlashSale = $showFlashSale
+            ? FlashSale::active()->with(['products.brand', 'products.productImages'])->first()
+            : null;
+        $flashSaleMap = $activeFlashSale ? $this->getFlashSaleMap($activeFlashSale) : collect();
 
-        return view('store.home', compact('categories', 'featuredProducts', 'latestProducts', 'activeFlashSale', 'flashSaleMap', 'sliders'));
+        $sliders = $showSliders ? Slider::active()->get() : collect();
+
+        $brands = $showBrands ? Brand::where('is_active', true)->orderBy('name')->get() : collect();
+
+        return view('store.home', compact(
+            'categories', 'featuredProducts', 'latestProducts',
+            'activeFlashSale', 'flashSaleMap', 'sliders', 'brands',
+            'showSliders', 'showCategories', 'showFeatured',
+            'showLatest', 'showFlashSale', 'showBrands'
+        ));
     }
 
     public function products(Request $request)
@@ -112,6 +135,9 @@ class StoreController extends Controller
             ->withCount('approvedReviews')
             ->withAvg('approvedReviews', 'rating')
             ->firstOrFail();
+
+        ProductView::recordView($product, auth()->id());
+
         $relatedProducts = Product::with('productImages', 'brand')->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->where('is_active', true)

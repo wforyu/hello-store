@@ -35,6 +35,53 @@ class CouponResource extends Resource
         return $schema
             ->columns(2)
             ->components([
+                Select::make('template')
+                    ->label('Template Kupon')
+                    ->options([
+                        '' => '— Custom —',
+                        'diskon_persen' => 'Diskon Persen',
+                        'diskon_nominal' => 'Diskon Nominal',
+                        'gratis_ongkir' => 'Gratis Ongkir',
+                        'cashback' => 'Cashback',
+                        'beli_x_gratis_y' => 'Beli X Gratis Ongkir',
+                        'min_order_diskon' => 'Diskon Min. Belanja',
+                    ])
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, $set) {
+                        $templates = [
+                            'diskon_persen' => [
+                                'type' => 'percentage', 'value' => 10, 'min_order' => 50000,
+                                'max_discount' => 25000, 'description' => 'Diskon 10% (maks Rp25.000) untuk pembelian minimal Rp50.000',
+                            ],
+                            'diskon_nominal' => [
+                                'type' => 'nominal', 'value' => 15000, 'min_order' => 100000,
+                                'max_discount' => null, 'description' => 'Diskon Rp15.000 untuk pembelian minimal Rp100.000',
+                            ],
+                            'gratis_ongkir' => [
+                                'type' => 'nominal', 'value' => 25000, 'min_order' => 0,
+                                'max_discount' => null, 'description' => 'Gratis ongkir (potongan ongkir maks Rp25.000)',
+                            ],
+                            'cashback' => [
+                                'type' => 'percentage', 'value' => 5, 'min_order' => 0,
+                                'max_discount' => 50000, 'description' => 'Cashback 5% dalam bentuk poin (maks Rp50.000)',
+                            ],
+                            'min_order_diskon' => [
+                                'type' => 'nominal', 'value' => 50000, 'min_order' => 500000,
+                                'max_discount' => null, 'description' => 'Diskon Rp50.000 untuk pembelian minimal Rp500.000',
+                            ],
+                        ];
+
+                        if ($state && isset($templates[$state])) {
+                            $t = $templates[$state];
+                            $set('type', $t['type']);
+                            $set('value', $t['value']);
+                            $set('min_order', $t['min_order']);
+                            $set('max_discount', $t['max_discount']);
+                            $set('description', $t['description']);
+                        }
+                    })
+                    ->helperText('Pilih template atau custom sendiri')
+                    ->columnSpanFull(),
                 TextInput::make('code')
                     ->label('Kode Kupon')
                     ->required()

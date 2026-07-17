@@ -65,6 +65,12 @@ class ManageSettings extends Page
             'social_follow_rules' => Setting::get('social_follow_rules', []),
             'mobile_api_url' => Setting::get('mobile_api_url', ''),
             'firebase_service_account' => Setting::get('firebase_service_account', ''),
+            'show_sliders' => Setting::get('show_sliders', '1') === '1',
+            'show_categories' => Setting::get('show_categories', '1') === '1',
+            'show_featured' => Setting::get('show_featured', '1') === '1',
+            'show_latest' => Setting::get('show_latest', '1') === '1',
+            'show_flash_sale' => Setting::get('show_flash_sale', '1') === '1',
+            'show_brands' => Setting::get('show_brands', '1') === '1',
         ]);
     }
 
@@ -338,6 +344,31 @@ class ManageSettings extends Page
                             ->columnSpan(1),
                     ])
                     ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
+                Section::make('Dekorasi Homepage')
+                    ->description('Atur section mana yang tampil di halaman utama toko')
+                    ->schema([
+                        Toggle::make('show_sliders')
+                            ->label('Tampilkan Slider/Carousel')
+                            ->helperText('Banner rotasi di bagian atas homepage'),
+                        Toggle::make('show_categories')
+                            ->label('Tampilkan Grid Kategori')
+                            ->helperText('Daftar kategori produk di homepage'),
+                        Toggle::make('show_featured')
+                            ->label('Tampilkan Produk Unggulan')
+                            ->helperText('Section produk yang ditandai sebagai unggulan'),
+                        Toggle::make('show_latest')
+                            ->label('Tampilkan Produk Terbaru')
+                            ->helperText('Section produk terbaru yang baru ditambahkan'),
+                        Toggle::make('show_flash_sale')
+                            ->label('Tampilkan Flash Sale')
+                            ->helperText('Section flash sale yang sedang aktif'),
+                        Toggle::make('show_brands')
+                            ->label('Tampilkan Brand/Merek')
+                            ->helperText('Grid brand di halaman homepage'),
+                    ])
+                    ->columns(3)
                     ->collapsible()
                     ->collapsed(),
                 Section::make('SEO & Analytics')
