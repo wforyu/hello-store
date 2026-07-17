@@ -12,7 +12,7 @@ use UnitEnum;
 
 class ProductImportExport extends Page
 {
-    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-arrow-up-down';
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-arrow-path';
 
     protected static string|UnitEnum|null $navigationGroup = 'Produk';
 
