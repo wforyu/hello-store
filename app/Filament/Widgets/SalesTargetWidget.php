@@ -12,7 +12,7 @@ class SalesTargetWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Target Penjualan';
+    protected ?string $heading = 'Target Penjualan';
 
     protected function getStats(): array
     {

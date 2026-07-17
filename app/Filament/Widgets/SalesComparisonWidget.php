@@ -14,7 +14,7 @@ class SalesComparisonWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Perbandingan Penjualan';
+    protected ?string $heading = 'Perbandingan Penjualan';
 
     protected function getStats(): array
     {

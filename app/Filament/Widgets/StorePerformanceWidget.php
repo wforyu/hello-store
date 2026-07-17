@@ -12,7 +12,7 @@ class StorePerformanceWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Performa Toko';
+    protected ?string $heading = 'Performa Toko';
 
     protected function getStats(): array
     {

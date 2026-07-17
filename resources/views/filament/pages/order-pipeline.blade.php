@@ -48,7 +48,7 @@
             <div class="pipeline-column">
                 <div class="pipeline-column-header">
                     <span style="display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 8px; height: 8px; border-radius: 50; background: {{ $this->getStatusColor($status) }}; display: inline-block;"></span>
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ $this->getStatusColor($status) }}; display: inline-block;"></span>
                         {{ $this->getStatusLabel($status) }}
                     </span>
                     <span class="pipeline-column-count">{{ $orders->count() }}</span>

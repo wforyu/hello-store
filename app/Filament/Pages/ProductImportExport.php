@@ -26,6 +26,8 @@ class ProductImportExport extends Page
 
     protected string $view = 'filament.pages.product-import-export';
 
+    public ?string $importFile = null;
+
     public ?string $importError = null;
 
     public function handleImport(): void

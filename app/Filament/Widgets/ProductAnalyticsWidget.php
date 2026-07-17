@@ -65,8 +65,7 @@ class ProductAnalyticsWidget extends BaseTableWidget
                         return $views > 0
                             ? round(($sold / $views) * 100, 1).'%'
                             : '0%';
-                    })
-                    ->sortable(),
+                    }),
                 TextColumn::make('revenue_30d')
                     ->label('Revenue (30H)')
                     ->money('IDR')
