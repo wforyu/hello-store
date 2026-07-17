@@ -45,8 +45,8 @@ class SalesComparisonWidget extends BaseWidget
             ->selectRaw('COALESCE(SUM(order_items.quantity * products.cost_price), 0) as cogs')
             ->value('cogs');
 
-        $thisExpenses = Expense::whereBetween('date', [$thisMonthStart->toDateString(), $thisMonthEnd->toDateString()])->sum('amount');
-        $lastExpenses = Expense::whereBetween('date', [$lastMonthStart->toDateString(), $lastMonthEnd->toDateString()])->sum('amount');
+        $thisExpenses = Expense::whereBetween('expense_date', [$thisMonthStart->toDateString(), $thisMonthEnd->toDateString()])->sum('amount');
+        $lastExpenses = Expense::whereBetween('expense_date', [$lastMonthStart->toDateString(), $lastMonthEnd->toDateString()])->sum('amount');
 
         $thisProfit = $thisRevenue - $thisCOGS - $thisExpenses;
         $lastProfit = $lastRevenue - $lastCOGS - $lastExpenses;
