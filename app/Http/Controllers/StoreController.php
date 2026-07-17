@@ -185,7 +185,13 @@ class StoreController extends Controller
             ->sortBy(fn ($p) => array_search($p->id, $recentIds))
             ->values() : collect();
 
-        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview', 'flashSaleMap', 'activeFlashSale', 'recentProducts'));
+        $relatedBundles = ProductBundle::where('is_active', true)
+            ->whereHas('products', fn ($q) => $q->where('products.id', $product->id))
+            ->with('products.productImages')
+            ->take(3)
+            ->get();
+
+        return view('store.product-detail', compact('product', 'relatedProducts', 'reviews', 'userReview', 'flashSaleMap', 'activeFlashSale', 'recentProducts', 'relatedBundles'));
     }
 
     public function cartIndex()
@@ -480,6 +486,7 @@ class StoreController extends Controller
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
                     'product_variant_id' => ! empty($item['variant_id']) ? $item['variant_id'] : null,
+                    'bundle_name' => $item['bundle_name'] ?? null,
                     'product_name' => ! empty($item['variant_name'])
                         ? $item['name'].' - '.$item['variant_name']
                         : $item['name'],
@@ -1085,6 +1092,28 @@ class StoreController extends Controller
         return view('store.bundles', compact('bundles'));
     }
 
+    public function bundleDetail($slug)
+    {
+        $bundle = ProductBundle::where('slug', $slug)
+            ->where('is_active', true)
+            ->with(['products.productImages', 'products.brand', 'products.approvedReviews'])
+            ->firstOrFail();
+
+        $bundle->loadCount(['products as products_count']);
+        $bundle->setRelation('products', $bundle->products->each(function ($product) {
+            $product->setRelation('approved_reviews_count', $product->approvedReviews->count());
+            $product->setRelation('approved_reviews_avg_rating', $product->approvedReviews->avg('rating'));
+        }));
+
+        $relatedBundles = ProductBundle::where('id', '!=', $bundle->id)
+            ->where('is_active', true)
+            ->with('products.productImages')
+            ->take(3)
+            ->get();
+
+        return view('store.bundle-detail', compact('bundle', 'relatedBundles'));
+    }
+
     public function cartAddBundle(Request $request, ProductBundle $bundle)
     {
         $bundle->load('products');
@@ -1094,7 +1123,7 @@ class StoreController extends Controller
         }
 
         // Calculate discount percentage of bundle vs original total
-        $originalTotal = (float) $bundle->total_original_price;
+        $originalTotal = $bundle->getCalculatedOriginalPrice();
         $bundlePrice = (float) $bundle->bundle_price;
         $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
 

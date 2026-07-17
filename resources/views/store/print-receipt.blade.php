@@ -211,7 +211,12 @@
             <tbody>
                 @foreach($order->items as $item)
                     <tr>
-                        <td>{{ $item->product_name }}</td>
+                        <td>
+                            @if($item->bundle_name)
+                                <span style="font-size:8px;background:#f3e8ff;color:#7c3aed;padding:1px 3px;border-radius:2px">PAKET</span>
+                            @endif
+                            {{ $item->product_name }}
+                        </td>
                         <td style="text-align:center">{{ $item->quantity }}</td>
                         <td>Rp{{ number_format($item->subtotal, 0, ',', '.') }}</td>
                     </tr>

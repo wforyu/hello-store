@@ -30,6 +30,7 @@ Route::post('/compare/toggle/{product}', [StoreController::class, 'compareToggle
 Route::get('/compare', [StoreController::class, 'compareIndex'])->name('products.compare');
 
 Route::get('/bundles', [StoreController::class, 'bundles'])->name('products.bundles');
+Route::get('/bundles/{slug}', [StoreController::class, 'bundleDetail'])->name('products.bundle-detail');
 
 Route::middleware('auth')->group(function () {
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');

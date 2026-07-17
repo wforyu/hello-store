@@ -25,6 +25,57 @@ export const setApiUrl = async (url) => {
   }
 };
 
+export const resetApiUrl = async () => {
+  _cachedUrl = null;
+  await SecureStore.deleteItemAsync(API_URL_KEY);
+};
+
+export const checkForUrlUpdate = async () => {
+  try {
+    const currentUrl = await getApiUrl();
+    const res = await fetch(`${currentUrl}/api/config`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = await res.json();
+    const serverUrl = json?.data?.api_url;
+    if (serverUrl && serverUrl !== currentUrl) {
+      await setApiUrl(serverUrl);
+      return { updated: true, oldUrl: currentUrl, newUrl: serverUrl };
+    }
+    return { updated: false, currentUrl };
+  } catch (e) {
+    if (_cachedUrl && _cachedUrl !== FALLBACK_API_URL) {
+      try {
+        const res = await fetch(`${FALLBACK_API_URL}/api/config`, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(8000),
+        });
+        const json = await res.json();
+        const serverUrl = json?.data?.api_url;
+        if (serverUrl && serverUrl !== _cachedUrl) {
+          await setApiUrl(serverUrl);
+          return { updated: true, oldUrl: _cachedUrl, newUrl: serverUrl };
+        }
+      } catch (e2) {}
+    }
+    return { updated: false, error: e.message };
+  }
+};
+
+export const testApiUrl = async (url) => {
+  try {
+    const res = await fetch(`${url}/api/config`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    const json = await res.json();
+    return { success: json?.success === true, data: json?.data };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+};
+
 export const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/200';
   if (url.startsWith('http')) return url;

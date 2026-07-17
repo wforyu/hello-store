@@ -34,4 +34,19 @@ class ProductBundle extends Model
             ->withPivot('quantity')
             ->withTimestamps();
     }
+
+    public function getCalculatedOriginalPrice(): float
+    {
+        if ((float) $this->total_original_price > 0) {
+            return (float) $this->total_original_price;
+        }
+
+        $total = 0;
+        foreach ($this->products as $product) {
+            $qty = (int) ($product->pivot->quantity ?? 1);
+            $total += (float) $product->price * $qty;
+        }
+
+        return $total;
+    }
 }

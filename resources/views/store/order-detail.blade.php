@@ -235,7 +235,12 @@
             @foreach($order->items as $item)
                 <div class="py-4 flex items-center justify-between">
                     <div>
-                        <p class="text-sm font-semibold text-gray-900">{{ $item->product_name }}</p>
+                        <p class="text-sm font-semibold text-gray-900">
+                            @if($item->bundle_name)
+                                <span class="text-purple-600 text-[10px] font-bold bg-purple-50 px-1.5 py-0.5 rounded mr-1">PAKET: {{ $item->bundle_name }}</span>
+                            @endif
+                            {{ $item->product_name }}
+                        </p>
                         <p class="text-xs text-gray-400 mt-0.5">{{ $item->quantity }} × Rp{{ number_format($item->product_price, 0, ',', '.') }}</p>
                         @if($item->product && $item->product->is_digital && $order->payment_status === 'paid')
                             <a href="{{ route('orders.download', [$order, $item->product]) }}"

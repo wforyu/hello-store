@@ -57,10 +57,14 @@
 | GET | `/products` | `StoreController@products` | `products.index` |
 | GET | `/product/{slug}` | `StoreController@productDetail` | `products.show` |
 | GET | `/products/suggestions` | `StoreController@suggestions` | `products.suggestions` |
+| GET | `/bundles` | `StoreController@bundles` | `products.bundles` |
+| GET | `/bundles/{slug}` | `StoreController@bundleDetail` | `products.bundle-detail` |
 | GET | `/cart` | `StoreController@cartIndex` | `cart.index` |
+| GET | `/cart/count` | `StoreController@cartCount` | `cart.count` |
 | POST | `/cart/add/{product}` | `StoreController@cartAdd` | `cart.add` |
+| POST | `/cart/add-bundle/{bundle}` | `StoreController@cartAddBundle` | `cart.add-bundle` |
 | POST | `/cart/update` | `StoreController@cartUpdate` | `cart.update` |
-| POST | `/cart/remove/{productId}` | `StoreController@cartRemove` | `cart.remove` |
+| POST | `/cart/remove/{key}` | `StoreController@cartRemove` | `cart.remove` |
 
 ### Auth (middleware: `auth`)
 | Method | URI | Controller@method | Nama |
@@ -155,6 +159,8 @@
 | — | `create_product_variant_attributes_table` | Variant Attributes (product_variant_id, type, value, label, sort_order) |
 | — | `add_variant_id_to_cart_items_table` | Add product_variant_id nullable ke cart_items |
 | — | `add_variant_fields_to_orders` | Add product_variant_id + variant_name ke order_items |
+| — | `add_bundle_id_to_cart_items_table` | Add bundle_id nullable ke cart_items (for bundle cart tracking) |
+| — | `add_bundle_name_to_order_items_table` | Add bundle_name nullable ke order_items (for order display) |
 
 ---
 
@@ -293,16 +299,21 @@
 - Widgets auto-discovered
 - **`formatRupiah` JS** — IIFE mendefinisikan fungsi global + capture-phase `document.addEventListener('input', ...)` untuk auto-dot formatting pada input dengan `wire:model` mengandung `price|subtotal|shipping|total|amount` (menggunakan `.fi-input` selector). Dipanggil via event delegation, bukan `extraInputAttributes`.
 
-### Resources (16)
+### Resources (23)
 
 | Group | Resource | Model | Icon |
 |---|---|---|---|
 | Tampilan | Banners | Banner | `Photo` |
+| Tampilan | Sliders | Slider | `ArrowsPointingOut` |
 | Keuangan | Expenses | Expense | `Banknotes` |
 | Keuangan | Expense Categories | ExpenseCategory | `Tag` |
+| Keuangan | Coupons | Coupon | `Ticket` |
 | Pengaturan | Pengaturan Toko (Page) | Setting | `Cog6Tooth` |
+| Pengaturan | Pusat Bantuan (Page) | — | `QuestionMarkCircle` |
 | Produk | Products | Product | `ShoppingBag` |
 | Produk | Categories | Category | `RectangleGroup` |
+| Produk | Brands | Brand | `Tag` |
+| Produk | Reviews | Review | `Star` |
 | Produk | Riwayat Stok | StockHistory | `ClipboardDocumentList` |
 | Pesanan | Orders | Order | `Truck` |
 | Pesanan | Payments | Payment | `CreditCard` |
@@ -313,19 +324,29 @@
 | Pemasaran | Flash Sales | FlashSale | `Bolt` |
 | Pemasaran | Product Bundles | ProductBundle | `Gift` |
 | Pengguna | Users | User | `Users` |
+| Pengguna | Point Transactions | PointTransaction | `CurrencyDollar` |
+| Pengguna | Social Follow Claims | SocialFollowClaim | `Users` |
+| Pengguna | Audit Logs | AuditLog | `DocumentText` |
 
-### Widgets (9)
+### Widgets (15)
 
 | Widget | Type | Sort | Colspan | Fungsi |
 |---|---|---|---|---|---|
 | **EnhancedStatsOverviewWidget** | Stats | 1 | full | 8 stat cards: daily orders/sold/revenue/net profit + new customers/repeat/AOV/conversion rate — semuanya clickable menuju resource page dengan filter |
+| **SalesComparisonWidget** | Table | 1 | full | Compare sales metrics (this week vs last week) |
 | **FinanceOverview** | Stats | 2 | full | 4 stat cards (all-time): Total Pendapatan, Total Pengeluaran, Laba Bersih, Total Pesanan |
+| **PurchaseAnalyticsWidget** | Stats | 2 | full | Purchase analytics stats |
 | **RevenueChart** | Chart | 3 | 6 | Line chart pendapatan 6 bulan terakhir (per bulan) |
 | **RevenueChartWidget** | Chart | 3 | 6 | Line chart pendapatan 30 hari terakhir (per hari) |
 | **TopProductsTableWidget** | Table | 4 | 4 | Table top 10 produk terlaris (nama + terjual) |
 | **TopCategoriesTableWidget** | Table | 4 | 4 | Table top 10 kategori terlaris (nama + terjual) |
 | **TopCashiersTableWidget** | Table | 4 | 4 | Table top 10 kasir (nama + order + pendapatan) |
-| **RecentOrdersWidget** | Table | 5 | full | Table 10 pesanan terakhir dengan status badges |
+| **ProductAnalyticsWidget** | Table | 5 | full | Product analytics breakdown |
+| **StorePerformanceWidget** | Table | 5 | full | Store performance metrics |
+| **CustomerSegmentationWidget** | Table | 5 | full | Customer segmentation breakdown |
+| **SalesTargetWidget** | Chart | 5 | full | Sales target vs actual chart |
+| **RecentOrdersWidget** | Table | 6 | full | Table 10 pesanan terakhir dengan status badges |
+| **ActivityTimelineWidget** | Table | 6 | full | Recent activity timeline |
 
 ### Custom Table Filters
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)" dan "Habis (0)" dengan custom `query()` callback
@@ -465,6 +486,7 @@
 - Qty stepper + stock cap (tidak bisa melebihi stock tersedia)
 - Live stock check di update (`$liveProducts` via `whereIn` — N+1 safe)
 - Zero-stock check di `cartAdd` (reject kalau stock 0)
+- **Bundle support**: `bundle_id` + `bundle_name` stored on CartItem; bundle discount price preserved on qty change
 
 ### 4. Customer Dashboard
 - `AccountController@dashboard` — stat cards + recent orders
@@ -478,11 +500,13 @@
 
 ### 6. Filament Admin Panel
 - Schema-based forms (`Filament\Schemas\Schema`, bukan `Filament\Forms\Form`)
-- 10 resources + 1 custom page (Settings)
-- 5 dashboard widgets: FinanceOverview, RevenueChart, StatsOverviewWidget, RevenueChartWidget, RecentOrdersWidget
+- 23 resources + 2 custom pages (Settings, Reports, Help Center)
+- 15 dashboard widgets
 - Dark mode, Amber primary, Bahasa Indonesia labels
-- Tooltip helper JavaScript untuk sidebar navigation items
+- Tooltip helper JavaScript untuk sidebar navigation items (di `AdminPanelProvider.php`)
 - Auto-dot price formatting via event delegation
+- **HelperText** pada semua form field di7 form resources (Suppliers, PurchaseOrders, PurchaseReturns, StockOpnames, FlashSales, ProductBundles, SalesTargets)
+- **Mobile App** section di Settings (`mobile_api_url`)
 
 ### 7. Mobile Responsiveness
 - User dropdown pakai `@click` (Alpine.js) bukan `group-hover` (support touch)
@@ -793,9 +817,14 @@
 
 ### 48. Product Bundle
 - Model `ProductBundle` + pivot `bundle_products` (BelongsToMany)
-- Harga bundle khusus + total original price (auto-calc)
+- Harga bundle khusus + total original price (auto-calc via `getCalculatedOriginalPrice()`)
 - CRUD via Filament: Repeater products dengan quantity
-- Display di storefront: card bundle dengan daftar produk + total hemat
+- **Web Storefront**: Bundle listing page (`/bundles`), detail page (`/bundles/{slug}`), add-to-cart button
+- **Mobile App**: Bundle cards di home screen, BundleDetailScreen, add to cart API
+- **Cart**: `bundle_id` + `bundle_name` stored on CartItem; price preserved on qty change
+- **Orders**: `bundle_name` saved on OrderItem for display
+- **API**: `BundleController::show()` returns `bundle_price`, `total_original_price`, `savings`, `discount_percent`
+- `ProductBundle::getCalculatedOriginalPrice()` — falls back to sum of `product.price * pivot.quantity` when `total_original_price` is 0
 - Navigation group: Pemasaran
 
 ### 49. Tracking Event (Lacak Pengiriman)
@@ -814,10 +843,24 @@
 - StoreController confirmReceived(): `auth()->user()->addPoints(floor($order->total * 0.1))`
 - PointTransaction history di admin via Filament resource (ListPointTransactions, read-only)
 - Navigation group: Pengguna
-- Old custom `TopProductsWidget.php` + Blade view **dihapus**
-- Diganti 3 `TableWidget` classes: TopProductsTableWidget, TopCategoriesTableWidget, TopCashiersTableWidget
-- Menggunakan Eloquent grouped queries (bukan `->data()` — method tidak ada di Filament 5)
-- Wajib include `MAX(table.id) as id` di SELECT untuk record key (`getTableRecordKey()` expects string)
+
+### 51. Admin Panel Sidebar Tooltips & Help Center
+- **Sidebar tooltips**: JavaScript MutationObserver di `AdminPanelProvider.php` → `PanelsRenderHook::BODY_END` — applies `title` attribute to sidebar items (30+ entries including resources, groups, pages)
+- **Help Center**: Custom Filament page (`HelpCenter.php`) di group Pengaturan, sort 99 — blade view dengan panduan lengkap penggunaan admin panel
+
+### 52. Filament Form HelperText
+- Semua form field di 7 form resources punya `->helperText()` untuk panduan user
+- Resources: Suppliers, PurchaseOrders, PurchaseReturns, StockOpnames, FlashSales, ProductBundles, SalesTargets
+
+### 53. Mobile App API URL Auto-Detect (Zero-Rebuild Deploy)
+- **Backend**: `ConfigController.php` → public endpoint `/api/config` returns `{ api_url, store_name }` dari settings
+- **Admin Panel**: `ManageSettings.php` → `Section::make('Mobile App')` with `TextInput::make('mobile_api_url')` — admin sets production URL here
+- **Mobile `config.js`**: Exports `checkForUrlUpdate()`, `testApiUrl()`, `resetApiUrl()`, `setApiUrl()`, `getApiUrl()`, `getImageUrl()`
+- **Auto-detect flow**: App startup → `checkForUrlUpdate()` fetches `/api/config` from current URL → if server returns different `mobile_api_url`, auto-switches → fallback to ngrok if unreachable
+- **AppSettingsScreen.js**: Admin-only screen (gated by `user?.role === 'admin'`) — shows current URL, auto-detect button, manual URL input, test connection, save, reset
+- **App.js**: Calls `checkForUrlUpdate()` on mount before splash finishes
+- **AppNavigator.js**: Registers `AppSettings` screen (Stack)
+- **Deploy workflow**: Admin changes `mobile_api_url` in Filament → mobile app auto-detects on next launch — NO rebuild needed
 
 ---
 
@@ -867,6 +910,8 @@
 - **PPN tax base**: Indonesian PPN is on DPP (Dasar Pengenaan Pajak = price after ALL discounts). Use `max(0, $subtotal - $discountAmount)`, NOT just `$subtotal`.
 - **BelongsToMany Repeaters**: `->relationship()` does NOT work in Filament 5.6. Use `->options()` on Select + manual sync in `mutateFormDataBeforeCreate/Save`/after hooks.
 - **FK cascadeOnDelete**: Deleting a parent (user, supplier) cascades to orders, shifts, expenses, purchase records. Use `nullOnDelete` + nullable FK for business-critical data.
+- **API rate limiting**: `bootstrap/app.php` applies `ThrottleRequests:60,1` (60 req/min) to all API routes. If mobile gets 429 errors, check if too many requests are being made.
+- **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
 - **API rate limiting**: `bootstrap/app.php` applies `ThrottleRequests:60,1` (60 req/min) to all API routes. If mobile gets 429 errors, check if too many requests are being made.
 - **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
 
@@ -983,6 +1028,7 @@ Total **30 bugs** ditemukan dan diperbaiki dalam 3 ronde audit kode menyeluruh:
 - **API_URL**: `mobile/src/config.js` → `API_URL` (ubah ke domain production saat deploy)
 - **Splash**: Custom JS splash (HS logo + slogan) di `App.js` — native splash = solid amber `#FEF3C7`
 - **CustomAlert**: `src/components/CustomAlert.js` + `src/context/AlertContext.js` — GUNAKAN INI, jangan `Alert.alert()`
+- **Auto-detect URL**: `checkForUrlUpdate()` di `App.js` → fetches `/api/config` dari admin settings → mobile app otomatis pindah ke URL baru tanpa rebuild
 
 ### CRITICAL: Build Rules
 
@@ -1020,3 +1066,21 @@ Total **30 bugs** ditemukan dan diperbaiki dalam 3 ronde audit kode menyeluruh:
 | 7 | Ikon kategori default 📦 | Fuzzy matching 21 keyword arrays | `HomeScreen.js` |
 | 8 | Splash double | Hapus PNG, amber color, XML layer-list | `colors.xml`, `splashscreen_logo.xml` |
 | 9 | Upload bukti bayar error | `Content-Type: multipart/form-data` untuk FormData | `OrderDetailScreen.js` |
+
+### Mobile Bundle Fixes (8 total)
+| # | Bug | Fix | File |
+|---|---|---|---|
+| 1 | Bundle price overwritten on qty change | `CartController::update()` stops overwriting bundle discount price | `CartController.php` |
+| 2 | Cart missing bundle info | `CartController::index()` returns `bundle_id` + `bundle_name` per item | `CartController.php` |
+| 3 | Order subtotal uses regular price | `OrderController::store()` uses bundle discount price | `OrderController.php` |
+| 4 | Order items missing bundle_name | `OrderController::store()` saves `bundle_name` on each item | `OrderController.php` |
+| 5 | API response missing bundle info | `OrderController::formatOrder()` includes `bundle_name` in items | `OrderController.php` |
+| 6 | Cart UI no bundle badge | `CartScreen.js` shows `PAKET: {bundle_name}` badge | `CartScreen.js` |
+| 7 | Order detail no bundle badge | `OrderDetailScreen.js` shows `PAKET: {bundle_name}` badge | `OrderDetailScreen.js` |
+| 8 | BundleDetailScreen token error | Replaced raw `fetch()` with shared `api` client | `BundleDetailScreen.js` |
+
+### Mobile Profile Fixes (2 total)
+| # | Bug | Fix | File |
+|---|---|---|---|
+| 1 | Profile missing segment/total_spent | `AuthController` login/register now returns `segment` + `total_spent` | `AuthController.php` |
+| 2 | Profile edit doesn't save + form pre-fill | `ProfileScreen.js` fixed `updateUser()` + `fetchProfile()` pre-fill | `ProfileScreen.js` |

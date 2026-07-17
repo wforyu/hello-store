@@ -76,6 +76,11 @@ export default function CartScreen({ navigation }) {
       />
       <View style={styles.itemInfo}>
         <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+        {item.bundle_name && (
+          <View style={styles.bundleBadge}>
+            <Text style={styles.bundleBadgeText}>PAKET: {item.bundle_name}</Text>
+          </View>
+        )}
         <Text style={styles.itemPrice}>{formatPrice(item.price)}</Text>
         <View style={styles.qtyControl}>
           <TouchableOpacity
@@ -170,6 +175,11 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, marginLeft: 12 },
   itemName: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
   itemPrice: { fontSize: 15, fontWeight: '700', color: COLORS.primary, marginBottom: 8 },
+  bundleBadge: {
+    backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 4,
+  },
+  bundleBadgeText: { fontSize: 11, fontWeight: '600', color: '#B45309' },
   qtyControl: { flexDirection: 'row', alignItems: 'center' },
   qtyBtn: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.background,

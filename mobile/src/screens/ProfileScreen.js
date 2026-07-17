@@ -72,10 +72,22 @@ export default function ProfileScreen({ navigation }) {
         const saved = await AsyncStorage.getItem(AVATAR_KEY);
         if (saved) setSelectedAvatarId(saved);
       })();
+      fetchProfile();
       fetchStats();
       fetchSocialData();
     }, [])
   );
+
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get('/api/profile');
+      if (res.data?.success && res.data.data) {
+        updateUser(res.data.data);
+      }
+    } catch (e) {
+      // silent
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -145,7 +157,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       await api.put('/api/profile', { name, email });
       toast('Profil diperbarui', 'success');
-      updateUser({ name, email });
+      await fetchProfile();
       setEditing(false);
     } catch (e) {
       const msg = e.response?.data?.message || 'Gagal menyimpan.';
@@ -321,7 +333,7 @@ export default function ProfileScreen({ navigation }) {
       {!editing && (
         <View style={styles.actions}>
           <Text style={styles.menuSectionTitle}>Akun</Text>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => setEditing(true)}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => { setName(user?.name || ''); setEmail(user?.email || ''); setEditing(true); }}>
             <View style={[styles.actionIconWrap, { backgroundColor: '#EFF6FF' }]}>
               <Text style={styles.actionIcon}>✏️</Text>
             </View>
@@ -358,6 +370,15 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.actionBtnText}>Notifikasi</Text>
             <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
+          {user?.role === 'admin' && (
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AppSettings')}>
+              <View style={[styles.actionIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                <Text style={styles.actionIcon}>⚙️</Text>
+              </View>
+              <Text style={styles.actionBtnText}>Pengaturan Server</Text>
+              <Text style={styles.actionArrow}>›</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.actionBtn, styles.logoutBtn]}
             onPress={handleLogout}

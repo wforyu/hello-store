@@ -8,21 +8,10 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { setApiUrl, getApiUrl, FALLBACK_API_URL } from './src/config';
+import { checkForUrlUpdate } from './src/config';
 import { registerForPushNotificationsAsync, sendTokenToServer } from './src/utils/notifications';
 
 SplashScreen.preventAutoHideAsync();
-
-async function fetchServerConfig() {
-  try {
-    await getApiUrl();
-    const res = await fetch(`${FALLBACK_API_URL}/api/config`);
-    const json = await res.json();
-    if (json?.data?.api_url) {
-      await setApiUrl(json.data.api_url);
-    }
-  } catch (e) {}
-}
 
 function CustomSplash({ onFinish }) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -111,7 +100,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    fetchServerConfig();
+    checkForUrlUpdate();
   }, []);
 
   const handleSplashFinish = async () => {

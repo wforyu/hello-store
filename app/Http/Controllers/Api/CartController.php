@@ -29,7 +29,7 @@ class CartController extends Controller
     public function index(): JsonResponse
     {
         $cart = $this->getOrCreateCart();
-        $cart->load(['items.product.productImages', 'items.product.brand']);
+        $cart->load(['items.product.productImages', 'items.product.brand', 'items.bundle']);
 
         $items = $cart->items->map(function ($item) {
             $product = $item->product;
@@ -62,6 +62,8 @@ class CartController extends Controller
                 'subtotal_formatted' => 'Rp'.number_format($price * $item->quantity, 0, ',', '.'),
                 'image' => $product->main_image,
                 'is_active' => $product->is_active,
+                'bundle_id' => $item->bundle_id,
+                'bundle_name' => $item->bundle?->name,
             ];
         })->filter()->values();
 
@@ -181,7 +183,6 @@ class CartController extends Controller
 
                 $cartItem->update([
                     'quantity' => min($qty, $maxStock),
-                    'price' => $cartItem->product->price,
                 ]);
             }
         });

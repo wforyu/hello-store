@@ -25,7 +25,8 @@ class StockOpnameForm
                             ->label('No. Opname')
                             ->required()
                             ->maxLength(50)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->helperText('Nomor unik opname, contoh: SOP-20260718'),
                         Select::make('status')
                             ->label('Status')
                             ->required()
@@ -35,15 +36,19 @@ class StockOpnameForm
                                 'completed' => 'Selesai',
                                 'cancelled' => 'Dibatalkan',
                             ])
-                            ->default('draft'),
+                            ->default('draft')
+                            ->helperText('Stok produk otomatis disesuaikan saat status "Selesai"'),
                         DateTimePicker::make('completed_at')
-                            ->label('Tanggal Selesai'),
+                            ->label('Tanggal Selesai')
+                            ->helperText('Tanggal opname diselesaikan'),
                         Textarea::make('notes')
                             ->label('Catatan')
                             ->columnSpanFull()
-                            ->maxLength(1000),
+                            ->maxLength(1000)
+                            ->helperText('Catatan selisih stok, alasan penyesuaian, dll'),
                     ]),
                 Section::make('Item Opname')
+                    ->description('Pilih produk lalu isi stok fisik hasil penghitungan. Stok sistem terisi otomatis. Selisih = Stok Fisik - Stok Sistem.')
                     ->schema([
                         Repeater::make('items')
                             ->relationship()
@@ -62,18 +67,21 @@ class StockOpnameForm
                                             $set('product_sku', $product->sku);
                                             $set('system_stock', $product->stock);
                                         }
-                                    }),
+                                    })
+                                    ->helperText('Pilih produk yang ingin diopname'),
                                 TextInput::make('product_name')
                                     ->label('Nama Produk')
                                     ->hidden(),
                                 TextInput::make('product_sku')
                                     ->label('SKU')
-                                    ->disabled(),
+                                    ->disabled()
+                                    ->helperText('Auto-fill dari produk'),
                                 TextInput::make('system_stock')
                                     ->label('Stok Sistem')
                                     ->numeric()
                                     ->disabled()
-                                    ->dehydrated(),
+                                    ->dehydrated()
+                                    ->helperText('Stok aktual dari database (auto-fill)'),
                                 TextInput::make('physical_stock')
                                     ->label('Stok Fisik')
                                     ->numeric()
@@ -84,15 +92,18 @@ class StockOpnameForm
                                         $system = (int) ($get('system_stock') ?? 0);
                                         $physical = (int) ($state ?? 0);
                                         $set('difference', $physical - $system);
-                                    }),
+                                    })
+                                    ->helperText('Hasil penghitungan fisik di gudang'),
                                 TextInput::make('difference')
                                     ->label('Selisih')
                                     ->numeric()
                                     ->disabled()
-                                    ->dehydrated(),
+                                    ->dehydrated()
+                                    ->helperText('Positif = kelebihan, Negatif = kekurangan'),
                                 TextInput::make('notes')
                                     ->label('Catatan')
-                                    ->columnSpanFull(),
+                                    ->columnSpanFull()
+                                    ->helperText('Alasan selisih stok (opsional)'),
                             ])
                             ->addActionLabel('Tambah Item')
                             ->defaultItems(1)

@@ -22,6 +22,7 @@ import AddressScreen from '../screens/AddressScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import SearchScreen from '../screens/SearchScreen';
 import BundleDetailScreen from '../screens/BundleDetailScreen';
+import AppSettingsScreen from '../screens/AppSettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -177,6 +178,11 @@ export default function AppNavigator() {
             title: 'Daftar',
             headerTintColor: COLORS.text,
           }}
+        />
+        <Stack.Screen
+          name="AppSettings"
+          component={AppSettingsScreen}
+          options={{ title: 'Pengaturan Server', headerTintColor: COLORS.text }}
         />
         </Stack.Navigator>
       </NavigationContainer>

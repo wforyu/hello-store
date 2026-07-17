@@ -179,7 +179,12 @@
                     <div class="space-y-3 mb-4 max-h-60 overflow-y-auto">
                         @foreach($cart as $item)
                             <div class="flex justify-between text-sm">
-                                <span class="text-gray-600 truncate mr-2">{{ $item['name'] }}@if(!empty($item['variant_name'])) <span class="text-gray-400 text-xs">({{ $item['variant_name'] }})</span>@endif <span class="text-gray-400">×{{ $item['quantity'] }}</span></span>
+                                <span class="text-gray-600 truncate mr-2">
+                                    @if(!empty($item['bundle_name']))
+                                        <span class="text-purple-600 text-[10px] font-bold bg-purple-50 px-1.5 py-0.5 rounded">PAKET</span>
+                                    @endif
+                                    {{ $item['name'] }}@if(!empty($item['variant_name'])) <span class="text-gray-400 text-xs">({{ $item['variant_name'] }})</span>@endif <span class="text-gray-400">×{{ $item['quantity'] }}</span>
+                                </span>
                                 <span class="text-gray-900 font-semibold shrink-0">Rp{{ number_format($item['price'] * $item['quantity'], 0, ',', '.') }}</span>
                             </div>
                         @endforeach

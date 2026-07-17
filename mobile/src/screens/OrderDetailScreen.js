@@ -285,6 +285,11 @@ export default function OrderDetailScreen({ route, navigation }) {
           <View key={item.id} style={styles.itemRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.itemName}>{item.product_name}</Text>
+              {item.bundle_name && (
+                <View style={styles.bundleBadge}>
+                  <Text style={styles.bundleBadgeText}>PAKET: {item.bundle_name}</Text>
+                </View>
+              )}
               <Text style={styles.itemQty}>x{item.quantity}</Text>
             </View>
             <Text style={styles.itemPrice}>{formatPrice(item.subtotal || item.product_price * item.quantity)}</Text>
@@ -493,6 +498,11 @@ const styles = StyleSheet.create({
     marginBottom: 10, alignItems: 'center',
   },
   itemName: { fontSize: 14, fontWeight: '500', color: COLORS.text },
+  bundleBadge: {
+    backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A', borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 4, marginBottom: 2,
+  },
+  bundleBadgeText: { fontSize: 11, fontWeight: '600', color: '#B45309' },
   itemQty: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   itemPrice: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginLeft: 12 },
   summaryRow: {

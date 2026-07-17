@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductBundle;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +67,7 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.variant_id' => 'nullable|exists:product_variants,id',
+            'items.*.bundle_id' => 'nullable|exists:product_bundles,id',
             'payment_method' => 'required|in:manual_transfer,cod',
             'notes' => 'nullable|string|max:500',
             'address_id' => 'required|exists:addresses,id',
@@ -126,14 +128,28 @@ class OrderController extends Controller
             }
         }
 
-        // Calculate
+        // Calculate subtotal using bundle discount prices when available
+        $bundleIds = collect($request->items)->pluck('bundle_id')->filter();
+        $liveBundles = $bundleIds->isNotEmpty()
+            ? ProductBundle::with('products')->whereIn('id', $bundleIds)->get()->keyBy('id')
+            : collect();
+
         $subtotal = 0;
         foreach ($request->items as $itemData) {
             $product = $liveProducts->get($itemData['product_id']);
             $price = (float) $product->price;
+
             if (! empty($itemData['variant_id'])) {
                 $variant = $liveVariants->get($itemData['variant_id']);
                 $price = (float) ($variant->price ?? $product->price);
+            } elseif (! empty($itemData['bundle_id']) && isset($liveBundles[$itemData['bundle_id']])) {
+                $bundle = $liveBundles[$itemData['bundle_id']];
+                $originalTotal = $bundle->getCalculatedOriginalPrice();
+                $bundlePrice = (float) $bundle->bundle_price;
+                $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
+                if ($discountPercent > 0) {
+                    $price = round($product->price * (1 - $discountPercent));
+                }
             }
             $subtotal += $price * $itemData['quantity'];
         }
@@ -190,17 +206,28 @@ class OrderController extends Controller
                 $product = $liveProducts->get($itemData['product_id']);
                 $price = (float) $product->price;
                 $variantName = null;
+                $bundleName = null;
 
                 if (! empty($itemData['variant_id'])) {
                     $variant = $liveVariants->get($itemData['variant_id']);
                     $price = (float) ($variant->price ?? $product->price);
                     $variantName = $variant->name;
+                } elseif (! empty($itemData['bundle_id']) && isset($liveBundles[$itemData['bundle_id']])) {
+                    $bundle = $liveBundles[$itemData['bundle_id']];
+                    $bundleName = $bundle->name;
+                    $originalTotal = $bundle->getCalculatedOriginalPrice();
+                    $bundlePrice = (float) $bundle->bundle_price;
+                    $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
+                    if ($discountPercent > 0) {
+                        $price = round($product->price * (1 - $discountPercent));
+                    }
                 }
 
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $itemData['product_id'],
                     'product_variant_id' => ! empty($itemData['variant_id']) ? $itemData['variant_id'] : null,
+                    'bundle_name' => $bundleName,
                     'product_name' => $variantName ? $product->name.' - '.$variantName : $product->name,
                     'product_price' => $price,
                     'quantity' => $itemData['quantity'],
@@ -563,6 +590,7 @@ class OrderController extends Controller
                 'id' => $item->id,
                 'product_id' => $item->product_id,
                 'product_name' => $item->product_name,
+                'bundle_name' => $item->bundle_name,
                 'product_price' => (float) $item->product_price,
                 'product_price_formatted' => 'Rp'.number_format($item->product_price, 0, ',', '.'),
                 'quantity' => $item->quantity,

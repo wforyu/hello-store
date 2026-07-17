@@ -28,25 +28,30 @@ class FlashSaleForm
                             ->required()
                             ->maxLength(255)
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn ($state, $set) => $set('slug', str($state)->slug())),
+                            ->afterStateUpdated(fn ($state, $set) => $set('slug', str($state)->slug()))
+                            ->helperText('Nama promo yang tampil di halaman depan'),
                         TextInput::make('slug')
                             ->label('Slug')
                             ->required()
                             ->maxLength(255)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->helperText('URL slug, auto-generated dari nama'),
                         Textarea::make('description')
                             ->label('Deskripsi')
                             ->columnSpanFull()
-                            ->maxLength(500),
+                            ->maxLength(500)
+                            ->helperText('Deskripsi singkat flash sale (muncul di banner)'),
                         DateTimePicker::make('start_time')
                             ->label('Mulai')
                             ->required()
-                            ->seconds(false),
+                            ->seconds(false)
+                            ->helperText('Waktu flash sale dimulai'),
                         DateTimePicker::make('end_time')
                             ->label('Selesai')
                             ->required()
                             ->seconds(false)
-                            ->after('start_time'),
+                            ->after('start_time')
+                            ->helperText('Waktu flash sale berakhir'),
                         Select::make('status')
                             ->label('Status')
                             ->options([
@@ -55,16 +60,19 @@ class FlashSaleForm
                                 'ended' => 'Selesai',
                                 'cancelled' => 'Dibatalkan',
                             ])
-                            ->default('scheduled'),
+                            ->default('scheduled')
+                            ->helperText('Terjadwal = belum mulai, Aktif = sedang berjalan'),
                         Toggle::make('is_active')
                             ->label('Aktif')
-                            ->default(true),
+                            ->default(true)
+                            ->helperText('Nonaktifkan untuk menyembunyikan flash sale'),
                         FileUpload::make('banner_image')
                             ->label('Banner')
                             ->image()
                             ->maxSize(1024)
                             ->directory('flash-sales')
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->helperText('Banner promosi untuk flash sale (maks 1MB)'),
                     ]),
                 Section::make('Produk Flash Sale')
                     ->schema([
@@ -76,7 +84,8 @@ class FlashSaleForm
                                     ->options(Product::where('is_active', true)->pluck('name', 'id'))
                                     ->searchable()
                                     ->preload()
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Produk yang akan didiskon'),
                                 Select::make('discount_type')
                                     ->label('Jenis Diskon')
                                     ->options([
@@ -84,12 +93,14 @@ class FlashSaleForm
                                         'nominal' => 'Nominal (Rp)',
                                     ])
                                     ->default('percentage')
-                                    ->required(),
+                                    ->required()
+                                    ->helperText('Persen: potongan %, Nominal: potongan Rp tetap'),
                                 TextInput::make('discount_value')
                                     ->label('Nilai Diskon')
                                     ->numeric()
                                     ->required()
-                                    ->minValue(0),
+                                    ->minValue(0)
+                                    ->helperText('Persen (max 100) atau nominal (max harga normal)'),
                                 TextInput::make('max_qty')
                                     ->label('Maks. Terjual')
                                     ->numeric()

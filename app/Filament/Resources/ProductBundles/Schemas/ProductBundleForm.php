@@ -30,16 +30,19 @@ class ProductBundleForm
                             ->required()
                             ->maxLength(255)
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn ($state, $set) => $set('slug', str($state)->slug())),
+                            ->afterStateUpdated(fn ($state, $set) => $set('slug', str($state)->slug()))
+                            ->helperText('Nama paket bundle yang tampil di toko'),
                         TextInput::make('slug')
                             ->label('Slug')
                             ->required()
                             ->maxLength(255)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true)
+                            ->helperText('URL slug, auto-generated dari nama'),
                         Textarea::make('description')
                             ->label('Deskripsi')
                             ->columnSpanFull()
-                            ->maxLength(500),
+                            ->maxLength(500)
+                            ->helperText('Deskripsi singkat bundle untuk pelanggan'),
                         TextInput::make('bundle_price')
                             ->label('Harga Bundle')
                             ->prefix('Rp')
@@ -49,19 +52,23 @@ class ProductBundleForm
                             ->dehydrateStateUsing(fn ($state): ?int => $state !== null && $state !== '' ? (int) str_replace('.', '', $state) : null),
                         Toggle::make('is_active')
                             ->label('Aktif')
-                            ->default(true),
+                            ->default(true)
+                            ->helperText('Nonaktifkan untuk menyembunyikan bundle dari toko'),
                         DateTimePicker::make('start_time')
                             ->label('Mulai')
-                            ->seconds(false),
+                            ->seconds(false)
+                            ->helperText('Waktu bundle mulai tampil di toko (opsional)'),
                         DateTimePicker::make('end_time')
                             ->label('Selesai')
                             ->seconds(false)
-                            ->after('start_time'),
+                            ->after('start_time')
+                            ->helperText('Waktu bundle berakhir (opsional)'),
                         FileUpload::make('image')
                             ->label('Gambar Bundle')
                             ->image()
                             ->maxSize(1024)
-                            ->directory('bundles'),
+                            ->directory('bundles')
+                            ->helperText('Gambar utama bundle (maks 1MB)'),
                     ]),
                 Section::make('Produk dalam Bundle')
                     ->schema([
@@ -83,13 +90,15 @@ class ProductBundleForm
                                     ->afterStateUpdated(fn ($state, $set) => $set(
                                         'unit_price',
                                         Product::find($state)?->price ?? 0
-                                    )),
+                                    ))
+                                    ->helperText('Pilih produk beserta harga normalnya'),
                                 TextInput::make('quantity')
                                     ->label('Jumlah')
                                     ->numeric()
                                     ->default(1)
                                     ->minValue(1)
-                                    ->live(true),
+                                    ->live(true)
+                                    ->helperText('Jumlah unit dalam bundle'),
                                 TextInput::make('unit_price')
                                     ->hidden()
                                     ->default(0),

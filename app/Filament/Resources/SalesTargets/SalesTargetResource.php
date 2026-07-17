@@ -47,26 +47,31 @@ class SalesTargetResource extends Resource
                     ->required()
                     ->numeric()
                     ->minValue(0)
-                    ->columnSpan(1),
+                    ->columnSpan(1)
+                    ->helperText('Total pendapatan yang ingin dicapai'),
                 TextInput::make('target_orders')
                     ->label('Target Orders')
                     ->numeric()
                     ->minValue(0)
                     ->nullable()
-                    ->columnSpan(1),
+                    ->columnSpan(1)
+                    ->helperText('Jumlah pesanan目标 (opsional)'),
                 DatePicker::make('start_date')
                     ->label('Tanggal Mulai')
                     ->required()
-                    ->columnSpan(1),
+                    ->columnSpan(1)
+                    ->helperText('Awal periode target'),
                 DatePicker::make('end_date')
                     ->label('Tanggal Akhir')
                     ->required()
                     ->afterOrEqual('start_date')
-                    ->columnSpan(1),
+                    ->columnSpan(1)
+                    ->helperText('Akhir periode target'),
                 Toggle::make('is_active')
                     ->label('Aktif')
                     ->default(true)
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->helperText('Nonaktifkan untuk menyembunyikan target'),
             ]);
     }
 

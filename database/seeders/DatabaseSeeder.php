@@ -38,5 +38,7 @@ class DatabaseSeeder extends Seeder
 
         Setting::create(['key' => 'ppn_enabled', 'value' => '0']);
         Setting::create(['key' => 'ppn_percentage', 'value' => '11']);
+
+        $this->call(BundleSeeder::class);
     }
 }

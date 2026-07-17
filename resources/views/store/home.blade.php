@@ -188,7 +188,7 @@
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                 @foreach($activeBundles as $bundle)
-                    <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-purple-100/50 transition-all duration-300 group">
+                    <a href="{{ route('products.bundle-detail', $bundle->slug) }}" class="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:shadow-purple-100/50 transition-all duration-300 group block">
                         @if($bundle->image)
                             <div class="aspect-[4/3] bg-gray-100 overflow-hidden">
                                 <img src="{{ Storage::url($bundle->image) }}" alt="{{ $bundle->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
@@ -199,7 +199,7 @@
                             </div>
                         @endif
                         <div class="p-4">
-                            <h3 class="text-sm font-bold text-gray-900 mb-1 truncate">{{ $bundle->name }}</h3>
+                            <h3 class="text-sm font-bold text-gray-900 mb-1 truncate group-hover:text-amber-600 transition">{{ $bundle->name }}</h3>
                             @if($bundle->description)
                                 <p class="text-xs text-gray-400 mb-3 line-clamp-1">{{ $bundle->description }}</p>
                             @endif
@@ -213,14 +213,14 @@
                             @if($bundle->total_original_price > $bundle->bundle_price)
                                 <span class="inline-block text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg mb-3">Hemat Rp{{ number_format($bundle->total_original_price - $bundle->bundle_price, 0, ',', '.') }}</span>
                             @endif
-                            <form action="{{ route('cart.add-bundle', $bundle) }}" method="POST">
+                            <form action="{{ route('cart.add-bundle', $bundle) }}" method="POST" onclick="event.stopPropagation()">
                                 @csrf
                                 <button type="submit" class="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl transition-colors text-sm">
                                     Tambah ke Keranjang
                                 </button>
                             </form>
                         </div>
-                    </div>
+                    </a>
                 @endforeach
             </div>
         </section>

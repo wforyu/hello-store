@@ -20,19 +20,23 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             @foreach($bundles as $bundle)
                 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    @if($bundle->image)
-                        <div class="aspect-video bg-gray-100 overflow-hidden">
-                            <img src="{{ Storage::url($bundle->image) }}" alt="{{ $bundle->name }}" class="w-full h-full object-cover">
-                        </div>
-                    @else
-                        <div class="aspect-video bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
-                            <svg class="h-16 w-16 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                            </svg>
-                        </div>
-                    @endif
+                    <a href="{{ route('products.bundle-detail', $bundle->slug) }}">
+                        @if($bundle->image)
+                            <div class="aspect-video bg-gray-100 overflow-hidden">
+                                <img src="{{ Storage::url($bundle->image) }}" alt="{{ $bundle->name }}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
+                            </div>
+                        @else
+                            <div class="aspect-video bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
+                                <svg class="h-16 w-16 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                                </svg>
+                            </div>
+                        @endif
+                    </a>
                     <div class="p-5">
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">{{ $bundle->name }}</h3>
+                        <a href="{{ route('products.bundle-detail', $bundle->slug) }}" class="block group">
+                            <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-amber-600 transition">{{ $bundle->name }}</h3>
+                        </a>
                         @if($bundle->description)
                             <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ $bundle->description }}</p>
                         @endif

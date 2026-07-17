@@ -373,6 +373,35 @@
         </section>
     @endif
 
+    {{-- Related Bundles --}}
+    @if(isset($relatedBundles) && $relatedBundles->isNotEmpty())
+        <section class="mt-10 lg:mt-14">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-xl lg:text-2xl font-bold text-gray-900">Paket yang Tersedia</h2>
+                <a href="{{ route('products.bundles') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition">Lihat Semua &rarr;</a>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @foreach($relatedBundles as $rb)
+                    <a href="{{ route('products.bundle-detail', $rb->slug) }}" class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition p-4 flex items-center gap-4">
+                        <div class="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
+                            <svg class="w-7 h-7 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-sm font-bold text-gray-900 truncate">{{ $rb->name }}</h3>
+                            <p class="text-xs text-gray-400">{{ $rb->products->count() }} produk</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-sm font-extrabold text-purple-600">Rp{{ number_format($rb->bundle_price, 0, ',', '.') }}</p>
+                            @if($rb->total_original_price > $rb->bundle_price)
+                                <p class="text-xs text-red-500 font-semibold">Hemat {{ round(($rb->total_original_price - $rb->bundle_price) / $rb->total_original_price * 100) }}%</p>
+                            @endif
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     {{-- Recently Viewed --}}
     @if($recentProducts->isNotEmpty())
         <section class="mt-10 lg:mt-14">

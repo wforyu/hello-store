@@ -4,12 +4,13 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getApiUrl, getImageUrl, COLORS } from '../config';
+import { COLORS, getImageUrl } from '../config';
 import { formatPrice } from '../utils';
+import api from '../api/client';
 
 export default function BundleDetailScreen({ route, navigation }) {
   const { bundleId } = route.params;
-  const { token, refreshCartCount } = useAuth();
+  const { user, refreshCartCount } = useAuth();
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -18,14 +19,12 @@ export default function BundleDetailScreen({ route, navigation }) {
 
   const fetchBundle = useCallback(async () => {
     try {
-      const base = await getApiUrl();
-      const res = await fetch(`${base}/api/bundles/${bundleId}`);
-      const json = await res.json();
-      if (json.success) {
-        setBundle(json.data);
+      const res = await api.get(`/api/bundles/${bundleId}`);
+      if (res.data?.success) {
+        setBundle(res.data.data);
         setError(null);
       } else {
-        setError(json.message || 'Paket tidak ditemukan');
+        setError(res.data?.message || 'Paket tidak ditemukan');
       }
     } catch (e) {
       setError('Gagal memuat data paket');
@@ -43,26 +42,18 @@ export default function BundleDetailScreen({ route, navigation }) {
   }, [fetchBundle]);
 
   const handleAddToCart = async () => {
-    if (!token) {
+    if (!user) {
       navigation.navigate('Login');
       return;
     }
     setAdding(true);
     try {
-      const base = await getApiUrl();
-      const res = await fetch(`${base}/api/bundles/${bundleId}/add-to-cart`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-      const json = await res.json();
-      if (json.success) {
+      const res = await api.post(`/api/bundles/${bundleId}/add-to-cart`);
+      if (res.data?.success) {
         refreshCartCount();
         navigation.navigate('Main', { screen: 'Cart' });
       } else {
-        setError(json.message || 'Gagal menambahkan ke keranjang');
+        setError(res.data?.message || 'Gagal menambahkan ke keranjang');
       }
     } catch (e) {
       setError('Gagal menambahkan ke keranjang');

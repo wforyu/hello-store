@@ -34,7 +34,8 @@ class BundleController extends Controller
             'brand' => $p->brand?->name,
         ]);
 
-        $savings = max(0, (float) $bundle->total_original_price - (float) $bundle->bundle_price);
+        $originalPrice = $bundle->getCalculatedOriginalPrice();
+        $savings = max(0, $originalPrice - (float) $bundle->bundle_price);
 
         return response()->json([
             'success' => true,
@@ -45,8 +46,8 @@ class BundleController extends Controller
                 'description' => $bundle->description,
                 'bundle_price' => (float) $bundle->bundle_price,
                 'bundle_price_formatted' => 'Rp'.number_format($bundle->bundle_price, 0, ',', '.'),
-                'total_original_price' => (float) $bundle->total_original_price,
-                'total_original_price_formatted' => 'Rp'.number_format($bundle->total_original_price, 0, ',', '.'),
+                'total_original_price' => $originalPrice,
+                'total_original_price_formatted' => 'Rp'.number_format($originalPrice, 0, ',', '.'),
                 'savings' => $savings,
                 'savings_formatted' => 'Rp'.number_format($savings, 0, ',', '.'),
                 'image' => $bundle->image ? '/storage/'.$bundle->image : null,
@@ -75,7 +76,7 @@ class BundleController extends Controller
             ], 422);
         }
 
-        $originalTotal = (float) $bundle->total_original_price;
+        $originalTotal = $bundle->getCalculatedOriginalPrice();
         $bundlePrice = (float) $bundle->bundle_price;
         $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
 
@@ -102,12 +103,13 @@ class BundleController extends Controller
                 ->first();
 
             if ($existingItem) {
-                $existingItem->update(['quantity' => min($existingItem->quantity + $qty, $product->stock)]);
+                $existingItem->update(['quantity' => min($existingItem->quantity + $qty, $product->stock), 'bundle_id' => $bundle->id]);
             } else {
                 $cart->items()->create([
                     'product_id' => $product->id,
                     'quantity' => min($qty, $product->stock),
                     'price' => $itemPrice,
+                    'bundle_id' => $bundle->id,
                 ]);
             }
             $added++;

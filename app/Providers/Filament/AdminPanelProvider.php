@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\HelpCenter;
 use App\Filament\Pages\Reports;
 use App\Filament\Widgets\ActivityTimelineWidget;
 use App\Filament\Widgets\CustomerSegmentationWidget;
@@ -66,6 +67,7 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
                 Reports::class,
+                HelpCenter::class,
             ])
             ->widgets([
                 EnhancedStatsOverviewWidget::class,
@@ -130,6 +132,16 @@ class AdminPanelProvider extends PanelProvider
         'Product Bundle': 'Kelola bundle produk dengan harga spesial',
         'Point Transaction': 'Riwayat transaksi poin pelanggan',
         'Pengguna': 'Kelola data pengguna & staf toko',
+        'Sliders': 'Kelola slider / carousel beranda toko',
+        'Sales Target': 'Atur target penjualan & pantau pencapaian',
+        'Social Follow Claim': 'Kelola klaim follow media sosial dari pelanggan',
+        'Persediaan': 'Kelola stok barang, supplier & pembelian',
+        'Pemasaran': 'Atur flash sale, bundle & promo toko',
+        'Kalender Promosi': 'Lihat jadwal promo & flash sale dalam kalender',
+        'Import Export': 'Impor & ekspor data produk, pesanan & pelanggan',
+        'Laporan': 'Lihat laporan penjualan, laba rugi & analitik',
+        'Pusat Bantuan': 'Panduan lengkap penggunaan admin panel',
+        'Audit Log': 'Riwayat aktivitas admin & perubahan data',
     };
     function formatRupiah(el) {
         var val = el.value.replace(/[^0-9]/g, '');

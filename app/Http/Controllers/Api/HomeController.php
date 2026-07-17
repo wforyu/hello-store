@@ -94,20 +94,25 @@ class HomeController extends Controller
             ->with(['products' => fn ($q) => $q->where('is_active', true)->with('productImages')])
             ->take(4)
             ->get()
-            ->map(fn ($bundle) => [
-                'id' => $bundle->id,
-                'name' => $bundle->name,
-                'slug' => $bundle->slug,
-                'description' => $bundle->description,
-                'bundle_price' => (float) $bundle->bundle_price,
-                'bundle_price_formatted' => 'Rp'.number_format($bundle->bundle_price, 0, ',', '.'),
-                'total_original_price' => (float) $bundle->total_original_price,
-                'total_original_price_formatted' => 'Rp'.number_format($bundle->total_original_price, 0, ',', '.'),
-                'savings' => max(0, (float) $bundle->total_original_price - (float) $bundle->bundle_price),
-                'savings_formatted' => 'Rp'.number_format(max(0, (float) $bundle->total_original_price - (float) $bundle->bundle_price), 0, ',', '.'),
-                'image' => $bundle->image ? '/storage/'.$bundle->image : null,
-                'product_count' => $bundle->products->count(),
-            ]);
+            ->map(function ($bundle) {
+                $originalPrice = $bundle->getCalculatedOriginalPrice();
+                $savings = max(0, $originalPrice - (float) $bundle->bundle_price);
+
+                return [
+                    'id' => $bundle->id,
+                    'name' => $bundle->name,
+                    'slug' => $bundle->slug,
+                    'description' => $bundle->description,
+                    'bundle_price' => (float) $bundle->bundle_price,
+                    'bundle_price_formatted' => 'Rp'.number_format($bundle->bundle_price, 0, ',', '.'),
+                    'total_original_price' => $originalPrice,
+                    'total_original_price_formatted' => 'Rp'.number_format($originalPrice, 0, ',', '.'),
+                    'savings' => $savings,
+                    'savings_formatted' => 'Rp'.number_format($savings, 0, ',', '.'),
+                    'image' => $bundle->image ? '/storage/'.$bundle->image : null,
+                    'product_count' => $bundle->products->count(),
+                ];
+            });
 
         return response()->json([
             'success' => true,
