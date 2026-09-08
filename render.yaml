@@ -1,14 +1,9 @@
 services:
   - type: web
     name: hello-store
-    runtime: php
+    runtime: docker
     rootDir: .
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader --no-interaction --no-progress &&
-      npm ci --ignore-scripts --no-audit --no-fund &&
-      npm run build &&
-      php artisan migrate --force --no-interaction &&
-      php artisan db:seed --class=Database\\Seeders\\ProductionSeeder --force
+    dockerfilePath: Dockerfile
     envVars:
       - key: APP_ENV
         value: production
