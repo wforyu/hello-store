@@ -22,6 +22,7 @@ class Order extends Model
         'address_id', 'shipping_courier', 'shipping_tracking_number',
         'shipped_at', 'delivered_at', 'cancelled_at',
         'coupon_id', 'discount',
+        'guest_name', 'guest_email', 'guest_phone', 'guest_token',
     ];
 
     protected function casts(): array
@@ -75,5 +76,25 @@ class Order extends Model
     public function orderDownloads(): HasMany
     {
         return $this->hasMany(OrderDownload::class);
+    }
+
+    public function isGuest(): bool
+    {
+        return $this->user_id === null && ! empty($this->guest_token);
+    }
+
+    public function getCustomerNameAttribute(): ?string
+    {
+        return $this->guest_name ?? $this->user?->name;
+    }
+
+    public function getCustomerEmailAttribute(): ?string
+    {
+        return $this->guest_email ?? $this->user?->email;
+    }
+
+    public function getCustomerPhoneAttribute(): ?string
+    {
+        return $this->guest_phone ?? $this->address?->phone;
     }
 }

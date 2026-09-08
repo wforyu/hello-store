@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OrderInvoiceMail;
 use App\Models\Address;
 use App\Models\Brand;
 use App\Models\Category;
@@ -24,6 +25,7 @@ use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -368,7 +370,7 @@ class StoreController extends Controller
             return redirect()->route('products.index')->with('error', 'Keranjang kosong!');
         }
 
-        $addresses = auth()->user()->addresses;
+        $isGuest = ! auth()->check();
         $subtotal = $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
 
         $totalWeight = $this->getCartWeight($cart);
@@ -376,16 +378,31 @@ class StoreController extends Controller
         $ppnRate = (int) Setting::get('ppn_percentage', 11);
         $ppnAmount = $ppnEnabled ? round($subtotal * $ppnRate / 100) : 0;
         $shippingRates = [];
-        $selectedAddress = request()->query('address_id')
-            ? $addresses->firstWhere('id', (int) request()->query('address_id'))
-            : $addresses->first();
+        $selectedAddress = null;
+        $guestCity = $isGuest ? request()->query('city', '') : null;
+        $addresses = collect();
 
-        if ($selectedAddress) {
-            $shippingService = new ShippingService;
-            $shippingRates = $shippingService->getRates($selectedAddress->city, $totalWeight);
+        if ($isGuest) {
+            if ($guestCity) {
+                $shippingService = new ShippingService;
+                $shippingRates = $shippingService->getRates($guestCity, $totalWeight);
+                $selectedAddress = (object) ['city' => $guestCity];
+            }
+        } else {
+            $addresses = auth()->user()->addresses;
+            $selectedAddress = request()->query('address_id')
+                ? $addresses->firstWhere('id', (int) request()->query('address_id'))
+                : $addresses->first();
+
+            if ($selectedAddress) {
+                $shippingService = new ShippingService;
+                $shippingRates = $shippingService->getRates($selectedAddress->city, $totalWeight);
+            }
         }
 
-        return view('store.checkout', compact('cart', 'addresses', 'subtotal', 'shippingRates', 'totalWeight', 'ppnEnabled', 'ppnRate', 'ppnAmount'));
+        $guestCities = array_keys(config('rajaongkir.city_ids', []));
+
+        return view('store.checkout', compact('cart', 'addresses', 'subtotal', 'shippingRates', 'totalWeight', 'ppnEnabled', 'ppnRate', 'ppnAmount', 'isGuest', 'guestCity', 'guestCities', 'selectedAddress'));
     }
 
     public function placeOrder(Request $request)
@@ -395,30 +412,65 @@ class StoreController extends Controller
             return redirect()->route('cart.index')->with('error', 'Keranjang kosong!');
         }
 
-        $validated = $request->validate([
-            'address_id' => 'required|exists:addresses,id',
+        $isGuest = ! auth()->check();
+        $guestToken = null;
+
+        $baseValidation = [
             'payment_method' => 'required|in:manual_transfer,cod',
             'notes' => 'nullable|string|max:500',
             'shipping_courier' => 'required|string',
             'shipping_service' => 'required|string',
             'shipping_cost' => 'required|numeric|min:0',
-            'use_points' => 'nullable|integer|min:0',
-        ]);
+        ];
+
+        if ($isGuest) {
+            $validated = $request->validate(array_merge($baseValidation, [
+                'address_recipient' => 'required|string|max:100',
+                'address_phone' => 'required|string|max:20',
+                'address_street' => 'required|string|max:500',
+                'address_city' => 'required|string|max:100',
+                'address_province' => 'required|string|max:100',
+                'address_postal_code' => 'nullable|string|max:10',
+                'guest_name' => 'required|string|max:100',
+                'guest_email' => 'required|email|max:190',
+                'guest_phone' => 'required|string|max:20',
+            ]));
+
+            $guestToken = Str::random(48);
+            $address = Address::create([
+                'user_id' => null,
+                'label' => 'Guest Checkout',
+                'recipient' => $validated['address_recipient'],
+                'phone' => $validated['address_phone'],
+                'street' => $validated['address_street'],
+                'city' => $validated['address_city'],
+                'province' => $validated['address_province'],
+                'postal_code' => $validated['address_postal_code'] ?? null,
+            ]);
+        } else {
+            $validated = $request->validate(array_merge($baseValidation, [
+                'address_id' => 'required|exists:addresses,id',
+                'use_points' => 'nullable|integer|min:0',
+            ]));
+
+            $address = Address::where('id', $validated['address_id'])
+                ->where('user_id', auth()->id())
+                ->firstOrFail();
+        }
 
         $subtotal = $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
         $shippingCost = (float) $validated['shipping_cost'];
 
-        $usePoints = min((int) ($validated['use_points'] ?? 0), auth()->user()->points);
+        $usePoints = 0;
         $pointDiscount = 0;
-        if ($usePoints > 0) {
-            $maxPointDiscount = (int) floor(($subtotal + $shippingCost) * 0.5);
-            $usePoints = min($usePoints, $maxPointDiscount);
-            $pointDiscount = $usePoints;
+        if (! $isGuest && ! empty($validated['use_points'])) {
+            $usePoints = min((int) ($validated['use_points'] ?? 0), auth()->user()->points);
+            if ($usePoints > 0) {
+                $maxPointDiscount = (int) floor(($subtotal + $shippingCost) * 0.5);
+                $usePoints = min($usePoints, $maxPointDiscount);
+                $pointDiscount = $usePoints;
+            }
         }
-
-        $address = Address::where('id', $validated['address_id'])
-            ->where('user_id', auth()->id())
-            ->firstOrFail();
 
         $productIds = $cart->pluck('product_id');
         $liveProducts = Product::whereIn('id', $productIds)->get()->keyBy('id');
@@ -449,8 +501,10 @@ class StoreController extends Controller
         $coupon = null;
         if ($request->filled('coupon_code')) {
             $coupon = Coupon::where('code', $request->coupon_code)->first();
-            if ($coupon && $coupon->canUseBy(auth()->user())) {
-                $discountAmount = $coupon->calculateDiscount($subtotal);
+            if ($coupon && $coupon->isValid() && $subtotal >= $coupon->min_order) {
+                if ($isGuest || $coupon->canUseBy(auth()->user())) {
+                    $discountAmount = $coupon->calculateDiscount($subtotal);
+                }
             }
         }
 
@@ -459,14 +513,26 @@ class StoreController extends Controller
         $ppnBase = max(0, $subtotal - $discountAmount);
         $ppnAmount = $ppnEnabled ? round($ppnBase * $ppnRate / 100) : 0;
 
-        $memberDiscountRate = auth()->user()->getSegmentDiscountRate();
-        $memberDiscount = $memberDiscountRate > 0 ? (int) round($ppnBase * $memberDiscountRate) : 0;
+        $memberDiscount = 0;
+        if (! $isGuest) {
+            $memberDiscountRate = auth()->user()->getSegmentDiscountRate();
+            $memberDiscount = $memberDiscountRate > 0 ? (int) round($ppnBase * $memberDiscountRate) : 0;
+        }
 
         $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount - $memberDiscount;
 
-        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $liveVariants, $coupon, $discountAmount, $usePoints, $pointDiscount) {
-            $order = Order::create([
-                'user_id' => auth()->id(),
+        $order = DB::transaction(function () use ($cart, $subtotal, $shippingCost, $ppnAmount, $ppnRate, $total, $validated, $address, $liveProducts, $liveVariants, $coupon, $discountAmount, $usePoints, $pointDiscount, $memberDiscount, $isGuest, $guestToken) {
+            $guestData = $isGuest
+                ? [
+                    'guest_name' => $validated['guest_name'],
+                    'guest_email' => $validated['guest_email'],
+                    'guest_phone' => $validated['guest_phone'],
+                    'guest_token' => $guestToken,
+                ]
+                : [];
+
+            $order = Order::create(array_merge([
+                'user_id' => $isGuest ? null : auth()->id(),
                 'order_number' => 'ORD-'.strtoupper(Str::random(8)),
                 'status' => 'pending',
                 'subtotal' => $subtotal,
@@ -479,7 +545,7 @@ class StoreController extends Controller
                 'address_id' => $address->id,
                 'coupon_id' => $coupon?->id,
                 'discount' => $discountAmount,
-            ]);
+            ], $guestData));
 
             foreach ($cart as $item) {
                 OrderItem::create([
@@ -524,7 +590,9 @@ class StoreController extends Controller
 
             if ($coupon) {
                 $coupon->increment('used_count');
-                $coupon->users()->attach(auth()->id(), ['order_id' => $order->id]);
+                if (! $isGuest) {
+                    $coupon->users()->attach(auth()->id(), ['order_id' => $order->id]);
+                }
             }
 
             if ($usePoints > 0) {
@@ -534,6 +602,25 @@ class StoreController extends Controller
             return $order;
         });
 
+        Notification::createForAdmins(
+            'order',
+            'Pesanan Baru #'.$order->order_number,
+            'Pesanan baru dari '.($order->customer_name ?? 'Guest'),
+            null,
+            '/admin/resources/orders/'.$order->id.'/edit'
+        );
+
+        session()->forget('cart');
+
+        if ($isGuest) {
+            $guestTokens = session('guest_order_tokens', []);
+            $guestTokens[] = $order->guest_token;
+            session(['guest_order_tokens' => array_values(array_unique($guestTokens))]);
+
+            return redirect()->route('orders.show', ['order' => $order->id, 'token' => $order->guest_token])
+                ->with('success', 'Pesanan berhasil dibuat! Simpan link ini untuk melacak pesanan Anda.');
+        }
+
         Notification::createForUser(
             auth()->id(),
             'order',
@@ -542,16 +629,6 @@ class StoreController extends Controller
             null,
             route('orders.show', $order)
         );
-
-        Notification::createForAdmins(
-            'order',
-            'Pesanan Baru #'.$order->order_number,
-            'Pesanan baru dari '.auth()->user()->name,
-            null,
-            '/admin/resources/orders/'.$order->id.'/edit'
-        );
-
-        session()->forget('cart');
 
         return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan berhasil dibuat!');
     }
@@ -566,21 +643,71 @@ class StoreController extends Controller
         return view('store.orders', compact('orders'));
     }
 
-    public function orderShow(Order $order)
+    protected function canAccessOrder(Order $order): bool
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $order->guest_token) {
+            return auth()->check() && $order->user_id === auth()->id();
+        }
+
+        if (auth()->check() && $order->user_id && $order->user_id === auth()->id()) {
+            return true;
+        }
+
+        $storedTokens = session('guest_order_tokens', []);
+        if (is_array($storedTokens) && in_array($order->guest_token, $storedTokens, true)) {
+            return true;
+        }
+
+        if (request()->filled('token') && hash_equals($order->guest_token, (string) request('token'))) {
+            $storedTokens[] = $order->guest_token;
+            session(['guest_order_tokens' => array_values(array_unique($storedTokens))]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public function trackOrder()
+    {
+        return view('store.track-order');
+    }
+
+    public function trackOrderLookup(Request $request)
+    {
+        $validated = $request->validate([
+            'order_number' => 'required|string|max:50',
+            'guest_email' => 'required|email|max:190',
+        ]);
+
+        $order = Order::where('order_number', $validated['order_number'])
+            ->whereNotNull('guest_token')
+            ->first();
+
+        if (! $order || strtolower($order->guest_email) !== strtolower($validated['guest_email'])) {
+            return back()->withErrors(['not_found' => 'Pesanan tidak ditemukan atau email tidak cocok.'])->withInput();
+        }
+
+        return redirect()->route('orders.show', ['order' => $order->id, 'token' => $order->guest_token]);
+    }
+
+    public function orderShow(Request $request, Order $order)
+    {
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         $order->load(['items.variant', 'payment', 'address']);
 
-        return view('store.order-detail', compact('order'));
+        $isGuestAccess = ! auth()->check();
+
+        return view('store.order-detail', compact('order', 'isGuestAccess'));
     }
 
     public function paymentUpload(Request $request, Order $order)
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         $validated = $request->validate([
@@ -629,8 +756,8 @@ class StoreController extends Controller
 
     public function confirmReceived(Request $request, Order $order)
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         if ($order->status !== 'shipped') {
@@ -644,34 +771,38 @@ class StoreController extends Controller
                 'payment_status' => 'paid',
             ]);
 
-            $user = auth()->user();
-            $user->increment('total_spent', $order->total);
+            if ($order->user_id && auth()->check()) {
+                $user = auth()->user();
+                $user->increment('total_spent', $order->total);
 
-            $pointsRate = $user->getPointsRate();
-            $pointsEarned = (int) floor($order->total * $pointsRate);
-            if ($pointsEarned > 0) {
-                $user->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
+                $pointsRate = $user->getPointsRate();
+                $pointsEarned = (int) floor($order->total * $pointsRate);
+                if ($pointsEarned > 0) {
+                    $user->addPoints($pointsEarned, 'Poin dari pesanan #'.$order->order_number, $order);
+                }
+
+                $user->autoUpgradeSegment();
             }
-
-            $user->autoUpgradeSegment();
         });
 
-        Notification::createForUser(
-            $order->user_id,
-            'order',
-            'Pesanan #'.$order->order_number.' telah diterima',
-            'Terima kasih telah berbelanja! Jangan lupa beri ulasan.',
-            null,
-            route('orders.show', $order)
-        );
+        if ($order->user_id) {
+            Notification::createForUser(
+                $order->user_id,
+                'order',
+                'Pesanan #'.$order->order_number.' telah diterima',
+                'Terima kasih telah berbelanja! Jangan lupa beri ulasan.',
+                null,
+                route('orders.show', $order)
+            );
+        }
 
-        return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan telah diterima. Terima kasih!');
+        return redirect()->route('orders.show', [$order->id, 'token' => request('token')])->with('success', 'Pesanan telah diterima. Terima kasih!');
     }
 
     public function cancelOrder(Request $request, Order $order)
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         if ($order->status !== 'pending') {
@@ -712,7 +843,18 @@ class StoreController extends Controller
             }
         });
 
-        return redirect()->route('orders.show', $order->id)->with('success', 'Pesanan berhasil dibatalkan.');
+        if ($order->user_id) {
+            Notification::createForUser(
+                $order->user_id,
+                'order',
+                'Pesanan #'.$order->order_number.' dibatalkan',
+                'Pesanan Anda telah dibatalkan.',
+                null,
+                route('orders.show', $order)
+            );
+        }
+
+        return redirect()->route('orders.show', [$order->id, 'token' => request('token')])->with('success', 'Pesanan berhasil dibatalkan.');
     }
 
     public function processRefund(Order $order)
@@ -772,8 +914,8 @@ class StoreController extends Controller
 
     public function printReceipt(Order $order)
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         return view('store.print-receipt', compact('order'));
@@ -782,6 +924,21 @@ class StoreController extends Controller
     public function printReceiptAdmin(Order $order)
     {
         return view('store.print-receipt', compact('order'));
+    }
+
+    public function sendInvoice(Request $request, Order $order)
+    {
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
+        }
+
+        if (! $order->customer_email) {
+            return back()->with('error', 'Pelanggan tidak memiliki alamat email untuk dikirim invoice.');
+        }
+
+        Mail::to($order->customer_email)->send(new OrderInvoiceMail($order));
+
+        return back()->with('success', 'Invoice berhasil dikirim ke email '.$order->customer_email.'.');
     }
 
     public function reviewStore(Request $request, Product $product)
@@ -975,7 +1132,7 @@ class StoreController extends Controller
             return response()->json(['valid' => false, 'message' => 'Kupon sudah tidak berlaku.']);
         }
 
-        if (! $coupon->canUseBy(auth()->user())) {
+        if (auth()->check() && ! $coupon->canUseBy(auth()->user())) {
             return response()->json(['valid' => false, 'message' => 'Kupon sudah mencapai batas pemakaian.']);
         }
 
@@ -1205,8 +1362,8 @@ class StoreController extends Controller
 
     public function downloadDigital(Order $order, Product $product)
     {
-        if ($order->user_id !== auth()->id()) {
-            abort(403);
+        if (! $this->canAccessOrder($order)) {
+            abort(404);
         }
 
         $orderItem = $order->items()->where('product_id', $product->id)->first();

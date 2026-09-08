@@ -4,10 +4,17 @@
 
 @section('content')
     <div class="mb-6">
-        <a href="{{ route('orders.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/></svg>
-            Kembali ke Pesanan
-        </a>
+        @if($isGuestAccess)
+            <a href="{{ route('track.order') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/></svg>
+                Lacak Pesanan Lainnya
+            </a>
+        @else
+            <a href="{{ route('orders.index') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/></svg>
+                Kembali ke Pesanan
+            </a>
+        @endif
     </div>
 
     {{-- Order Header --}}
@@ -22,7 +29,7 @@
             <div class="flex items-center gap-3">
                 <x-status-badge :status="$order->status" size="lg" />
 
-                @if($order->status === 'delivered')
+                @if(!$isGuestAccess && $order->status === 'delivered')
                     <form action="{{ route('orders.reorder', $order) }}" method="POST">
                         @csrf
                         <button type="submit"
@@ -33,6 +40,36 @@
                     </form>
                 @endif
             </div>
+        </div>
+
+        {{-- Invoice Actions --}}
+        <div class="flex flex-wrap gap-2 mt-2 mb-4">
+            @php
+                $invoiceShareText = "Invoice pesanan #{$order->order_number} Hello Store - Total: Rp".number_format($order->total, 0, ',', '.')."\n".route('orders.show', ['order' => $order, 'token' => request('token')]);
+                $invoiceWaNumber = preg_replace('/[^0-9]/', '', $order->customer_phone ?? ($order->address?->phone ?? ''));
+            @endphp
+            <a href="{{ route('orders.print', ['order' => $order, 'token' => request('token')]) }}" target="_blank"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-amber-300 hover:text-amber-600 px-3 py-2 rounded-lg transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Cetak Invoice
+            </a>
+            @if($order->customer_email)
+                <form action="{{ route('orders.send-invoice', ['order' => $order, 'token' => request('token')]) }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600 px-3 py-2 rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Kirim Invoice Email
+                    </button>
+                </form>
+            @endif
+            @if($invoiceWaNumber)
+                <a href="https://wa.me/{{ $invoiceWaNumber }}?text={{ urlencode($invoiceShareText) }}" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-green-500 hover:bg-green-600 px-3 py-2 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Kirim Invoice WA
+                </a>
+            @endif
         </div>
 
         <div class="grid md:grid-cols-2 gap-6">
@@ -251,9 +288,9 @@
                                 Download
                             </a>
                         @endif
-                        @if($order->status === 'delivered' && $item->product)
+                        @if(!$isGuestAccess && $order->status === 'delivered' && $item->product)
                             @php
-                                $userReviewed = auth()->user()->reviews()->where('product_id', $item->product_id)->exists();
+                                $userReviewed = auth()->check() && auth()->user()->reviews()->where('product_id', $item->product_id)->exists();
                             @endphp
                             @if(!$userReviewed)
                                 <a href="{{ route('products.show', $item->product->slug) }}#review-form"
@@ -329,7 +366,7 @@
                 @endif
                 @if($order->payment->proof_image)
                     <div class="mt-3">
-                        <a href="{{ asset('storage/' . $order->payment->proof_image) }}" target="_blank"
+                        <a href="{{ Storage::url($order->payment->proof_image) }}" target="_blank"
                             class="inline-flex items-center gap-1.5 text-amber-600 hover:text-amber-700 font-medium">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             Lihat Bukti Transfer

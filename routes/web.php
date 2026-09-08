@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\BarcodeController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductExportController;
@@ -12,6 +13,10 @@ use App\Http\Controllers\StoreController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StoreController::class, 'home'])->name('home');
+
+Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
+Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
 
 Route::get('/privacy-policy', fn () => view('store.privacy-policy'))->name('privacy-policy');
 
@@ -32,22 +37,27 @@ Route::get('/compare', [StoreController::class, 'compareIndex'])->name('products
 Route::get('/bundles', [StoreController::class, 'bundles'])->name('products.bundles');
 Route::get('/bundles/{slug}', [StoreController::class, 'bundleDetail'])->name('products.bundle-detail');
 
+Route::get('/checkout', [StoreController::class, 'checkout'])->name('checkout');
+Route::post('/checkout/place-order', [StoreController::class, 'placeOrder'])->name('checkout.place');
+Route::post('/checkout/apply-coupon', [StoreController::class, 'applyCoupon'])->name('checkout.apply-coupon');
+
+Route::get('/track-order', [StoreController::class, 'trackOrder'])->name('track.order');
+Route::post('/track-order', [StoreController::class, 'trackOrderLookup'])->name('track.order.lookup');
+
+Route::get('/orders/{order}', [StoreController::class, 'orderShow'])->name('orders.show');
+Route::post('/orders/{order}/payment', [StoreController::class, 'paymentUpload'])->name('orders.payment');
+Route::post('/orders/{order}/confirm-received', [StoreController::class, 'confirmReceived'])->name('orders.confirm-received');
+Route::post('/orders/{order}/cancel', [StoreController::class, 'cancelOrder'])->name('orders.cancel');
+Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->name('orders.print');
+Route::post('/orders/{order}/send-invoice', [StoreController::class, 'sendInvoice'])->name('orders.send-invoice');
+
 Route::middleware('auth')->group(function () {
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');
     Route::get('/wishlist', [StoreController::class, 'wishlistIndex'])->name('wishlist.index');
 
     Route::get('/account', [AccountController::class, 'dashboard'])->name('account.dashboard');
 
-    Route::get('/checkout', [StoreController::class, 'checkout'])->name('checkout');
-    Route::post('/checkout/place-order', [StoreController::class, 'placeOrder'])->name('checkout.place');
-    Route::post('/checkout/apply-coupon', [StoreController::class, 'applyCoupon'])->name('checkout.apply-coupon');
-
     Route::get('/orders', [StoreController::class, 'orders'])->name('orders.index');
-    Route::get('/orders/{order}', [StoreController::class, 'orderShow'])->name('orders.show');
-    Route::post('/orders/{order}/payment', [StoreController::class, 'paymentUpload'])->name('orders.payment');
-    Route::post('/orders/{order}/confirm-received', [StoreController::class, 'confirmReceived'])->name('orders.confirm-received');
-    Route::post('/orders/{order}/cancel', [StoreController::class, 'cancelOrder'])->name('orders.cancel');
-    Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->name('orders.print');
     Route::post('/orders/{order}/reorder', [StoreController::class, 'reorder'])->name('orders.reorder');
     Route::get('/orders/{order}/download/{product}', [StoreController::class, 'downloadDigital'])->name('orders.download');
 

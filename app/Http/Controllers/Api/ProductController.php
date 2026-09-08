@@ -10,6 +10,7 @@ use App\Models\Wishlist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -98,7 +99,7 @@ class ProductController extends Controller
         $data['description'] = $product->description;
         $data['images'] = $product->productImages->map(fn ($img) => [
             'id' => $img->id,
-            'url' => '/storage/'.$img->image,
+            'url' => Storage::url($img->image),
             'sort_order' => $img->sort_order,
         ]);
         $data['variants'] = $product->variants->map(fn ($v) => [
@@ -107,7 +108,7 @@ class ProductController extends Controller
             'price' => (float) $v->price,
             'stock' => $v->stock,
             'weight' => (float) $v->weight,
-            'image' => $v->image ? (str_starts_with($v->image, 'http') ? $v->image : '/storage/'.$v->image) : null,
+            'image' => $v->image ? (str_starts_with($v->image, 'http') ? $v->image : Storage::url($v->image)) : null,
             'is_active' => $v->is_active,
             'sku' => $v->sku,
         ]);
@@ -158,12 +159,12 @@ class ProductController extends Controller
                 'id' => $cat->id,
                 'name' => $cat->name,
                 'slug' => $cat->slug,
-                'image' => $cat->image ? (str_starts_with($cat->image, 'http') ? $cat->image : '/storage/'.$cat->image) : null,
+                'image' => $cat->image ? (str_starts_with($cat->image, 'http') ? $cat->image : Storage::url($cat->image)) : null,
                 'children' => $cat->children->map(fn ($child) => [
                     'id' => $child->id,
                     'name' => $child->name,
                     'slug' => $child->slug,
-                    'image' => $child->image ? (str_starts_with($child->image, 'http') ? $child->image : '/storage/'.$child->image) : null,
+                    'image' => $child->image ? (str_starts_with($child->image, 'http') ? $child->image : Storage::url($child->image)) : null,
                 ]),
             ]);
 
@@ -198,7 +199,7 @@ class ProductController extends Controller
             'rating' => round($product->approved_reviews_avg_rating ?? 0, 1),
             'review_count' => (int) ($product->approved_reviews_count ?? 0),
             'total_sold' => (int) ($product->order_items_sum_quantity ?? 0),
-            'image' => $product->productImages->first() ? '/storage/'.$product->productImages->first()->image : null,
+            'image' => $product->productImages->first() ? Storage::url($product->productImages->first()->image) : null,
             'category' => $product->category?->name,
             'brand' => $product->brand?->name,
             'flash_sale' => $flashData ? [

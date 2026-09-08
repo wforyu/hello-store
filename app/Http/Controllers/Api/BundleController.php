@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\ProductBundle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BundleController extends Controller
 {
@@ -50,7 +51,7 @@ class BundleController extends Controller
                 'total_original_price_formatted' => 'Rp'.number_format($originalPrice, 0, ',', '.'),
                 'savings' => $savings,
                 'savings_formatted' => 'Rp'.number_format($savings, 0, ',', '.'),
-                'image' => $bundle->image ? '/storage/'.$bundle->image : null,
+                'image' => $bundle->image ? Storage::url($bundle->image) : null,
                 'products' => $products,
             ],
         ]);

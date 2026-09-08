@@ -142,6 +142,7 @@ class AdminPanelProvider extends PanelProvider
         'Laporan': 'Lihat laporan penjualan, laba rugi & analitik',
         'Pusat Bantuan': 'Panduan lengkap penggunaan admin panel',
         'Audit Log': 'Riwayat aktivitas admin & perubahan data',
+        'Live Chat': 'Balas pesan & percakapan dari pelanggan',
     };
     function formatRupiah(el) {
         var val = el.value.replace(/[^0-9]/g, '');

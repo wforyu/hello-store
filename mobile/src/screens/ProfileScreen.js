@@ -363,6 +363,13 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
 
           <Text style={[styles.menuSectionTitle, { marginTop: 16 }]}>Lainnya</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Chat')}>
+            <View style={[styles.actionIconWrap, { backgroundColor: '#FFEDD5' }]}>
+              <Text style={styles.actionIcon}>💬</Text>
+            </View>
+            <Text style={styles.actionBtnText}>Live Chat Support</Text>
+            <Text style={styles.actionArrow}>›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Notifications')}>
             <View style={[styles.actionIconWrap, { backgroundColor: '#F3E8FF' }]}>
               <Text style={styles.actionIcon}>🔔</Text>

@@ -9,7 +9,7 @@
 
         @php $favicon = \App\Models\Setting::get('favicon'); @endphp
         @if($favicon)
-            <link rel="icon" type="image/png" href="{{ asset('storage/'.$favicon) }}">
+            <link rel="icon" type="image/png" href="{{ Storage::url($favicon) }}">
         @else
             <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
         @endif

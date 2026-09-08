@@ -21,8 +21,20 @@ class OrderForm
                 Select::make('user_id')
                     ->relationship('user', 'name')
                     ->label('Pelanggan')
-                    ->required()
-                    ->helperText('Pilih pelanggan yang membuat pesanan ini.'),
+                    ->nullable()
+                    ->helperText('Pilih pelanggan terdaftar. Kosongkan jika pesanan dari guest (tanpa login).'),
+                TextInput::make('guest_name')
+                    ->label('Nama Guest')
+                    ->placeholder('—')
+                    ->helperText('Isi otomatis untuk pesanan tanpa login.'),
+                TextInput::make('guest_email')
+                    ->label('Email Guest')
+                    ->placeholder('—')
+                    ->helperText('Isi otomatis untuk pesanan tanpa login.'),
+                TextInput::make('guest_phone')
+                    ->label('No. HP Guest')
+                    ->placeholder('—')
+                    ->helperText('Isi otomatis untuk pesanan tanpa login.'),
                 TextInput::make('order_number')
                     ->label('No. Pesanan')
                     ->required()

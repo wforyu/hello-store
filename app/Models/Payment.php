@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Payment extends Model
@@ -37,6 +38,6 @@ class Payment extends Model
             return $this->proof_image;
         }
 
-        return asset('storage/'.$this->proof_image);
+        return Storage::url($this->proof_image);
     }
 }

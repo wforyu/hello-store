@@ -16,6 +16,40 @@
             {{-- Left Column --}}
             <div class="lg:col-span-2 space-y-6">
 
+                {{-- Data Pemesanan (Guest) --}}
+                @guest
+                    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-5">
+                            <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                Data Pemesanan
+                            </h2>
+                            <a href="{{ route('login') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition">
+                                Sudah punya akun? Login →
+                            </a>
+                        </div>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nama Lengkap <span class="text-red-500">*</span></label>
+                                <input type="text" name="guest_name" value="{{ old('guest_name') }}" required
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-red-500">*</span></label>
+                                <input type="email" name="guest_email" value="{{ old('guest_email') }}" required placeholder="untuk lacak pesanan"
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                                @error('guest_email')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nomor HP <span class="text-red-500">*</span></label>
+                                <input type="text" name="guest_phone" value="{{ old('guest_phone') }}" required placeholder="08xxxxxxxxxx"
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                                <p class="text-xs text-gray-400 mt-1">Email &amp; nomor HP digunakan untuk melacak pesanan tanpa login.</p>
+                            </div>
+                        </div>
+                    </div>
+                @endguest
+
                 {{-- Address --}}
                 <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
                     <div class="flex items-center justify-between mb-5">
@@ -23,13 +57,56 @@
                             <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             Alamat Pengiriman
                         </h2>
-                        <a href="{{ route('addresses.create') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                            Tambah
-                        </a>
+                        @auth
+                            <a href="{{ route('addresses.create') }}" class="text-sm font-medium text-amber-600 hover:text-amber-700 transition flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                Tambah
+                            </a>
+                        @endauth
                     </div>
 
-                    @if($addresses->isEmpty())
+                    @guest
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nama Penerima <span class="text-red-500">*</span></label>
+                                <input type="text" name="address_recipient" value="{{ old('address_recipient') }}" required
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">No. HP Penerima <span class="text-red-500">*</span></label>
+                                <input type="text" name="address_phone" value="{{ old('address_phone') }}" required
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Alamat Lengkap <span class="text-red-500">*</span></label>
+                                <textarea name="address_street" rows="3" required
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">{{ old('address_street') }}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Kota / Kabupaten <span class="text-red-500">*</span></label>
+                                <select name="address_city" required
+                                    onchange="if (this.value) window.location = '{{ route('checkout') }}?city=' + encodeURIComponent(this.value)"
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition bg-white">
+                                    <option value="">-- Pilih Kota --</option>
+                                    @foreach($guestCities as $city)
+                                        <option value="{{ $city }}" {{ old('address_city', $guestCity) === $city ? 'selected' : '' }}>{{ $city }}</option>
+                                    @endforeach
+                                </select>
+                                @error('address_city')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Provinsi <span class="text-red-500">*</span></label>
+                                <input type="text" name="address_province" value="{{ old('address_province') }}" required placeholder="Jawa Barat"
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Kode Pos</label>
+                                <input type="text" name="address_postal_code" value="{{ old('address_postal_code') }}" placeholder="40123"
+                                    class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                            </div>
+                        </div>
+                    @else
+                        @if($addresses->isEmpty())
                         <div class="text-center py-10 text-gray-500">
                             <svg class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <p class="mb-4">Belum ada alamat tersimpan</p>
@@ -38,7 +115,7 @@
                                 Tambah Alamat Baru
                             </a>
                         </div>
-                    @else
+                        @else
                         <div class="space-y-3">
                             @foreach($addresses as $address)
                                 <label class="flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition"
@@ -63,7 +140,8 @@
                         @error('address_id')
                             <p class="text-sm text-red-500 mt-2">{{ $message }}</p>
                         @enderror
-                    @endif
+                        @endif
+                    @endguest
                 </div>
 
                 {{-- Shipping Courier --}}
@@ -260,7 +338,7 @@
                     @endauth
 
                     <button type="submit" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        :disabled="{{ $addresses->isEmpty() ? 'true' : 'false' }} || submitting">
+                        :disabled="{{ $isGuest ? 'false' : ($addresses->isEmpty() ? 'true' : 'false') }} || submitting">
                         <template x-if="!submitting">
                             <span class="flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

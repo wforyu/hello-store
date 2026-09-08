@@ -80,7 +80,7 @@
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5 group shrink-0">
                     @php $logo = $settings['logo'] ?? null; @endphp
                     @if($logo)
-                        <img src="{{ asset('storage/'.$logo) }}" alt="Hello Store" class="h-8 w-auto">
+                        <img src="{{ Storage::url($logo) }}" alt="Hello Store" class="h-8 w-auto">
                     @else
                         <div class="w-9 h-9 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,6 +267,14 @@
                             </div>
                         </div>
                     @else
+                        <a href="{{ route('track.order') }}" class="hidden md:flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-amber-600 transition" title="Lacak Pesanan">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                            <span class="hidden lg:inline">Lacak</span>
+                        </a>
+                        <a href="{{ route('chat.index') }}" class="hidden md:flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-amber-600 transition" title="Live Chat">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                            <span class="hidden lg:inline">Chat</span>
+                        </a>
                         <a href="{{ route('login') }}" class="text-sm font-medium text-gray-600 hover:text-amber-600 transition">Login</a>
                         <a href="{{ route('register') }}" class="text-sm font-semibold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-5 py-2.5 rounded-xl hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition">Daftar</a>
                     @endauth
@@ -370,6 +378,8 @@
                 <div>
                     <h4 class="font-semibold text-gray-900 text-sm mb-4">Bantuan</h4>
                     <ul class="space-y-2.5 text-sm text-gray-500">
+                        <li><a href="{{ route('track.order') }}" class="hover:text-amber-600 transition">Lacak Pesanan</a></li>
+                        <li><a href="{{ route('chat.index') }}" class="hover:text-amber-600 transition">Live Chat</a></li>
                         <li><a href="{{ route('orders.index') }}" class="hover:text-amber-600 transition">Pesanan Saya</a></li>
                         <li><a href="{{ route('cart.index') }}" class="hover:text-amber-600 transition">Keranjang</a></li>
                         <li><a href="{{ route('addresses.index') }}" class="hover:text-amber-600 transition">Alamat</a></li>

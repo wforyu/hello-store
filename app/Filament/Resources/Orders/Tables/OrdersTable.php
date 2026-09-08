@@ -31,9 +31,12 @@ class OrdersTable
                     ->label('No. Pesanan')
                     ->searchable()
                     ->weight('bold'),
-                TextColumn::make('user.name')
+                TextColumn::make('customer_name')
                     ->label('Pelanggan')
-                    ->searchable(),
+                    ->getStateUsing(fn ($record) => $record->customer_name)
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query
+                        ->where('guest_name', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn (Builder $q) => $q->where('name', 'like', "%{$search}%"))),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()

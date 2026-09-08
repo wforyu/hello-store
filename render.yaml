@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: hello-store
+    runtime: php
+    rootDir: .
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader --no-interaction --no-progress &&
+      npm ci --ignore-scripts --no-audit --no-fund &&
+      npm run build &&
+      php artisan migrate --force --no-interaction
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        sync: false
+      - key: APP_KEY
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: ep-still-field-a5nb02b8-pooler.us-east-2.aws.neon.tech
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        value: neondb
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_PASSWORD
+        sync: false
+      - key: SSLMODE
+        value: require
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: us-east-2
+      - key: AWS_BUCKET
+        value: hello-store-images
+      - key: AWS_URL
+        value: https://br-crimson-water-a5hhl3kj.storage.c-1.us-east-2.aws.neon.tech/hello-store-images
+      - key: AWS_ENDPOINT
+        value: https://br-crimson-water-a5hhl3kj.storage.c-1.us-east-2.aws.neon.tech
+      - key: AWS_USE_PATH_STYLE_ENDPOINT
+        value: "true"
+      - key: SESSION_DRIVER
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: MAIL_MAILER
+        value: log

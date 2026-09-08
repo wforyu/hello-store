@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.hellostore.app",
-      "versionCode": 111,
+      "versionCode": 114,
       "adaptiveIcon": {
         "backgroundColor": "#FEF3C7",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -34,11 +34,11 @@
         {
           "icon": "./assets/icon.png",
           "color": "#F59E0B"
-        }
+        } 
       ]
     ],
     "extra": {
-      "apiUrl": "https://change-passivism-implode.ngrok-free.dev"
+      "apiUrl": "http://100.120.13.26:8000"
     }
   }
 }

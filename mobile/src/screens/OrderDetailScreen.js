@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Image, RefreshControl,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Image, RefreshControl, Share,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -224,6 +224,16 @@ export default function OrderDetailScreen({ route, navigation }) {
     });
   };
 
+  const shareInvoice = async () => {
+    const label = STATUS_LABELS[order.status] || order.status;
+    const text = `Invoice pesanan #${order.order_number} Hello Store\nTotal: ${formatPrice(order.total)}\nStatus: ${label}`;
+    try {
+      await Share.share({ message: text, title: `Invoice #${order.order_number}` });
+    } catch (e) {
+      // silent
+    }
+  };
+
   if (!user) {
     return <LoginPrompt navigation={navigation} message="Silakan login untuk melihat detail pesanan." />;
   }
@@ -399,6 +409,14 @@ export default function OrderDetailScreen({ route, navigation }) {
           <Text style={styles.actionBtnText}>Beli Lagi</Text>
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity
+        style={[styles.actionBtn, { backgroundColor: COLORS.secondary, marginTop: 12 }]}
+        onPress={shareInvoice}
+        disabled={loading}
+      >
+        <Text style={styles.actionBtnText}>Bagikan Invoice</Text>
+      </TouchableOpacity>
 
       <View style={{ height: insets.bottom + 20 }} />
 

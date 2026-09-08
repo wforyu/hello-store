@@ -4,9 +4,11 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BundleController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\ChatApiController;
 use App\Http\Controllers\Api\ConfigController;
 use App\Http\Controllers\Api\CouponController;
 use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\GuestOrderController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\Api\OrderController;
@@ -31,6 +33,13 @@ Route::get('/categories', [ProductController::class, 'categories']);
 Route::get('/settings/ppn', [SettingsController::class, 'ppn']);
 Route::get('/settings/member-tiers', [SettingsController::class, 'memberTiers']);
 Route::get('/social-follow/rules', [SocialFollowController::class, 'rules']);
+
+// Guest order tracking (no auth)
+Route::post('/guest-orders/track', [GuestOrderController::class, 'track']);
+Route::get('/guest-orders/{order}', [GuestOrderController::class, 'show']);
+Route::post('/guest-orders/{order}/payment', [GuestOrderController::class, 'paymentUpload']);
+Route::post('/guest-orders/{order}/confirm', [GuestOrderController::class, 'confirmReceived']);
+Route::post('/guest-orders/{order}/cancel', [GuestOrderController::class, 'cancel']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -87,4 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Device Push Notifications
     Route::post('/devices/register', [DeviceController::class, 'register']);
     Route::post('/devices/unregister', [DeviceController::class, 'unregister']);
+
+    // Chat
+    Route::get('/chat', [ChatApiController::class, 'index']);
+    Route::post('/chat/send', [ChatApiController::class, 'send']);
+    Route::get('/chat/{conversation}/poll', [ChatApiController::class, 'poll']);
 });

@@ -23,6 +23,8 @@ import WishlistScreen from '../screens/WishlistScreen';
 import SearchScreen from '../screens/SearchScreen';
 import BundleDetailScreen from '../screens/BundleDetailScreen';
 import AppSettingsScreen from '../screens/AppSettingsScreen';
+import TrackOrderScreen from '../screens/TrackOrderScreen';
+import ChatScreen from '../screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -183,6 +185,16 @@ export default function AppNavigator() {
           name="AppSettings"
           component={AppSettingsScreen}
           options={{ title: 'Pengaturan Server', headerTintColor: COLORS.text }}
+        />
+        <Stack.Screen
+          name="TrackOrder"
+          component={TrackOrderScreen}
+          options={{ title: 'Lacak Pesanan', headerTintColor: COLORS.text }}
+        />
+        <Stack.Screen
+          name="Chat"
+          component={ChatScreen}
+          options={{ title: 'Live Chat Support', headerTintColor: COLORS.text }}
         />
         </Stack.Navigator>
       </NavigationContainer>

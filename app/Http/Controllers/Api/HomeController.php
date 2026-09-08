@@ -8,6 +8,7 @@ use App\Models\FlashSale;
 use App\Models\Product;
 use App\Models\ProductBundle;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 
 class HomeController extends Controller
 {
@@ -21,7 +22,7 @@ class HomeController extends Controller
                 'id' => $b->id,
                 'title' => $b->title,
                 'description' => $b->description,
-                'image' => $b->image ? '/storage/'.$b->image : null,
+                'image' => $b->image ? Storage::url($b->image) : null,
                 'link' => $b->link,
                 'link_label' => $b->link_label,
             ]);
@@ -109,7 +110,7 @@ class HomeController extends Controller
                     'total_original_price_formatted' => 'Rp'.number_format($originalPrice, 0, ',', '.'),
                     'savings' => $savings,
                     'savings_formatted' => 'Rp'.number_format($savings, 0, ',', '.'),
-                    'image' => $bundle->image ? '/storage/'.$bundle->image : null,
+                    'image' => $bundle->image ? Storage::url($bundle->image) : null,
                     'product_count' => $bundle->products->count(),
                 ];
             });
@@ -122,7 +123,7 @@ class HomeController extends Controller
                     'id' => $popup->id,
                     'title' => $popup->title,
                     'description' => $popup->description,
-                    'image' => $popup->image ? '/storage/'.$popup->image : null,
+                    'image' => $popup->image ? Storage::url($popup->image) : null,
                     'link' => $popup->link,
                     'link_label' => $popup->link_label,
                 ] : null,

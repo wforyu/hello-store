@@ -80,6 +80,12 @@ export default function LoginScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.link}>Belum punya akun? Daftar</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('TrackOrder')}>
+          <Text style={[styles.link, { marginTop: 8, color: COLORS.textSecondary }]}>
+            Lacak pesanan tanpa login
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
