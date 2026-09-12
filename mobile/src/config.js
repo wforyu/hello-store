@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 export const API_URL_KEY = 'api_url';
-export const FALLBACK_API_URL = 'http://100.120.13.26:8000';
+export const FALLBACK_API_URL = 'https://hello-store.page.gd';
 
 let _cachedUrl = null;
 

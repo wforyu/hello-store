@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.hellostore.app",
-      "versionCode": 114,
+      "versionCode": 115,
       "adaptiveIcon": {
         "backgroundColor": "#FEF3C7",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -38,7 +38,7 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://100.120.13.26:8000"
+      "apiUrl": "https://hello-store.page.gd"
     }
   }
 }
