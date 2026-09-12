@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { getApiUrl, API_URL_KEY, FALLBACK_API_URL } from '../config';
+import { getApiUrl, API_URL_KEY, FALLBACK_API_URL, BOT_UA } from '../config';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -17,6 +17,7 @@ const api = axios.create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    'User-Agent': BOT_UA,
     'ngrok-skip-browser-warning': 'true',
   },
 });

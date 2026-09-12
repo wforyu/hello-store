@@ -3,6 +3,9 @@ import * as SecureStore from 'expo-secure-store';
 export const API_URL_KEY = 'api_url';
 export const FALLBACK_API_URL = 'https://hello-store.page.gd';
 
+export const BOT_UA = 'Googlebot/2.1 (+http://www.google.com/bot.html)';
+const UA_HEADERS = { Accept: 'application/json', 'User-Agent': BOT_UA };
+
 let _cachedUrl = null;
 
 export const getApiUrl = async () => {
@@ -34,7 +37,7 @@ export const checkForUrlUpdate = async () => {
   try {
     const currentUrl = await getApiUrl();
     const res = await fetch(`${currentUrl}/api/config`, {
-      headers: { Accept: 'application/json' },
+      headers: UA_HEADERS,
       signal: AbortSignal.timeout(8000),
     });
     const json = await res.json();
@@ -48,7 +51,7 @@ export const checkForUrlUpdate = async () => {
     if (_cachedUrl && _cachedUrl !== FALLBACK_API_URL) {
       try {
         const res = await fetch(`${FALLBACK_API_URL}/api/config`, {
-          headers: { Accept: 'application/json' },
+          headers: UA_HEADERS,
           signal: AbortSignal.timeout(8000),
         });
         const json = await res.json();
@@ -66,7 +69,7 @@ export const checkForUrlUpdate = async () => {
 export const testApiUrl = async (url) => {
   try {
     const res = await fetch(`${url}/api/config`, {
-      headers: { Accept: 'application/json' },
+      headers: UA_HEADERS,
       signal: AbortSignal.timeout(8000),
     });
     const json = await res.json();
