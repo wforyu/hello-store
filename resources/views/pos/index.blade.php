@@ -564,6 +564,14 @@
                 { id: 'transfer', label: 'Transfer' },
             ],
 
+            init() {
+                this.cart = (Array.isArray(this.cart) ? this.cart : []).map(item => ({
+                    ...item,
+                    discountText: item.discount ? String(item.discount) : '',
+                    discountType: item.discount_type || 'nominal',
+                }));
+            },
+
             // --- Computed ---
             get itemSubtotal() {
                 return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -686,18 +694,21 @@
             },
 
             syncItemDiscount(item) {
-                fetch('{{ route("pos.update") }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    body: JSON.stringify({
-                        product_id: item.product_id,
-                        quantity: item.quantity,
-                        discount: item.discount || 0,
-                        discount_type: item.discountType || 'nominal',
-                    })
-                }).then(r => r.json()).then(data => {
-                    if (data.cart) this.cart = data.cart;
-                });
+                clearTimeout(item._syncTimer);
+                item._syncTimer = setTimeout(() => {
+                    fetch('{{ route("pos.update") }}', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                        body: JSON.stringify({
+                            product_id: item.product_id,
+                            quantity: item.quantity,
+                            discount: item.discount || 0,
+                            discount_type: item.discountType || 'nominal',
+                        })
+                    }).then(r => r.json()).then(data => {
+                        if (data.cart) this.cart = data.cart;
+                    });
+                }, 400);
             },
 
             // --- Keyboard ---

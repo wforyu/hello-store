@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StoreController::class, 'home'])->name('home');
 
-Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
-Route::get('/chat/poll', [ChatController::class, 'poll'])->name('chat.poll');
+// NOTE: InfinityFree edge WAF blocks any URL containing "chat" (403).
+// Keep route names as chat.* but use URL /obrolan/... instead.
+Route::get('/obrolan', [ChatController::class, 'index'])->name('chat.index');
+Route::post('/obrolan/send', [ChatController::class, 'send'])->name('chat.send');
+Route::get('/obrolan/poll', [ChatController::class, 'poll'])->name('chat.poll');
 
 Route::get('/privacy-policy', fn () => view('store.privacy-policy'))->name('privacy-policy');
 

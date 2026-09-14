@@ -139,7 +139,7 @@ class PosController extends Controller
                 $item['stock'] = $liveStock;
 
                 if ($request->has('discount')) {
-                    $item['discount'] = (float) $request->discount;
+                    $item['discount'] = max(0, (float) $request->discount);
                 }
                 if ($request->has('discount_type')) {
                     $item['discount_type'] = $request->discount_type === 'percent' ? 'percent' : 'nominal';

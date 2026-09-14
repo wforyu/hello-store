@@ -47,10 +47,11 @@
         $customerName = 'Umum';
         if (str_starts_with($firstPart, 'Dine-in')) {
             $orderType = 'Dine-in';
-            $customerName = trim(substr($firstPart, 8));
         } elseif (str_starts_with($firstPart, 'Takeaway')) {
             $orderType = 'Takeaway';
-            $customerName = trim(substr($firstPart, 9));
+        }
+        if (str_contains($firstPart, ' - ')) {
+            $customerName = trim(explode(' - ', $firstPart, 2)[1]);
         }
         if (!$customerName) $customerName = 'Umum';
 
@@ -104,7 +105,7 @@
                     <tr>
                         <td>{{ $item->product_name }}</td>
                         <td style="text-align:center">{{ $item->quantity }}</td>
-                        <td>Rp{{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                        <td>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -114,14 +115,14 @@
     <div class="divider"></div>
 
     <div class="section">
-        <div class="row"><span class="label">Subtotal</span><span>Rp{{ number_format($order->subtotal, 0, ',', '.') }}</span></div>
+        <div class="row"><span class="label">Subtotal</span><span>Rp {{ number_format($order->subtotal, 0, ',', '.') }}</span></div>
         @if($discountFromNotes > 0)
-            <div class="row discount-row"><span class="label">Diskon</span><span>-Rp{{ number_format($discountFromNotes, 0, ',', '.') }}</span></div>
+            <div class="row discount-row"><span class="label">Diskon</span><span>-Rp {{ number_format($discountFromNotes, 0, ',', '.') }}</span></div>
         @endif
         @if($ppnFromNotes > 0)
-            <div class="row"><span class="label">PPN {{ $ppnRate }}%</span><span>+Rp{{ number_format($ppnFromNotes, 0, ',', '.') }}</span></div>
+            <div class="row"><span class="label">PPN {{ $ppnRate }}%</span><span>+Rp {{ number_format($ppnFromNotes, 0, ',', '.') }}</span></div>
         @endif
-        <div class="grand-total">Rp{{ number_format($order->total, 0, ',', '.') }}</div>
+        <div class="grand-total">Rp {{ number_format($order->total, 0, ',', '.') }}</div>
     </div>
 
     <div class="section">

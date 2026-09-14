@@ -54,6 +54,7 @@ class EditProduct extends EditRecord
                         'restok' => 'Restok dari Gudang',
                         'retur' => 'Retur Pelanggan',
                         'adjustment' => 'Penyesuaian Stok',
+                        default => 'Penyesuaian Stok',
                     };
                     $notes = $reasonLabel.($data['notes'] ? ' — '.$data['notes'] : '');
 
