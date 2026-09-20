@@ -117,4 +117,27 @@ class ShippingService
     {
         return $this->cityIds[$cityName] ?? null;
     }
+
+    public static function resolveCost(?string $courierField, ?string $serviceField, string $city, int $weightInGrams): ?float
+    {
+        $svc = new self;
+
+        $fields = array_values(array_filter(array_map('strtolower', [$courierField, $serviceField])));
+
+        foreach ($svc->getRates($city, $weightInGrams) as $courier) {
+            $code = strtolower((string) $courier['code']);
+            $name = strtolower((string) $courier['name']);
+
+            foreach ($courier['rates'] ?? [] as $rate) {
+                $service = strtolower((string) $rate['service']);
+                $signatures = [$code, $name, "{$code} - {$service}", "{$name} - {$service}"];
+
+                if ($fields && count(array_intersect($fields, $signatures)) === count($fields)) {
+                    return (float) $rate['cost'];
+                }
+            }
+        }
+
+        return null;
+    }
 }

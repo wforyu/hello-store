@@ -212,8 +212,14 @@ class StoreController extends Controller
 
     public function cartAdd(Request $request, Product $product)
     {
-        $variantId = $request->integer('variant_id');
-        $qty = (int) ($request->quantity ?? 1);
+        $validated = $request->validate([
+            'variant_id' => 'nullable|integer|exists:product_variants,id',
+            'quantity' => 'nullable|integer|min:1|max:100',
+            'buy_now' => 'nullable|boolean',
+        ]);
+
+        $variantId = (int) ($validated['variant_id'] ?? 0);
+        $qty = (int) ($validated['quantity'] ?? 1);
         $variant = null;
 
         if ($variantId) {
@@ -459,7 +465,10 @@ class StoreController extends Controller
         }
 
         $subtotal = $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
-        $shippingCost = (float) $validated['shipping_cost'];
+        $shippingCost = $this->resolveShippingCost($validated, $cart, $isGuest, $address);
+        if ($shippingCost === null) {
+            return back()->withInput()->with('error', 'Metode pengiriman tidak valid. Silakan muat ulang halaman checkout dan pilih kurir ulang.');
+        }
 
         $usePoints = 0;
         $pointDiscount = 0;
@@ -711,11 +720,16 @@ class StoreController extends Controller
         }
 
         $validated = $request->validate([
-            'proof_image' => 'required|image|max:2048',
+            'proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'bank_name' => 'required|string|max:100',
             'account_name' => 'required|string|max:100',
             'account_number' => 'required|string|max:50',
         ]);
+
+        $uploadedFile = $request->file('proof_image');
+        if ($uploadedFile && ! in_array(strtolower($uploadedFile->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'webp'])) {
+            return back()->withErrors(['proof_image' => 'Ekstensi file tidak diizinkan. Gunakan JPG, JPEG, PNG, atau WEBP.']);
+        }
 
         $payment = $order->payment;
         if (! $payment) {
@@ -733,7 +747,6 @@ class StoreController extends Controller
         $payment->bank_name = $validated['bank_name'];
         $payment->account_name = $validated['account_name'];
         $payment->account_number = $validated['account_number'];
-        $uploadedFile = $request->file('proof_image');
         $payment->proof_image = $uploadedFile ? $uploadedFile->store('payments', 'public') : $payment->proof_image;
         $payment->save();
 
@@ -1358,6 +1371,34 @@ class StoreController extends Controller
         }
 
         return (int) ($totalWeight > 0 ? $totalWeight : 1000);
+    }
+
+    protected function resolveShippingCost($validated, $cart, bool $isGuest, ?Address $address): ?float
+    {
+        if (($validated['shipping_courier'] ?? '') === 'flat') {
+            return (float) 15000;
+        }
+
+        $city = $isGuest
+            ? ($validated['address_city'] ?? '')
+            : ($address?->city ?? '');
+
+        if (! $city) {
+            return null;
+        }
+
+        $totalWeight = $this->getCartWeight($cart);
+
+        try {
+            return ShippingService::resolveCost(
+                $validated['shipping_courier'] ?? null,
+                $validated['shipping_service'] ?? null,
+                $city,
+                $totalWeight
+            );
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     public function downloadDigital(Order $order, Product $product)

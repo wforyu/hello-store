@@ -83,11 +83,20 @@ class GuestOrderController extends Controller
         }
 
         $validated = $request->validate([
-            'proof_image' => 'required|image|max:2048',
+            'proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'bank_name' => 'required|string|max:100',
             'account_name' => 'required|string|max:100',
             'account_number' => 'required|string|max:50',
         ]);
+
+        $uploadedFile = $request->file('proof_image');
+        if ($uploadedFile && ! in_array(strtolower($uploadedFile->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'webp'])) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Ekstensi file tidak diizinkan. Gunakan JPG, JPEG, PNG, atau WEBP.',
+            ], 422);
+        }
 
         $payment = $order->payment;
         if (! $payment) {
@@ -105,7 +114,6 @@ class GuestOrderController extends Controller
         $payment->bank_name = $validated['bank_name'];
         $payment->account_name = $validated['account_name'];
         $payment->account_number = $validated['account_number'];
-        $uploadedFile = $request->file('proof_image');
         $payment->proof_image = $uploadedFile ? $uploadedFile->store('payments', 'public') : $payment->proof_image;
         $payment->save();
 

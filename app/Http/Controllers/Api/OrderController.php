@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\ProductBundle;
 use App\Models\ProductVariant;
 use App\Models\Setting;
+use App\Services\ShippingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -170,7 +171,20 @@ class OrderController extends Controller
         $ppnBase = max(0, $subtotal - $couponDiscount);
         $ppnAmount = $ppnEnabled ? round($ppnBase * $ppnRate / 100) : 0;
 
-        $shippingCost = (float) $request->shipping_cost;
+        $shippingCost = ShippingService::resolveCost(
+            $request->shipping_courier,
+            null,
+            $address->city ?? '',
+            $this->resolveCartWeight($request->items, $liveProducts, $liveVariants)
+        );
+
+        if ($shippingCost === null) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Metode pengiriman tidak valid. Silakan pilih ulang kurir.',
+            ], 422);
+        }
 
         $usePoints = min((int) ($request->use_points ?? 0), auth()->user()->points);
         $pointDiscount = 0;
@@ -315,11 +329,20 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'proof_image' => 'required|image|max:2048',
+            'proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
             'bank_name' => 'required|string|max:100',
             'account_name' => 'required|string|max:100',
             'account_number' => 'required|string|max:50',
         ]);
+
+        $uploadedFile = $request->file('proof_image');
+        if ($uploadedFile && ! in_array(strtolower($uploadedFile->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'webp'])) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Ekstensi file tidak diizinkan. Gunakan JPG, JPEG, PNG, atau WEBP.',
+            ], 422);
+        }
 
         $payment = $order->payment;
         if (! $payment) {
@@ -337,7 +360,6 @@ class OrderController extends Controller
         $payment->bank_name = $validated['bank_name'];
         $payment->account_name = $validated['account_name'];
         $payment->account_number = $validated['account_number'];
-        $uploadedFile = $request->file('proof_image');
         $payment->proof_image = $uploadedFile ? $uploadedFile->store('payments', 'public') : $payment->proof_image;
         $payment->save();
 
@@ -628,5 +650,22 @@ class OrderController extends Controller
         }
 
         return $data;
+    }
+
+    protected function resolveCartWeight($items, $liveProducts, $liveVariants): int
+    {
+        $totalWeight = 0;
+
+        foreach ($items as $itemData) {
+            $product = $liveProducts->get($itemData['product_id'] ?? null);
+
+            if (! empty($itemData['variant_id']) && ($variant = $liveVariants->get($itemData['variant_id']))) {
+                $totalWeight += (float) ($variant->weight ?? $product?->weight ?? 200) * $itemData['quantity'];
+            } else {
+                $totalWeight += (float) ($product?->weight ?? 200) * $itemData['quantity'];
+            }
+        }
+
+        return (int) ($totalWeight > 0 ? $totalWeight : 1000);
     }
 }
