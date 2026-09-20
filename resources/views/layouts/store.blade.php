@@ -234,6 +234,33 @@
                         @endif
                     </a>
 
+                    {{-- Download App --}}
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <button @click="open = !open" class="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-amber-600 transition p-1" title="Download Aplikasi" :aria-expanded="open" aria-haspopup="true">
+                            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M16 18l2.29-2.29-4.88-4.88-4 4L6 11.41l-2 2V18c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-2l-4 2zm0-7l2.29 2.29 4.88-4.88 4 4V6c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v2.59l2 2 4-4 4.88 4.88L16 11z"/></svg>
+                            <span class="hidden lg:inline">Aplikasi</span>
+                        </button>
+                        <div x-cloak x-show="open" @click="open = false" class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 p-5 text-center">
+                            @php
+                                $apkNavUrl = url('apk/HelloStore.apk');
+                                $apkNavQr = '';
+                                try {
+                                    $apkNavQr = \DNS2D::getBarcodeSVG($apkNavUrl, 'QRCODE', 4, 4);
+                                } catch (\Throwable $e) {}
+                            @endphp
+                            <p class="text-sm font-bold text-gray-900 mb-1">Hello Store App</p>
+                            <p class="text-xs text-gray-500 mb-3">Download &amp; belanja lebih mudah</p>
+                            <div class="mx-auto w-36 h-36 flex items-center justify-center bg-gray-50 border border-gray-100 rounded-xl mb-3">
+                                {!! $apkNavQr !!}
+                            </div>
+                            <p class="text-[11px] text-gray-400 mb-3">Scan dari HP-mu</p>
+                            <a href="{{ $apkNavUrl }}" class="inline-flex items-center justify-center gap-1.5 w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:from-amber-600 hover:to-orange-600 transition">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                Download APK
+                            </a>
+                        </div>
+                    </div>
+
                     {{-- User --}}
                     @auth
                         <div class="relative" x-data="{ open: false }" @click.outside="open = false">

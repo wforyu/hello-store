@@ -282,4 +282,81 @@
             @endforeach
         </div>
     </section>
+
+    {{-- Download App Banner --}}
+    <section class="mt-10 lg:mt-14" id="download-app">
+        @php
+            $apkDownloadUrl = url('apk/HelloStore.apk');
+            try {
+                $apkQrSvg = \DNS2D::getBarcodeSVG($apkDownloadUrl, 'QRCODE', 5, 5);
+            } catch (\Throwable $e) {
+                $apkQrSvg = '';
+            }
+        @endphp
+        <div class="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-orange-600 p-6 md:p-10 lg:p-14">
+            <div class="absolute inset-0 opacity-10">
+                <svg class="w-full h-full" viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="100" cy="100" r="80" fill="white"/>
+                    <circle cx="500" cy="50" r="100" fill="white"/>
+                    <circle cx="50" cy="350" r="60" fill="white"/>
+                    <circle cx="550" cy="300" r="70" fill="white"/>
+                    <circle cx="300" cy="400" r="90" fill="white"/>
+                </svg>
+            </div>
+            <div class="relative z-10 grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+                <div>
+                    <span class="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-semibold px-4 py-1.5 rounded-full mb-4 backdrop-blur-sm">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                        Aplikasi Android
+                    </span>
+                    <h2 class="text-2xl lg:text-4xl font-extrabold text-white leading-tight mb-3">Download Aplikasi <span class="text-amber-200">Hello Store</span></h2>
+                    <p class="text-white/80 text-sm md:text-base mb-6 max-w-lg">Belanja jadi lebih cepat dan mudah lewat aplikasi Android. Notifikasi promo, riwayat pesanan, dan berbagai fitur eksklusif di genggamanmu.</p>
+                    <ul class="space-y-2.5 text-sm text-white/90 mb-8 max-w-md">
+                        <li class="flex items-center gap-2.5">
+                            <svg class="w-5 h-5 shrink-0 text-amber-200" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            Notifikasi eksklusif &amp; info promo terbaru
+                        </li>
+                        <li class="flex items-center gap-2.5">
+                            <svg class="w-5 h-5 shrink-0 text-amber-200" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            Pelacakan pesanan real-time
+                        </li>
+                        <li class="flex items-center gap-2.5">
+                            <svg class="w-5 h-5 shrink-0 text-amber-200" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                            Pembayaran &amp; checkout lebih praktis
+                        </li>
+                    </ul>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="{{ $apkDownloadUrl }}" class="inline-flex items-center gap-2 bg-white text-amber-700 font-bold px-7 py-3.5 rounded-xl hover:bg-amber-50 shadow-lg hover:shadow-xl transition-all">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            Download APK
+                        </a>
+                        <a href="#download-app-qr" class="hidden md:inline-flex items-center gap-2 bg-white/10 text-white border border-white/30 px-5 py-3.5 rounded-xl hover:bg-white/20 transition-all backdrop-blur-sm">
+                            Scan QR Code
+                        </a>
+                    </div>
+                </div>
+                <div id="download-app-qr" class="hidden md:flex justify-center lg:justify-end">
+                    <div class="bg-white rounded-2xl p-5 lg:p-6 text-center shadow-xl">
+                        <div class="mx-auto w-40 lg:w-44 h-40 lg:h-44 flex items-center justify-center">
+                            {!! $apkQrSvg !!}
+                        </div>
+                        <p class="mt-3 text-sm font-bold text-gray-900">Hello Store App</p>
+                        <p class="text-xs text-gray-500 mt-0.5">Scan dengan kamera HP-mu</p>
+                        <a href="{{ $apkDownloadUrl }}" class="mt-3 inline-flex items-center justify-center gap-1.5 w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:from-amber-600 hover:to-orange-600 transition">
+                            Unduh Sekarang
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- Download App Mobile CTA --}}
+    <div class="md:hidden fixed bottom-20 right-4 z-40">
+        <a href="{{ url('apk/HelloStore.apk') }}"
+            class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg hover:from-amber-600 hover:to-orange-600 hover:scale-105 transition-all duration-200">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Download App
+        </a>
+    </div>
 @endsection
