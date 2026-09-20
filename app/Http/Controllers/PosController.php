@@ -363,6 +363,7 @@ class PosController extends Controller
     {
         $orders = Order::whereDate('created_at', today())
             ->where('status', 'completed')
+            ->where('user_id', auth()->id())
             ->latest()
             ->get(['id', 'order_number', 'total', 'payment_method', 'payment_status', 'notes', 'created_at']);
 
@@ -546,6 +547,12 @@ class PosController extends Controller
 
     public function printReceipt(Order $order)
     {
+        abort_unless(
+            $order->status === 'completed' && $order->payment_status === 'paid',
+            403,
+            'Struk hanya bisa dicetak untuk transaksi POS yang sudah selesai.'
+        );
+
         return view('pos.print-receipt', compact('order'));
     }
 
