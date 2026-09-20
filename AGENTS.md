@@ -37,6 +37,7 @@
 | `vendor/bin/pint` | Format code dengan Laravel Pint |
 | `php artisan test --filter test_name` | Jalankan test tertentu |
 | `php artisan make:filament-resource ModelName --generate` | Buat Filament resource |
+| `./release-apk.sh [path-ke-APK] [tag]` | Upload APK baru ke GitHub Releases (asset selalu `HelloStore.apk`). Windows: `release-apk.bat`. Butuh `gh` CLI ter-login |
 
 ### Akses
 
@@ -923,6 +924,7 @@
 - Multiple commits up to latest — includes all Phase 1 + Phase 1.5 features
 - Push command: `git push origin master`
 - **APK WAJIB ikut push**: Setiap kali ada perubahan mobile code & build APK baru, file APK (`mobile/HelloStore-v1.0.0-{versionCode}.apk`) WAJIB di-commit & push bersamaan. Jangan biarkan APK hanya di lokal.
+- **APK di-host via GitHub Releases**: InfinityFree memblokir file `.apk` (dihapus otomatis) + batas 10MB/file. APK tidak boleh berada di `public/apk`. Rilis via `./release-apk.sh` → link publik stabil `https://github.com/wforyu/hello-store/releases/latest/download/HelloStore.apk`. QR/download button di storefront nunjuk ke link ini.
 
 ---
 
