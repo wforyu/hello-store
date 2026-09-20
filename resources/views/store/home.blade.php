@@ -286,7 +286,7 @@
     {{-- Download App Banner --}}
     <section class="mt-10 lg:mt-14" id="download-app">
         @php
-            $apkDownloadUrl = url('apk/HelloStore.apk');
+            $apkDownloadUrl = 'https://github.com/wforyu/hello-store/releases/latest/download/HelloStore.apk';
             try {
                 $apkQrSvg = \DNS2D::getBarcodeSVG($apkDownloadUrl, 'QRCODE', 5, 5);
             } catch (\Throwable $e) {
@@ -353,7 +353,7 @@
 
     {{-- Download App Mobile CTA --}}
     <div class="md:hidden fixed bottom-20 right-4 z-40">
-        <a href="{{ url('apk/HelloStore.apk') }}"
+        <a href="https://github.com/wforyu/hello-store/releases/latest/download/HelloStore.apk"
             class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg hover:from-amber-600 hover:to-orange-600 hover:scale-105 transition-all duration-200">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
             Download App

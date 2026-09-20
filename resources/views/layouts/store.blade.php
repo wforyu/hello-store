@@ -242,7 +242,7 @@
                         </button>
                         <div x-cloak x-show="open" @click="open = false" class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 p-5 text-center">
                             @php
-                                $apkNavUrl = url('apk/HelloStore.apk');
+                                $apkNavUrl = 'https://github.com/wforyu/hello-store/releases/latest/download/HelloStore.apk';
                                 $apkNavQr = '';
                                 try {
                                     $apkNavQr = \DNS2D::getBarcodeSVG($apkNavUrl, 'QRCODE', 4, 4);
