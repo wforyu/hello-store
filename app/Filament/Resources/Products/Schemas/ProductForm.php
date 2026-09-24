@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Models\Category;
+use App\Models\Product;
+use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -31,11 +34,17 @@ class ProductForm
                 TextInput::make('name')
                     ->label('Nama')
                     ->required()
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function ($state, $set, $get): void {
+                        if (blank($get('slug'))) {
+                            $set('slug', str($state)->slug());
+                        }
+                    })
                     ->helperText('Nama produk yang akan dilihat pelanggan (contoh: Kemeja Flanel Pria).'),
                 TextInput::make('slug')
                     ->label('Slug')
                     ->required()
-                    ->helperText('Otomatis terisi. Gunakan huruf kecil dan tanda strip.'),
+                    ->helperText('Auto-generated dari nama produk. Gunakan huruf kecil dan tanda strip.'),
                 Textarea::make('description')
                     ->label('Deskripsi')
                     ->columnSpanFull()
@@ -67,7 +76,17 @@ class ProductForm
                     ->helperText('Jumlah barang tersedia. Stok akan berkurang otomatis saat ada pembelian.'),
                 TextInput::make('sku')
                     ->label('SKU')
-                    ->helperText('Kode unik produk untuk identifikasi internal (opsional).'),
+                    ->suffixAction(
+                        Action::make('generateSku')
+                            ->icon('heroicon-o-sparkles')
+                            ->color('warning')
+                            ->tooltip('Generate SKU otomatis')
+                            ->action(function ($set, $get): void {
+                                $category = $get('category_id') ? Category::find($get('category_id')) : null;
+                                $set('sku', Product::generateSku($category?->name));
+                            })
+                    )
+                    ->helperText('Klik ikon ⚡ untuk generate otomatis dari kategori yang dipilih, atau biarkan kosong (akan dibuatkan otomatis saat disimpan).'),
                 TextInput::make('weight')
                     ->label('Berat')
                     ->numeric()
@@ -175,6 +194,16 @@ class ProductForm
                                     ->columnSpan(2),
                                 TextInput::make('sku')
                                     ->label('SKU')
+                                    ->suffixAction(
+                                        Action::make('generateVariantSku')
+                                            ->icon('heroicon-o-sparkles')
+                                            ->color('warning')
+                                            ->tooltip('Generate SKU varian otomatis')
+                                            ->action(function ($set, $get): void {
+                                                $set('sku', Product::generateSku($get('name') ?: null));
+                                            })
+                                    )
+                                    ->helperText('Klik ⚡ untuk generate otomatis.')
                                     ->maxLength(100)
                                     ->columnSpan(1),
                                 TextInput::make('price')

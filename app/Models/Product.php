@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[UseFactory(ProductFactory::class)]
 class Product extends Model
@@ -127,6 +128,23 @@ class Product extends Model
     public function orderDownloads(): HasMany
     {
         return $this->hasMany(OrderDownload::class);
+    }
+
+    public static function generateSku(?string $prefix = null): string
+    {
+        $base = strtoupper(mb_substr((string) preg_replace('/[^A-Za-z0-9]/', '', Str::ascii((string) $prefix)), 0, 4));
+        if ($base === '') {
+            $base = 'PRD';
+        }
+
+        do {
+            $sku = $base.'-'.strtoupper(Str::random(6));
+        } while (
+            static::query()->where('sku', $sku)->exists()
+            || ProductVariant::query()->where('sku', $sku)->exists()
+        );
+
+        return $sku;
     }
 
     public function getMainImageAttribute(): ?string
