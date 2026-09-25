@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 import PromoPopup from '../components/PromoPopup';
 
@@ -203,7 +203,7 @@ export default function HomeScreen({ navigation }) {
     >
       <View style={styles.productImageWrap}>
         <Image
-          source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/200' }}
+          source={getImageSource(item.image)}
           style={styles.productImage}
           resizeMode="cover"
         />
@@ -303,7 +303,7 @@ export default function HomeScreen({ navigation }) {
                   renderItem={({ item }) => (
                     <TouchableOpacity activeOpacity={0.9} style={styles.bannerWrap}>
                       {item.image ? (
-                        <Image source={{ uri: getImageUrl(item.image) }} style={styles.bannerImage} resizeMode="cover" />
+                        <Image source={getImageSource(item.image)} style={styles.bannerImage} resizeMode="cover" />
                       ) : (
                         <View style={[styles.bannerImage, styles.bannerPlaceholder]}>
                           <Text style={styles.bannerPlaceholderTitle}>{item.title}</Text>
@@ -385,7 +385,7 @@ export default function HomeScreen({ navigation }) {
                       activeOpacity={0.7}
                     >
                       <Image
-                        source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/120' }}
+                        source={getImageSource(item.image)}
                         style={styles.flashImage}
                         resizeMode="cover"
                       />
@@ -417,7 +417,7 @@ export default function HomeScreen({ navigation }) {
                     onPress={() => navigation.navigate('BundleDetail', { bundleId: bundle.id })}
                   >
                     {bundle.image ? (
-                      <Image source={{ uri: getImageUrl(bundle.image) }} style={styles.bundleImage} resizeMode="cover" />
+                      <Image source={getImageSource(bundle.image)} style={styles.bundleImage} resizeMode="cover" />
                     ) : (
                       <View style={[styles.bundleImage, styles.bundleImagePlaceholder]}>
                         <Text style={styles.bundleImageEmoji}>🎁</Text>
@@ -466,7 +466,7 @@ export default function HomeScreen({ navigation }) {
                     activeOpacity={0.7}
                   >
                     <Image
-                      source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/120' }}
+                      source={getImageSource(item.image)}
                       style={styles.featuredImage}
                       resizeMode="cover"
                     />

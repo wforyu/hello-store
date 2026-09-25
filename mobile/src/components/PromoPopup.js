@@ -4,7 +4,7 @@ import {
   TouchableWithoutFeedback, Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,7 +44,7 @@ export default function PromoPopup({ popup }) {
             <View style={styles.card}>
               {popup.image && (
                 <Image
-                  source={{ uri: getImageUrl(popup.image) }}
+                  source={getImageSource(popup.image)}
                   style={styles.image}
                   resizeMode="contain"
                 />

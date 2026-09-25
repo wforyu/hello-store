@@ -4,7 +4,7 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 import api from '../api/client';
 
@@ -97,7 +97,7 @@ export default function BundleDetailScreen({ route, navigation }) {
 
       {/* Bundle Image */}
       {bundle.image ? (
-        <Image source={{ uri: getImageUrl(bundle.image) }} style={styles.heroImage} resizeMode="cover" />
+        <Image source={getImageSource(bundle.image)} style={styles.heroImage} resizeMode="cover" />
       ) : (
         <View style={[styles.heroImage, styles.heroPlaceholder]}>
           <Text style={{ fontSize: 60 }}>🎁</Text>
@@ -139,7 +139,7 @@ export default function BundleDetailScreen({ route, navigation }) {
           <View key={product.id} style={styles.productCard}>
             <Text style={styles.productIndex}>{index + 1}</Text>
             {product.image ? (
-              <Image source={{ uri: getImageUrl(product.image) }} style={styles.productImage} resizeMode="contain" />
+              <Image source={getImageSource(product.image)} style={styles.productImage} resizeMode="contain" />
             ) : (
               <View style={[styles.productImage, styles.productImagePlaceholder]}>
                 <Text style={{ fontSize: 18 }}>📦</Text>

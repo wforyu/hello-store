@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 
 export default function WishlistScreen({ navigation }) {
@@ -100,7 +100,7 @@ export default function WishlistScreen({ navigation }) {
         onPress={() => navigation.navigate('ProductDetail', { product })}
         activeOpacity={0.7}
       >
-        <Image source={{ uri: getImageUrl(image) }} style={styles.image} />
+        <Image source={getImageSource(image)} style={styles.image} />
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
           <Text style={styles.price}>{formatPrice(product.price)}</Text>

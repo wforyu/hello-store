@@ -6,7 +6,7 @@ import {
 import { useToast } from '../components/Toast';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 
 export default function SearchScreen({ navigation }) {
@@ -63,7 +63,7 @@ export default function SearchScreen({ navigation }) {
       activeOpacity={0.7}
     >
       <Image
-        source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/80' }}
+        source={getImageSource(item.image)}
         style={styles.image}
         resizeMode="cover"
       />

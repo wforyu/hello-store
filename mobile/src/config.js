@@ -86,6 +86,17 @@ export const getImageUrl = (url) => {
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
+// The host sits behind a UA-based anti-bot wall: any request that is not a
+// known crawler gets an AES challenge page (text/html) instead of the file.
+// <Image> cannot be given a custom User-Agent on its own, so every remote
+// image has to carry the crawler UA explicitly or it silently renders blank.
+export const IMAGE_HEADERS = { 'User-Agent': BOT_UA };
+
+export const getImageSource = (url) => ({
+  uri: getImageUrl(url),
+  headers: IMAGE_HEADERS,
+});
+
 export const COLORS = {
   primary: '#F59E0B',
   primaryDark: '#D97706',

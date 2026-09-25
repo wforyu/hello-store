@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice, STATUS_COLORS } from '../utils';
 
 const TIER_DISCOUNT = { diamond: 0.20, platinum: 0.15, gold: 0.10, silver: 0.05, bronze: 0 };
@@ -340,7 +340,7 @@ export default function CheckoutScreen({ navigation }) {
             <View style={styles.itemImageWrap}>
               {item.image ? (
                 <Image
-                  source={{ uri: getImageUrl(item.image) }}
+                  source={getImageSource(item.image)}
                   style={styles.itemImage}
                   resizeMode="cover"
                 />

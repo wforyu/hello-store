@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 
 export default function CartScreen({ navigation }) {
@@ -71,7 +71,7 @@ export default function CartScreen({ navigation }) {
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
       <Image
-        source={{ uri: getImageUrl(item.image) }}
+        source={getImageSource(item.image)}
         style={styles.itemImage}
       />
       <View style={styles.itemInfo}>

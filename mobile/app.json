@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.hellostore.app",
-      "versionCode": 116,
+      "versionCode": 117,
       "adaptiveIcon": {
         "backgroundColor": "#FEF3C7",
         "foregroundImage": "./assets/android-icon-foreground.png",

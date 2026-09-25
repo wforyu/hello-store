@@ -6,7 +6,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useAlert } from '../context/AlertContext';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice, STATUS_COLORS, STATUS_LABELS } from '../utils';
 
 function parsePPN(notes) {
@@ -352,7 +352,7 @@ export default function TrackOrderScreen() {
           {order.payment.proof_image_url && (
             <View style={{ marginTop: 10 }}>
               <Image
-                source={{ uri: getImageUrl(order.payment.proof_image_url) }}
+                source={getImageSource(order.payment.proof_image_url)}
                 style={styles.proofImage}
                 resizeMode="cover"
               />

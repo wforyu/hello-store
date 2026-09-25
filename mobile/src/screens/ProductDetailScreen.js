@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../components/Toast';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
 
 export default function ProductDetailScreen({ route, navigation }) {
@@ -175,7 +175,7 @@ export default function ProductDetailScreen({ route, navigation }) {
         ) : (
           <>
             <Image
-              source={{ uri: getImageUrl(images[selectedImage]?.url || product.image) }}
+              source={getImageSource(images[selectedImage]?.url || product.image)}
               style={styles.mainImage}
               resizeMode="contain"
             />
@@ -184,7 +184,7 @@ export default function ProductDetailScreen({ route, navigation }) {
                 {images.map((img, idx) => (
                   <TouchableOpacity key={idx} onPress={() => setSelectedImage(idx)}>
                     <Image
-                      source={{ uri: getImageUrl(img.url) }}
+                      source={getImageSource(img.url)}
                       style={[
                         styles.thumb,
                         idx === selectedImage && styles.thumbActive,

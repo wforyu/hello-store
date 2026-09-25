@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import LoginPrompt from '../components/LoginPrompt';
 import api from '../api/client';
-import { COLORS, getImageUrl } from '../config';
+import { COLORS, getImageSource } from '../config';
 import { formatPrice, STATUS_COLORS, STATUS_LABELS } from '../utils';
 
 export default function OrderDetailScreen({ route, navigation }) {
@@ -318,7 +318,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             <View style={{ marginTop: 10 }}>
               <Text style={[styles.detailRow, { fontWeight: '500', marginBottom: 6 }]}>Bukti Pembayaran:</Text>
               <Image
-                source={{ uri: getImageUrl(order.payment.proof_image_url) }}
+                source={getImageSource(order.payment.proof_image_url)}
                 style={styles.proofImage}
                 resizeMode="cover"
               />
