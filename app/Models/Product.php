@@ -20,6 +20,15 @@ class Product extends Model
 
     protected static function booted(): void
     {
+        // products.slug is UNIQUE and NOT NULL. The Filament form auto-fills it
+        // and validates uniqueness, so this only backstops the other write
+        // paths (seeder, import, API) instead of throwing a raw 500.
+        static::saving(function (Product $product): void {
+            if (blank($product->slug) && filled($product->name)) {
+                $product->slug = Str::slug($product->name);
+            }
+        });
+
         static::saved(function (Product $product) {
             if ($product->wasRecentlyCreated || $product->wasChanged('images')) {
                 $product->productImages()->delete();

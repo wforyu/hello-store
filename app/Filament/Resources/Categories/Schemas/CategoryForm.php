@@ -22,9 +22,19 @@ class CategoryForm
                 TextInput::make('name')
                     ->label('Nama')
                     ->required()
+                    ->maxLength(255)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function ($state, $set, $get): void {
+                        if (blank($get('slug'))) {
+                            $set('slug', str($state)->slug());
+                        }
+                    })
                     ->helperText('Nama kategori yang akan tampil di toko (contoh: Elektronik, Fashion Pria).'),
                 TextInput::make('slug')
                     ->label('Slug')
+                    ->required()
+                    ->maxLength(255)
+                    ->unique(ignoreRecord: true)
                     ->helperText('Otomatis terisi dari nama. Gunakan huruf kecil dan tanda strip (contoh: fashion-pria).'),
                 Textarea::make('description')
                     ->label('Deskripsi')

@@ -44,7 +44,9 @@ class ProductForm
                 TextInput::make('slug')
                     ->label('Slug')
                     ->required()
-                    ->helperText('Auto-generated dari nama produk. Gunakan huruf kecil dan tanda strip.'),
+                    ->maxLength(255)
+                    ->unique(ignoreRecord: true)
+                    ->helperText('Auto-generated dari nama produk. Gunakan huruf kecil dan tanda strip. Harus unik.'),
                 Textarea::make('description')
                     ->label('Deskripsi')
                     ->columnSpanFull()
