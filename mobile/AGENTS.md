@@ -68,11 +68,39 @@ gradlew clean → gradlew assembleRelease
 | `npx expo export --platform android` | Export JS bundle saja (bukan APK) | ~30 detik |
 
 ### Build Checklist
-1. Bump `versionCode` di `mobile/app.json` (sekarang: 101)
+1. Bump `versionCode` di **`mobile/android/app/build.gradle`** (source of truth) **DAN** `mobile/app.json` (sekarang: 117, harus selalu sama)
 2. Pastikan keystore ada di `android/keystore/hello-store.keystore`
 3. Jalankan build command di atas (working directory: `mobile/android/`)
 4. APK output: `mobile/android/app/build/outputs/apk/release/app-release.apk`
 5. Copy ke `mobile/HelloStore-v1.0.0-{versionCode}.apk` untuk distribusi
+
+> **WAJIB:** `app.json` **tidak** mengendalikan Gradle. Dulu `app.json` sudah 116
+> sementara `build.gradle` masih 104, jadi APK "105"–"116" sebenarnya semua
+> versionCode 104 dan device tidak bisa upgrade APK-to-APK. **Selalu bump
+> keduanya, dan cek ulang dengan:**
+> ```
+> aapt2 dump badging app-release.apk | Select-String "versionCode"
+> ```
+
+### Release ke GitHub
+```
+./release-apk.sh mobile/HelloStore-v1.0.0-{versionCode}.apk
+```
+Dari repo root. Di PowerShell panggil lewat `C:\Program Files\Git\bin\bash.exe`
+(`bash` tidak ada di PATH). Jangan pakai `release-apk.bat` — ada `pause`
+yang menggantung di environment non-interaktif.
+
+**Dua jebakan yang sudah diperbaiki (jangan dibalik):**
+
+| Jebakan | Akibat | Perbaikan di script |
+|---|---|---|
+| `gh release create "$APK#HelloStore.apk"` | `#` itu **label**, bukan nama file. Aset keupload sebagai `HelloStore-v1.0.0-117.apk` → link permanen `.../download/HelloStore.apk` **404** | Stage dulu ke nama `HelloStore.apk` sebelum upload, lalu ada sanity check `grep -qx` yang `exit 1` kalau nama meleset |
+| Release/tag lama di-recreate dengan `--latest` | GitHub pilih "latest" berdasarkan **tanggal publish**, bukan nomor versi → tag lama jadi "latest" → website menyajikan APK **lama** | Guard `versionCode`: tolak downgrade sebelum release dihapus. Override: `RELEASE_FORCE=1` |
+
+Storefront (navbar + tombol download + QR di `home.blade.php`) semuanya pakai
+link permanen `releases/latest/download/HelloStore.apk` — **tanpa nomor versi**.
+Jadi tidak perlu edit website tiap release; tapi **nama asset harus selalu
+persis `HelloStore.apk`** dan harus selalu release terbaru.
 
 ### Incremental Build (Perubahan JS/React saja)
 Kalau cuma ubah JS/React (bukan native code), pakai incremental build:
