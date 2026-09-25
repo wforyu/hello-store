@@ -35,6 +35,7 @@
 | `php artisan migrate` | Jalankan migrations |
 | `php artisan migrate:fresh --seed` | Reset DB + seed (categories, products, users, expense categories, settings, PPN defaults) |
 | `vendor/bin/pint` | Format code dengan Laravel Pint |
+| `php scripts/patch-livewire-tempfile.php` | Terapkan patch vendor Livewire untuk upload di shared hosting (otomatis via hook Composer) |
 | `php artisan test --filter test_name` | Jalankan test tertentu |
 | `php artisan make:filament-resource ModelName --generate` | Buat Filament resource |
 | `./release-apk.sh [path-ke-APK] [tag]` | Upload APK baru ke GitHub Releases (asset selalu `HelloStore.apk`). Windows: `release-apk.bat`. Butuh `gh` CLI ter-login |
@@ -917,6 +918,10 @@
 - **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
 
 ---
+
+- **Upload gambar Filament 500 di shared hosting (`open_basedir`)**: `Livewire\...\TemporaryUploadedFile::__construct()` memakai `tmpfile()` lalu meneruskan path-nya ke `Symfony\...\File::__construct($path, $checkPath: true)` yang memanggil `is_file()`. Di host sandboxed (InfinityFree) system temp dir berada di luar `open_basedir`, jadi `is_file()` false → `FileNotFoundException` (RuntimeException, BUKAN TypeError) → Livewire hanya catch `\TypeError` → HTTP 500 "Terjadi error ketika memuat halaman". **Fix: `scripts/patch-livewire-tempfile.php`** (auto jalan via hook Composer `post-install-cmd` / `post-update-cmd` / `post-autoload-dump`). Patch idempotent dan exit 1 kalau Livewire mengubah kode upstream. JANGAN edit `vendor/` manual.
+- **Diagnosa 500 Livewire tanpa akses log**: `_startUpload` (200) + direct POST ke signed URL (200) + `_finishUpload` (500) = masalah di `TemporaryUploadedFile`/dehydrate, BUKAN di session/CSRF/quota. Kirim payload langsung ke `/livewire-<prefix>/update` dengan header `X-Livewire: 1`. `_finishUpload` dengan path tak bertanda tangan → **403 "Invalid upload reference"** = preamble aman. `_finishUpload` dengan `name` di luar schema tetap 500 = masalah global, bukan field spesifik.
+- **`.htaccess` root di InfinityFree**: rule `RewriteRule ^storage/(.*)$ /storage/app/public/$1 [END]` harus berada **SESUDAH** semua rule blokir (`\.env`, `storage/framework/`, `storage/logs/`, `storage/app/private/`, `database/`, `\.git/`), karena `[END]` menghentikan semua rewrite berikutnya. Kalau urutannya salah, rule blokir jadi dead code dan `storage/logs/laravel.log` tidak bisa diambil via HTTP (dapat 302/404, bukan 403).
 
 ## Git & GitHub
 

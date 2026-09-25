@@ -54,12 +54,17 @@
             "@php artisan test"
         ],
         "post-autoload-dump": [
+            "@php scripts/patch-livewire-tempfile.php",
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
             "@php artisan filament:upgrade"
         ],
         "post-update-cmd": [
+            "@php scripts/patch-livewire-tempfile.php",
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-install-cmd": [
+            "@php scripts/patch-livewire-tempfile.php"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
