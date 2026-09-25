@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast';
 import api from '../api/client';
 import { COLORS, getImageSource } from '../config';
 import { formatPrice } from '../utils';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function ProductDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -199,8 +200,18 @@ export default function ProductDetailScreen({ route, navigation }) {
               <View style={styles.nameRow}>
                 <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
                 <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-                    <Text style={styles.shareIcon}>↗</Text>
+                  <TouchableOpacity
+                    style={styles.shareBtn}
+                    onPress={handleShare}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Bagikan produk"
+                  >
+                    <MaterialIcons
+                      name="share"
+                      size={20}
+                      color={COLORS.textSecondary}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.wishlistBtn}
@@ -379,7 +390,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 4, flex: 1, marginRight: 8 },
   actionRow: { flexDirection: 'row', alignItems: 'center' },
   shareBtn: { padding: 6, marginRight: 4 },
-  shareIcon: { fontSize: 20, color: COLORS.textSecondary },
   wishlistBtn: { padding: 4 },
   wishlistIcon: { fontSize: 24, color: COLORS.error },
   category: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 8 },
