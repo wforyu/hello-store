@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlert } from '../context/AlertContext';
 import { useToast } from '../components/Toast';
 import api from '../api/client';
-import { COLORS, getImageSource } from '../config';
+import { COLORS, getImageSource, getStoreUrl } from '../config';
 import { formatPrice } from '../utils';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -152,7 +152,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   };
 
   const handleShare = async () => {
-    const url = `https://hellostore.test/product/${product.slug || product.id}`;
+    const url = getStoreUrl(`/product/${product.slug || product.id}`);
     try {
       await Share.share({
         message: `Cek produk ini di Hello Store: ${product.name}\n${url}`,

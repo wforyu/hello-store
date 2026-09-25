@@ -79,11 +79,25 @@ export const testApiUrl = async (url) => {
   }
 };
 
+// Base URL of the running store, always without a trailing slash so callers
+// never build a "//path" URL. `mobile_api_url` in the admin settings is stored
+// with a trailing slash, and _cachedUrl is replaced wholesale by
+// checkForUrlUpdate(), so strip it here rather than at every call site.
+const currentBaseUrl = () => (_cachedUrl || FALLBACK_API_URL).replace(/\/+$/, '');
+
 export const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/200';
   if (url.startsWith('http')) return url;
-  const base = _cachedUrl || FALLBACK_API_URL;
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+  return getStoreUrl(url);
+};
+
+// Public storefront URL (the API host serves the storefront too), so a shared
+// product link always points at whichever domain this build is talking to.
+// Never hardcode the domain here: it changes when admin edits mobile_api_url.
+export const getStoreUrl = (path = '') => {
+  const base = currentBaseUrl();
+  if (!path) return base;
+  return `${base}/${String(path).replace(/^\/+/, '')}`;
 };
 
 // The host sits behind a UA-based anti-bot wall: any request that is not a
