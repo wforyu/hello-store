@@ -66,6 +66,39 @@ fi
 echo ">> Tag: $TAG"
 echo ">> Upload asset sebagai: $ASSET_NAME"
 
+# ---- Guard: jangan pernah turunkan versi "latest" ----
+# Link permanen di website (releases/latest/download/HelloStore.apk) ikut
+# release yang GitHub tandai "latest". GitHub memilihnya berdasarkan TANGGAL
+# PUBLISH, bukan nomor versi. Jadi kalau release lama (mis. 116) dihapus lalu
+# dibuat ulang, tag itu jadi paling baru DIBUAT -> otomatis jadi "latest" ->
+# seluruh user download APK LAMA tanpa sadar.
+# Tolak Publishing versi yang lebih lama, kecuali dipaksa lewat RELEASE_FORCE=1.
+version_code_of() { [[ "$1" =~ -([0-9]+)$ ]] && echo "${BASH_REMATCH[1]}"; }
+
+NEW_CODE="$(version_code_of "$TAG")"
+CURRENT_TAG="$(gh api "repos/${REPO}/releases/latest" --jq '.tag_name' 2>/dev/null || true)"
+CURRENT_CODE="$(version_code_of "$CURRENT_TAG")"
+
+if [[ -n "$NEW_CODE" && -n "$CURRENT_CODE" && "$TAG" != "$CURRENT_TAG" && "$NEW_CODE" -le "$CURRENT_CODE" ]]; then
+    if [[ "${RELEASE_FORCE:-0}" != "1" ]]; then
+        echo "" >&2
+        echo "ERROR: VERSI MENURUN - refusing to publish." >&2
+        echo "       Tag yang mau di-upload : $TAG (versionCode $NEW_CODE)" >&2
+        echo "       Release 'latest' sekarang: $CURRENT_TAG (versionCode $CURRENT_CODE)" >&2
+        echo "" >&2
+        echo "  Kalau ini di-publish, GitHub akan menandai $TAG sebagai 'latest',"
+        echo "  dan link download di website akan menyajikan APK LAMA (v$NEW_CODE)," >&2
+        echo "  bukan v$CURRENT_CODE yang sekarang." >&2
+        echo "" >&2
+        echo "  Bump versionCode dulu di mobile/android/app/build.gradle + mobile/app.json," >&2
+        echo "  lalu release ulang. Kalau memang mau memaksa (tahu risikonya):" >&2
+        echo "      RELEASE_FORCE=1 ./release-apk.sh <file.apk>" >&2
+        exit 1
+    fi
+    echo "WARNING: RELEASE_FORCE=1 - tetap publish $TAG (> $CURRENT_CODE) sebagai 'latest'." >&2
+    echo "         Website akan menyajikan APK v$NEW_CODE sampai ada release yang lebih baru." >&2
+fi
+
 # ---- Hapus release & tag lama dengan nama yang sama (kalau re-run) ----
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
     echo ">> Release $TAG sudah ada — hapus dulu biar asset diganti..."
