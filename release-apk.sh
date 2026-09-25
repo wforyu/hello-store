@@ -76,16 +76,49 @@ if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
     git tag -d "$TAG" 2>/dev/null || true
 fi
 
-# ---- Create release (file sementara di-rename jadi HelloStore.apk) ----
+# ---- Create release (asset di-upload dengan nama persis "HelloStore.apk") ----
+# PENTING: jangan pakai sintaks "file.apk#Label" dari gh release create.
+# Itu mengatur *label*, bukan *nama* asset, jadi filenya tetap terupload
+# dengan nama aslinya (mis. HelloStore-v1.0.0-117.apk) dan link permanen
+# .../releases/latest/download/HelloStore.apk jadi 404.
+# Jadi: salin dulu ke nama sementara "HelloStore.apk", lalu upload itu.
+STAGE_DIR="$(mktemp -d)"
+trap 'rm -rf "$STAGE_DIR"' EXIT
+STAGED_APK="$STAGE_DIR/$ASSET_NAME"
+cp "$APK_FILE" "$STAGED_APK"
+
 echo ">> Membuat release & upload APK ($(du -h "$APK_FILE" | cut -f1))..."
-gh release create "$TAG" "$APK_FILE#$ASSET_NAME" "$@" \
+if ! gh release create "$TAG" "$STAGED_APK" \
     --repo "$REPO" \
     --title "Hello Store ${TAG}" \
     --notes "- Aplikasi Android Hello Store (APK)
 - Download lalu buka file di HP Android (izinkan instal dari 'Sumber Tidak Dikenal' jika diminta)" \
-    --latest
+    --latest; then
+    # gh release create gagal saat upload asset (mis. transient 404 dari
+    # uploads.github.com) dan karena `set -e` proses berhenti di tengah —
+    # release pun bisa tertinggal setengah jadi. Buang dulu, lalu coba lagi
+    # dengan urutan: buat release kosong, baru upload terpisah.
+    echo ">> Upload via create gagal — buat release dulu, upload terpisah..."
+    sleep 5
+    gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 \
+        && gh release delete "$TAG" --repo "$REPO" --yes
+    gh release create "$TAG" --repo "$REPO" \
+        --title "Hello Store ${TAG}" \
+        --notes "- Aplikasi Android Hello Store (APK)
+- Download lalu buka file di HP Android (izinkan instal dari 'Sumber Tidak Dikenal' jika diminta)" \
+        --latest
+    gh release upload "$TAG" "$STAGED_APK" --repo "$REPO" --clobber
+fi
 
 DL_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
+
+# Sanity check: link permanen hanya valid kalau nama asset persis HelloStore.apk
+if ! gh api "repos/${REPO}/releases/tags/${TAG}" --jq ".assets[].name" 2>/dev/null | grep -qx "$ASSET_NAME"; then
+    echo "ERROR: asset bernama '$ASSET_NAME' tidak ditemukan di release $TAG." >&2
+    echo "       Link permanen akan 404: $DL_URL" >&2
+    exit 1
+fi
+
 echo
 echo "============================================================"
 echo "  SELESAI ✓"
