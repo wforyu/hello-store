@@ -883,6 +883,87 @@
 
 ---
 
+## 🔜 ROADMAP: Video (BELUM diimplementasikan)
+
+> Status: **rencana saja**. Belum ada migration, kolom, atau view video di repo.
+> Ditulis 2026-09-27 setelah user tanya "apakah bisa pakai video di web seperti iklan Shopee".
+
+### Verdict: BISA, dan self-hosted aman
+
+Awalnya bandwidth dianggap blocker, tapi ternyata **hosting lo punya bandwidth Unlimited**,
+jadi video nggak perlu dipindah ke YouTube/Vimeo.
+
+Snapshot quota InfinityFree (dicek 2026-09-27):
+
+| Sumber | Dipakai | Sisa | Catatan |
+|---|---|---|---|
+| Bandwidth | 315 MB | **Unlimited** | ✅ blocker bandwidth gugur |
+| Disk | 222 MB | 4778 MB (quota 5 GB) | ~70 MB untuk ~35 video kecil |
+| Inodes | 27821 | 22179 (dari 80000) | 1 video = 1 inode |
+| Daily hits | 3397 | 46063 (dari 50000) | video = 1 request, nggak proliferate hits |
+
+Disk cuma jadi masalah kalau upload **hasil camera mentah** (~500 MB/file), bukan karena
+jumlah video. Karena itu **kompresi adalah kewajiban**, bukan opsional.
+
+### Gate yang belum terverifikasi: batas upload PHP
+
+`upload_max_filesize` / `post_max_size` **tidak muncul** di halaman stats InfinityFree.
+Jangan menebak angkanya — cek di control panel → **PHP Configuration / Modify PHP Settings**.
+
+**Design-around (dipakai kalau males ngecek):** target **≤ 2 MB per video**. Dengan begitu
+limit 2 MB / 8 MB / 64 MB sama-sama aman. Ini nggak mengurangi kualitas karena video
+iklan emang durasinya pendek.
+
+> Kalau memang perlu cek, **JANGAN** taruh `phpinfo.php` di domain publik — dia membocorkan
+> path server, versi PHP, dan konfigurasi session. Kalau terlanjur, hapus seketika.
+
+### Spesifikasi target video
+
+| Properti | Nilai | Alasan |
+|---|---|---|
+| Container | MP4 | kompatibilitas browser broadest |
+| Codec | H.264 | satu-satunya yang aman di semua browser |
+| Audio | **tanpa audio track** | hemat 10-15% ukuran; autoplay jadi lebih mulus |
+| Resolusi | 720p (1280×720) atau vertikal 1080×1920 | vertikal = vibe TikTok/Shopee |
+| Bitrate | ~1 Mbps | |
+| Durasi | 6-15 detik | format iklan |
+| **Hasil perkiraan** | 10 detik ≈ **1,3 MB** | muat di limit apa pun |
+
+### Infrastruktur: NOL perubahan
+
+Sudah diverifikasi bahwa `.htaccess` yang ada **aman** untuk video:
+
+- `storage/app/public/.htaccess` hanya memblokir extension script (`.php`, `.cgi`, dst).
+  `mp4`/`webm` tidak ada di `RemoveHandler`, `RemoveType`, maupun `FilesMatch` → aman.
+  `X-Content-Type-Options: nosniff` juga aman asal server kirim `Content-Type: video/mp4` benar.
+- Root `.htaccess`: rule `^storage/app/` yang memblokir berada **sebelum** rule rewrite, dan
+  request video masuk lewat `/storage/products/videos/x.mp4` (tanpa `app/`) → di-rewrite
+  internal ke `/storage/app/public/...`, sehingga tidak kena blokir.
+- Semua **tidak bisa** `ffmpeg`/exec di shared hosting → resize/compress harus dilakukan
+  di luar (HandBrake / CapCut, gratis).
+
+### Rencana implementasi (urutan)
+
+1. **Fase 1 — video hero di homepage** (disarankan duluan)
+   Kolom `video` nullable di tabel `sliders` + `poster` (thumbnail).
+   Cuma 2-3 file, tapi paling "mahal" secara visual.
+2. **Fase 2 — video per produk** (opsional, kalau kuota masih aman)
+   Kolom `video` + `poster` di `products`, `preload="none"`, lazy-load saat halaman dibuka.
+
+### Gotcha wajib waktu implementasi
+
+- **Allowlist MIME video TERPISAH** dari allowlist gambar. Jangan longgarkan aturan gambar
+  yang sudah dipatch, dan **SVG harus tetap ditolak**. Cukup `video/mp4` + `video/webm`.
+- `<video>` wajib punya **`poster`** — tanpa itu ada kotak kosong sambil loading di koneksi
+  lambat. Poster yang bikin halaman "~rasa cepat", bukan videonya.
+- Autoplay hanya jalan kalau **harus** `muted` + `playsinline` (iOS Safari refuses otherwise).
+- Jangan pakai `autoplay` di halaman yang punya banyak video (boros kuota CPU/bandwidth user).
+- `disk('public')` eksplisit di FileUpload — default disk bisa private setelah hardening.
+- Lazy-load dengan Alpine.js `x-intersect` (pola yang sama dipakai widget dashboard), atau
+  IntersectionObserver, supaya video produk tidak diunduh sebelum dilihat.
+
+---
+
 ## Gate & Middleware
 
 - `Gate::define('access-pos', fn ($user) => in_array($user->role, ['admin', 'cashier']))` di `AppServiceProvider::boot()`
