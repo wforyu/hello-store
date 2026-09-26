@@ -298,7 +298,7 @@
 - Brand: "Hello Store" dengan favicon SVG
 - Navigation groups: Tampilan, Keuangan, Pengaturan, Produk, Pesanan, Pengguna
 - Tooltip helper script untuk sidebar items
-- Widgets auto-discovered
+- Widgets didaftarkan **eksplisit** di `AdminPanelProvider.php` (`->widgets([...])`) — BUKAN auto-discovery. Widget baru wajib ditambah ke list itu, kalau tidak file-nya ada tapi tidak muncul di dashboard.
 - **`formatRupiah` JS** — IIFE mendefinisikan fungsi global + capture-phase `document.addEventListener('input', ...)` untuk auto-dot formatting pada input dengan `wire:model` mengandung `price|subtotal|shipping|total|amount` (menggunakan `.fi-input` selector). Dipanggil via event delegation, bukan `extraInputAttributes`.
 
 ### Resources (23)
@@ -330,7 +330,7 @@
 | Pengguna | Social Follow Claims | SocialFollowClaim | `Users` |
 | Pengguna | Audit Logs | AuditLog | `DocumentText` |
 
-### Widgets (15)
+### Widgets (16)
 
 | Widget | Type | Sort | Colspan | Fungsi |
 |---|---|---|---|---|---|
@@ -349,6 +349,7 @@
 | **SalesTargetWidget** | Chart | 5 | full | Sales target vs actual chart |
 | **RecentOrdersWidget** | Table | 6 | full | Table 10 pesanan terakhir dengan status badges |
 | **ActivityTimelineWidget** | Table | 6 | full | Recent activity timeline |
+| **TotalAsetWidget** | Stats | 15 | full | 6 stat card (all-time): Jumlah Produk (unit + SKU), Total Modal Persediaan, Nilai Jual Persediaan, Potensi Laba Stok, Laba Kotor, Laba Bersih |
 
 ### Custom Table Filters
 - **ProductsTable**: `SelectFilter::make('stock')` — "Stok Menipis (≤ 5)" dan "Habis (0)" dengan custom `query()` callback
@@ -379,6 +380,8 @@
 - **`TableWidget` grouped queries**: Untuk aggregated data (SUM, COUNT, GROUP BY), SELECT harus include `MAX(table.id) as id` sebagai record key. `getTableRecordKey()` expects string, null akan throw TypeError.
 - **`<x-filament::table>` TIDAK ADA**: Tidak ada Blade component untuk table di Filament 5.6. Tabel render via PHP `Table` class. Untuk custom views, pakai `<table>` HTML biasa.
 - **`<x-filament-widgets::widget>` wrapper**: Hanya `<div>` dengan grid column class (`fi-wi-widget`) — TIDAK memberikan card styling. Card look berasal dari inner component CSS (table component, dll).
+- **Widget di-lazy-load**: HTML render awal dashboard hanya berisi placeholder `Loading..` (atribut `x-intersect="$wire.__lazyLoad(...)"`). Test Livewire **tidak bisa** `assertSee('Isi Card')` — yang bisa dicek adalah `assertSee('App\Filament\Widgets\NamaWidget')` untuk membuktikan registrasi. Untuk konten card, test widget-nya langsung (`Livewire::test(NamaWidget::class)`), bukan halaman Dashboard.
+- **Paket deploy ZIP di Windows**: `ZipFile::CreateFromDirectory()` menulis entry path dengan **backslash** (`app\Http\Controllers\X.php`). Di server Linux itu diekstrak sebagai **nama file literal** di root htdocs, bukan folder — file jadi tidak jalan. Bangun zip dengan `$zip->CreateEntry($relPath)` manual dan normalisasi separator ke `/`. Verifikasi: `verify-packages.ps1` di folder paket.
 
 ---
 
@@ -503,7 +506,7 @@
 ### 6. Filament Admin Panel
 - Schema-based forms (`Filament\Schemas\Schema`, bukan `Filament\Forms\Form`)
 - 23 resources + 2 custom pages (Settings, Reports, Help Center)
-- 15 dashboard widgets
+- 16 dashboard widgets
 - Dark mode, Amber primary, Bahasa Indonesia labels
 - Tooltip helper JavaScript untuk sidebar navigation items (di `AdminPanelProvider.php`)
 - Auto-dot price formatting via event delegation
@@ -863,6 +866,20 @@
 - **App.js**: Calls `checkForUrlUpdate()` on mount before splash finishes
 - **AppNavigator.js**: Registers `AppSettings` screen (Stack)
 - **Deploy workflow**: Admin changes `mobile_api_url` in Filament → mobile app auto-detects on next launch — NO rebuild needed
+
+### 54. Widget Total Aset (Nilai Persediaan & Laba)
+- **File**: `app/Filament/Widgets/TotalAsetWidget.php`, sort `15`, colspan `full`
+- **WAJIB daftarkan di `AdminPanelProvider.php` `->widgets([...])`** — kalau hanya bikin file widget tanpa mendaftarkannya, widget tidak muncul di dashboard sama sekali
+- 6 stat card all-time: Jumlah Produk (unit + SKU), Total Modal Persediaan, Nilai Jual Persediaan, Potensi Laba Stok, Laba Kotor, Laba Bersih
+- **Stok parent + varian dijumlahkan**: `products.stock` decrement saat checkout non-varian, `product_variants.stock` decrement saat checkout varian. Stok varian TIDAK tersinkron ke parent, jadi dua-duanya wajib dijumlahkan agar tidak terlewat
+- **Modal varian memakai `cost_price` produk induk** — `product_variants` tidak punya kolom `cost_price` sendiri
+- Query varian pakai `join('products')` + `whereNull('products.deleted_at')` karena raw join **membypass SoftDeletes scope** produk
+- `cost_price` nullable/0 → `SUM` mengabaikannya, jadi ada counter `produk_tanpa_modal`; card modal diberi `warning` + deskripsi "N produk belum diisi modal (harga beli)" supaya admin tahu angkanya under-report
+- **HPP = `SUM(order_items.quantity * products.cost_price)`** untuk order `payment_status = paid`, pakai `cost_price` **saat ini** (bukan harga beli saat transaksi) — konsisten dengan `FinanceOverview` & `EnhancedStatsOverviewWidget`
+- Laba kotor = pendapatan lunas − HPP; laba bersih = laba kotor − `expenses.amount`
+- `assetSummary()` dipisah dari `getStats()` supaya angka mentahnya bisa diuji tanpa render
+- **`cost_price` SUDAH ada** di `ProductForm` (label "Harga Modal", `prefix('Rp')`) — tidak perlu ditambah
+- Test: `tests/Feature/TotalAsetWidgetTest.php` (7 test) — parent+varian, produk tanpa modal, soft-deleted, laba kotor/bersih, order unpaid, toko kosong, render Livewire
 
 ---
 

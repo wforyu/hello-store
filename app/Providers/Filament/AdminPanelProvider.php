@@ -19,6 +19,7 @@ use App\Filament\Widgets\StorePerformanceWidget;
 use App\Filament\Widgets\TopCashiersTableWidget;
 use App\Filament\Widgets\TopCategoriesTableWidget;
 use App\Filament\Widgets\TopProductsTableWidget;
+use App\Filament\Widgets\TotalAsetWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -85,6 +86,7 @@ class AdminPanelProvider extends PanelProvider
                 SalesTargetWidget::class,
                 RecentOrdersWidget::class,
                 ActivityTimelineWidget::class,
+                TotalAsetWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
