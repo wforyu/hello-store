@@ -158,20 +158,20 @@ class GuestOrderController extends Controller
             ], 403);
         }
 
-        if ($order->status !== 'shipped') {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Pesanan tidak dalam status dikirim.',
-            ], 422);
-        }
+        $confirmed = DB::transaction(function () use ($order) {
+            $affected = Order::whereKey($order->getKey())
+                ->where('status', 'shipped')
+                ->update([
+                    'status' => 'delivered',
+                    'delivered_at' => now(),
+                    'payment_status' => 'paid',
+                ]);
 
-        DB::transaction(function () use ($order) {
-            $order->update([
-                'status' => 'delivered',
-                'delivered_at' => now(),
-                'payment_status' => 'paid',
-            ]);
+            if ($affected === 0) {
+                return false;
+            }
+
+            $order->refresh();
 
             if ($order->user_id) {
                 $user = $order->user;
@@ -187,7 +187,17 @@ class GuestOrderController extends Controller
                     $user->autoUpgradeSegment();
                 }
             }
+
+            return true;
         });
+
+        if (! $confirmed) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Pesanan tidak dalam status dikirim.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
@@ -206,21 +216,20 @@ class GuestOrderController extends Controller
             ], 403);
         }
 
-        if ($order->status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Hanya pesanan dengan status menunggu yang dapat dibatalkan.',
-            ], 422);
-        }
+        $cancelled = DB::transaction(function () use ($order) {
+            $affected = Order::whereKey($order->getKey())
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
 
-        DB::transaction(function () use ($order) {
+            if ($affected === 0) {
+                return false;
+            }
+
+            $order->refresh();
             $order->load('items.product');
-
-            $order->update([
-                'status' => 'cancelled',
-                'cancelled_at' => now(),
-            ]);
 
             foreach ($order->items as $item) {
                 if (! empty($item->product_variant_id)) {
@@ -240,7 +249,17 @@ class GuestOrderController extends Controller
                     }
                 }
             }
+
+            return true;
         });
+
+        if (! $cancelled) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Hanya pesanan dengan status menunggu yang dapat dibatalkan.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,

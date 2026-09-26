@@ -318,7 +318,7 @@
 
                     {{-- Points --}}
                     @auth
-                        @php $userPoints = auth()->user()->points ?? 0; @endphp
+                        @php $userPoints = auth()->user()->points ?? 0; $maxRedeemPercent = auth()->user()->getMaxRedeemPercent(); @endphp
                         @if($userPoints > 0)
                             <div class="mt-4 pt-4 border-t border-gray-100">
                                 <h3 class="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
@@ -329,9 +329,9 @@
                                 <div class="flex gap-2 items-center">
                                     <input type="number" name="use_points" id="use_points" min="0" max="{{ $userPoints }}" value="0"
                                         class="w-28 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
-                                        @input.debounce="pointsUsed = Math.min(parseInt($el.value) || 0, {{ $userPoints }}, Math.floor((subtotal + selectedCost) * 0.5))">
+                                        @input.debounce="pointsUsed = Math.min(parseInt($el.value) || 0, {{ $userPoints }}, Math.floor((subtotal + selectedCost) * {{ $maxRedeemPercent }}))">
                                     <span class="text-xs text-gray-400">= Rp <span x-text="Math.floor(pointsUsed)">{{ 0 }}</span> diskon</span>
-                                    <span class="text-xs text-gray-400">(1 poin = Rp1, maks 50% total)</span>
+                                    <span class="text-xs text-gray-400">(1 poin = Rp1, maks {{ (int) round($maxRedeemPercent * 100) }}% total)</span>
                                 </div>
                             </div>
                         @endif

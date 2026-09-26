@@ -33,6 +33,7 @@ class BrandForm
                 FileUpload::make('logo')
                     ->label('Logo Brand')
                     ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->maxSize(1024)
                     ->directory('brands'),
                 TextInput::make('website')

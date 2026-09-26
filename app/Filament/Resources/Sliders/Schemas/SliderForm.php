@@ -26,11 +26,13 @@ class SliderForm
                 FileUpload::make('image')
                     ->label('Gambar')
                     ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
                     ->columnSpanFull()
                     ->helperText('Gambar slider. Ukuran recommended: 1200×600px.'),
                 TextInput::make('link')
                     ->label('Tautan')
-                    ->helperText('Link tujuan saat slide diklik (contoh: /products atau URL lengkap).'),
+                    ->rules(['nullable', 'string', 'max:2048', 'regex:/^(https?:\/\/|\/|#|mailto:)/i'])
+                    ->helperText('Link tujuan saat slide diklik. WAJIB diawali http://, https://, / , #, atau mailto:.'),
                 TextInput::make('link_label')
                     ->label('Label Tombol')
                     ->helperText('Teks tombol CTA (contoh: "Lihat Promo").'),

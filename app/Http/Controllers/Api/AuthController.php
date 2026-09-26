@@ -54,12 +54,13 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::create([
+        $user = new User;
+        $user->forceFill([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'customer',
-        ]);
+        ])->save();
 
         $token = $user->createToken('mobile')->plainTextToken;
 

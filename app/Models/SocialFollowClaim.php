@@ -39,6 +39,10 @@ class SocialFollowClaim extends Model
 
     public function approve(?string $notes = null): void
     {
+        if ($this->status === 'approved') {
+            return;
+        }
+
         $this->update([
             'status' => 'approved',
             'admin_notes' => $notes,
@@ -47,7 +51,7 @@ class SocialFollowClaim extends Model
 
         $user = $this->user;
         if ($this->reward_tier && $this->reward_tier !== $user->segment) {
-            $user->update(['segment' => $this->reward_tier]);
+            $user->forceFill(['segment' => $this->reward_tier])->save();
         }
         if ($this->reward_points > 0) {
             $user->addPoints($this->reward_points, 'Reward follow '.$this->platform);

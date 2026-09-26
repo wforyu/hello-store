@@ -212,72 +212,82 @@ class PosController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($cart, $itemSubtotal, $globalDiscount, $ppn, $ppnAmount, $ppnRate, $total, $validated, $liveProducts, $activeShift) {
-            $paymentMethodMap = [
-                'cash' => 'cash',
-                'qris' => 'qris',
-                'debit' => 'debit_card',
-                'transfer' => 'bank_transfer',
-            ];
+        try {
+            $order = DB::transaction(function () use ($cart, $itemSubtotal, $globalDiscount, $ppn, $ppnAmount, $ppnRate, $total, $validated, $liveProducts, $activeShift) {
+                $paymentMethodMap = [
+                    'cash' => 'cash',
+                    'qris' => 'qris',
+                    'debit' => 'debit_card',
+                    'transfer' => 'bank_transfer',
+                ];
 
-            $orderTypeLabel = $validated['order_type'] === 'dine_in' ? 'Dine-in' : 'Takeaway';
+                $orderTypeLabel = $validated['order_type'] === 'dine_in' ? 'Dine-in' : 'Takeaway';
 
-            $notes = $orderTypeLabel.' - '.($validated['customer_name'] ?? 'Umum');
-            if ($globalDiscount > 0) {
-                $notes .= ' | Diskon: Rp '.number_format($globalDiscount, 0, ',', '.');
-            }
-            if ($ppn) {
-                $notes .= ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.');
-            }
-            if ($validated['customer_id']) {
-                $notes .= ' | Customer ID: '.$validated['customer_id'];
-            }
+                $notes = $orderTypeLabel.' - '.($validated['customer_name'] ?? 'Umum');
+                if ($globalDiscount > 0) {
+                    $notes .= ' | Diskon: Rp '.number_format($globalDiscount, 0, ',', '.');
+                }
+                if ($ppn) {
+                    $notes .= ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.');
+                }
+                if ($validated['customer_id']) {
+                    $notes .= ' | Customer ID: '.$validated['customer_id'];
+                }
 
-            $order = Order::create([
-                'user_id' => auth()->id(),
-                'order_number' => 'POS-'.strtoupper(Str::random(8)),
-                'status' => 'completed',
-                'subtotal' => $itemSubtotal,
-                'shipping_cost' => 0,
-                'total' => $total,
-                'payment_method' => $paymentMethodMap[$validated['payment_method']],
-                'payment_status' => 'paid',
-                'notes' => $notes,
-            ]);
-
-            if ($activeShift) {
-                $order->update(['shift_id' => $activeShift->id]);
-            }
-
-            foreach ($cart as $item) {
-                $itemTotal = $item['price'] * $item['quantity'];
-                $itemDisc = $this->calcItemDiscount($item);
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item['product_id'],
-                    'product_name' => $item['name'],
-                    'product_price' => $item['price'],
-                    'quantity' => $item['quantity'],
-                    'subtotal' => $itemTotal - $itemDisc,
+                $order = Order::create([
+                    'user_id' => auth()->id(),
+                    'order_number' => 'POS-'.strtoupper(Str::random(8)),
+                    'status' => 'completed',
+                    'subtotal' => $itemSubtotal,
+                    'shipping_cost' => 0,
+                    'total' => $total,
+                    'payment_method' => $paymentMethodMap[$validated['payment_method']],
+                    'payment_status' => 'paid',
+                    'notes' => $notes,
                 ]);
 
-                $p = $liveProducts->get($item['product_id']);
-                if ($p) {
-                    $p->decrement('stock', $item['quantity']);
+                if ($activeShift) {
+                    $order->update(['shift_id' => $activeShift->id]);
+                }
+
+                foreach ($cart as $item) {
+                    $itemTotal = $item['price'] * $item['quantity'];
+                    $itemDisc = $this->calcItemDiscount($item);
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $item['product_id'],
+                        'product_name' => $item['name'],
+                        'product_price' => $item['price'],
+                        'quantity' => $item['quantity'],
+                        'subtotal' => $itemTotal - $itemDisc,
+                    ]);
+
+                    $p = $liveProducts->get($item['product_id']);
+                    if (! $p) {
+                        throw new \RuntimeException("Produk '{$item['name']}' tidak tersedia.");
+                    }
+                    $affected = Product::where('id', $p->id)
+                        ->where('stock', '>=', $item['quantity'])
+                        ->decrement('stock', $item['quantity']);
+                    if ($affected === 0) {
+                        throw new \RuntimeException("Stok '{$item['name']}' tidak mencukupi.");
+                    }
                     $p->recordStockHistory(-$item['quantity'], 'pos', null, Order::class, $order->id);
                 }
-            }
 
-            Payment::create([
-                'order_id' => $order->id,
-                'method' => $paymentMethodMap[$validated['payment_method']],
-                'amount' => $total,
-                'status' => 'paid',
-                'paid_at' => now(),
-            ]);
+                Payment::create([
+                    'order_id' => $order->id,
+                    'method' => $paymentMethodMap[$validated['payment_method']],
+                    'amount' => $total,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
 
-            return $order;
-        });
+                return $order;
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
 
         session()->forget('pos_cart');
 
@@ -551,6 +561,12 @@ class PosController extends Controller
             $order->status === 'completed' && $order->payment_status === 'paid',
             403,
             'Struk hanya bisa dicetak untuk transaksi POS yang sudah selesai.'
+        );
+
+        abort_unless(
+            $order->user_id === auth()->id() || auth()->user()->isAdmin(),
+            403,
+            'Anda tidak berhak mencetak struk transaksi ini.'
         );
 
         return view('pos.print-receipt', compact('order'));

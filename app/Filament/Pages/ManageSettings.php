@@ -282,16 +282,18 @@ class ManageSettings extends Page
                         FileUpload::make('logo')
                             ->label('Logo Toko')
                             ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->disk('public')
                             ->directory('settings')
                             ->imageEditor()
-                            ->helperText('Upload logo toko (format: JPG, PNG, SVG)'),
+                            ->helperText('Upload logo toko (format: JPG, PNG, atau WEBP). SVG tidak diizinkan demi keamanan.'),
                         FileUpload::make('favicon')
                             ->label('Favicon')
                             ->image()
+                            ->acceptedFileTypes(['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/jpeg'])
                             ->disk('public')
                             ->directory('settings')
-                            ->helperText('Upload favicon (32x32px, format: ICO/PNG)'),
+                            ->helperText('Upload favicon (32x32px, format: PNG, ICO, atau JPG).'),
                         TextInput::make('whatsapp')
                             ->label('Nomor WhatsApp')
                             ->placeholder('6281234567890')

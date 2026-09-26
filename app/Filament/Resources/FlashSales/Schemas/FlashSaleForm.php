@@ -69,6 +69,7 @@ class FlashSaleForm
                         FileUpload::make('banner_image')
                             ->label('Banner')
                             ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->maxSize(1024)
                             ->directory('flash-sales')
                             ->columnSpanFull()

@@ -66,6 +66,7 @@ class ProductBundleForm
                         FileUpload::make('image')
                             ->label('Gambar Bundle')
                             ->image()
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->maxSize(1024)
                             ->directory('bundles')
                             ->helperText('Gambar utama bundle (maks 1MB)'),

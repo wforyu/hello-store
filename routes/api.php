@@ -24,8 +24,8 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::get('/config', [ConfigController::class, 'index']);
 Route::get('/home', [HomeController::class, 'index']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/bundles/{bundle}', [BundleController::class, 'show']);
@@ -35,7 +35,7 @@ Route::get('/settings/member-tiers', [SettingsController::class, 'memberTiers'])
 Route::get('/social-follow/rules', [SocialFollowController::class, 'rules']);
 
 // Guest order tracking (no auth)
-Route::post('/guest-orders/track', [GuestOrderController::class, 'track']);
+Route::post('/guest-orders/track', [GuestOrderController::class, 'track'])->middleware('throttle:15,1');
 Route::get('/guest-orders/{order}', [GuestOrderController::class, 'show']);
 Route::post('/guest-orders/{order}/payment', [GuestOrderController::class, 'paymentUpload']);
 Route::post('/guest-orders/{order}/confirm', [GuestOrderController::class, 'confirmReceived']);
@@ -84,7 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products/{product}/review', [ReviewController::class, 'store']);
 
     // Coupons
-    Route::post('/coupons/validate', [CouponController::class, 'check']);
+    Route::post('/coupons/validate', [CouponController::class, 'check'])->middleware('throttle:20,1');
 
     // Shipping
     Route::post('/shipping/rates', [ShippingController::class, 'rates']);

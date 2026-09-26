@@ -1,0 +1,31 @@
+# proteksi upload — jangan pernah eksekusi script dari direktori ini
+# downloaded + ini hanya berisi file statis (gambar produk, logo, banner, dsb)
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# lepaskan handler/ tipe agar file tidak diproses server
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar .cgi .pl .py .jsp .asp .aspx .sh
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar .cgi .pl .py .jsp .asp .aspx .sh
+
+<FilesMatch "(?i)\.(php[0-9]?|phtml|pht|phar|cgi|pl|py|jsp|asp|aspx|sh|shtml|htaccess|ini)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# cegah browser menebak tipe file (XSS lewat upload)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

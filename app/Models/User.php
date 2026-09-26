@@ -16,7 +16,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role', 'points', 'segment', 'total_spent'])]
+#[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -106,7 +106,7 @@ class User extends Authenticatable implements FilamentUser
         }
         if ($newSegment !== $this->segment) {
             $oldSegment = $this->segment;
-            $this->update(['segment' => $newSegment]);
+            $this->forceFill(['segment' => $newSegment])->save();
             Notification::createForUser(
                 $this->id,
                 'tier',
@@ -144,12 +144,19 @@ class User extends Authenticatable implements FilamentUser
 
     public function redeemPoints(int $points, string $description, ?Model $reference = null): PointTransaction
     {
-        $points = min($points, $this->points);
         if ($points <= 0) {
+            throw new \InvalidArgumentException('Jumlah poin tidak valid.');
+        }
+
+        $affected = static::whereKey($this->getKey())
+            ->where('points', '>=', $points)
+            ->decrement('points', $points);
+
+        if ($affected === 0) {
             throw new \InvalidArgumentException('Poin tidak mencukupi untuk ditukarkan.');
         }
 
-        $this->decrement('points', $points);
+        $this->refresh();
 
         return $this->pointTransactions()->create([
             'points' => -$points,

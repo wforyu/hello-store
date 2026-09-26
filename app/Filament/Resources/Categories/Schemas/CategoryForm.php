@@ -43,6 +43,7 @@ class CategoryForm
                 FileUpload::make('image')
                     ->label('Gambar')
                     ->image()
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->helperText('Gambar kategori (akan tampil di halaman utama toko).'),
                 Toggle::make('is_active')
                     ->label('Aktif')

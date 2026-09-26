@@ -78,10 +78,10 @@ class OrderController extends Controller
             'shipping_cost' => 'required|numeric|min:0',
         ]);
 
-        $addressOwned = Address::where('id', $request->address_id)
+        $address = Address::where('id', $request->address_id)
             ->where('user_id', auth()->id())
-            ->exists();
-        if (! $addressOwned) {
+            ->first();
+        if (! $address) {
             return response()->json([
                 'success' => false,
                 'data' => null,
@@ -189,7 +189,7 @@ class OrderController extends Controller
         $usePoints = min((int) ($request->use_points ?? 0), auth()->user()->points);
         $pointDiscount = 0;
         if ($usePoints > 0) {
-            $maxPointDiscount = (int) floor(($ppnBase + $shippingCost) * 0.5);
+            $maxPointDiscount = (int) floor(($ppnBase + $shippingCost) * auth()->user()->getMaxRedeemPercent());
             $usePoints = min($usePoints, $maxPointDiscount);
             $pointDiscount = $usePoints;
         }
@@ -197,97 +197,122 @@ class OrderController extends Controller
         $memberDiscountRate = auth()->user()->getSegmentDiscountRate();
         $memberDiscount = $memberDiscountRate > 0 ? (int) round($ppnBase * $memberDiscountRate) : 0;
 
-        $total = $ppnBase + $shippingCost + $ppnAmount - $pointDiscount - $memberDiscount;
+        $total = max(0, $ppnBase + $shippingCost + $ppnAmount - $pointDiscount - $memberDiscount);
 
-        $order = DB::transaction(function () use ($request, $subtotal, $shippingCost, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $usePoints, $pointDiscount) {
-            $order = Order::create([
-                'user_id' => auth()->id(),
-                'order_number' => 'ORD-'.strtoupper(Str::random(8)),
-                'status' => 'pending',
-                'subtotal' => $subtotal,
-                'shipping_cost' => $shippingCost,
-                'shipping_courier' => $request->shipping_courier,
-                'discount' => $couponDiscount,
-                'coupon_id' => $couponId,
-                'total' => $total,
-                'payment_method' => $request->payment_method,
-                'payment_status' => 'unpaid',
-                'notes' => ($request->notes ?? '').($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : '').($couponDiscount > 0 ? ' | Kupon: -Rp '.number_format($couponDiscount, 0, ',', '.') : '').($memberDiscount > 0 ? ' | Diskon Member '.strtoupper(auth()->user()->segment).': -Rp '.number_format($memberDiscount, 0, ',', '.') : ''),
-                'address_id' => $request->address_id,
-            ]);
-
-            foreach ($request->items as $itemData) {
-                $product = $liveProducts->get($itemData['product_id']);
-                $price = (float) $product->price;
-                $variantName = null;
-                $bundleName = null;
-
-                if (! empty($itemData['variant_id'])) {
-                    $variant = $liveVariants->get($itemData['variant_id']);
-                    $price = (float) ($variant->price ?? $product->price);
-                    $variantName = $variant->name;
-                } elseif (! empty($itemData['bundle_id']) && isset($liveBundles[$itemData['bundle_id']])) {
-                    $bundle = $liveBundles[$itemData['bundle_id']];
-                    $bundleName = $bundle->name;
-                    $originalTotal = $bundle->getCalculatedOriginalPrice();
-                    $bundlePrice = (float) $bundle->bundle_price;
-                    $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
-                    if ($discountPercent > 0) {
-                        $price = round($product->price * (1 - $discountPercent));
-                    }
-                }
-
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $itemData['product_id'],
-                    'product_variant_id' => ! empty($itemData['variant_id']) ? $itemData['variant_id'] : null,
-                    'bundle_name' => $bundleName,
-                    'product_name' => $variantName ? $product->name.' - '.$variantName : $product->name,
-                    'product_price' => $price,
-                    'quantity' => $itemData['quantity'],
-                    'subtotal' => $price * $itemData['quantity'],
+        try {
+            $order = DB::transaction(function () use ($request, $subtotal, $shippingCost, $couponDiscount, $couponId, $ppnAmount, $ppnRate, $total, $liveProducts, $liveVariants, $liveBundles, $usePoints, $pointDiscount, $memberDiscount) {
+                $order = Order::create([
+                    'user_id' => auth()->id(),
+                    'order_number' => 'ORD-'.strtoupper(Str::random(8)),
+                    'status' => 'pending',
+                    'subtotal' => $subtotal,
+                    'shipping_cost' => $shippingCost,
+                    'shipping_courier' => $request->shipping_courier,
+                    'discount' => $couponDiscount,
+                    'coupon_id' => $couponId,
+                    'total' => $total,
+                    'payment_method' => $request->payment_method,
+                    'payment_status' => 'unpaid',
+                    'notes' => ($request->notes ?? '').($ppnAmount > 0 ? ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.') : '').($pointDiscount > 0 ? ' | Poin: Rp '.number_format($pointDiscount, 0, ',', '.') : '').($couponDiscount > 0 ? ' | Kupon: -Rp '.number_format($couponDiscount, 0, ',', '.') : '').($memberDiscount > 0 ? ' | Diskon Member '.strtoupper(auth()->user()->segment).': -Rp '.number_format($memberDiscount, 0, ',', '.') : ''),
+                    'address_id' => $request->address_id,
                 ]);
 
-                if (! empty($itemData['variant_id'])) {
-                    $v = $liveVariants->get($itemData['variant_id']);
-                    if ($v) {
-                        $v->decrement('stock', $itemData['quantity']);
+                foreach ($request->items as $itemData) {
+                    $product = $liveProducts->get($itemData['product_id']);
+                    $price = (float) $product->price;
+                    $variantName = null;
+                    $bundleName = null;
+
+                    if (! empty($itemData['variant_id'])) {
+                        $variant = $liveVariants->get($itemData['variant_id']);
+                        $price = (float) ($variant->price ?? $product->price);
+                        $variantName = $variant->name;
+                    } elseif (! empty($itemData['bundle_id']) && isset($liveBundles[$itemData['bundle_id']])) {
+                        $bundle = $liveBundles[$itemData['bundle_id']];
+                        $bundleName = $bundle->name;
+                        $originalTotal = $bundle->getCalculatedOriginalPrice();
+                        $bundlePrice = (float) $bundle->bundle_price;
+                        $discountPercent = $originalTotal > 0 ? ($originalTotal - $bundlePrice) / $originalTotal : 0;
+                        if ($discountPercent > 0) {
+                            $price = round($product->price * (1 - $discountPercent));
+                        }
+                    }
+
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $itemData['product_id'],
+                        'product_variant_id' => ! empty($itemData['variant_id']) ? $itemData['variant_id'] : null,
+                        'bundle_name' => $bundleName,
+                        'product_name' => $variantName ? $product->name.' - '.$variantName : $product->name,
+                        'product_price' => $price,
+                        'quantity' => $itemData['quantity'],
+                        'subtotal' => $price * $itemData['quantity'],
+                    ]);
+
+                    if (! empty($itemData['variant_id'])) {
+                        $v = $liveVariants->get($itemData['variant_id']);
+                        if (! $v) {
+                            throw new \RuntimeException('Varian produk tidak tersedia.');
+                        }
+                        $affected = ProductVariant::where('id', $v->id)
+                            ->where('stock', '>=', $itemData['quantity'])
+                            ->decrement('stock', $itemData['quantity']);
+                        if ($affected === 0) {
+                            throw new \RuntimeException("Stok varian '{$v->name}' tidak mencukupi.");
+                        }
                         $p = $liveProducts->get($itemData['product_id']);
                         if ($p) {
                             $p->recordStockHistory(-$itemData['quantity'], 'order', 'Varian: '.$v->name, Order::class, $order->id);
                         }
-                    }
-                } else {
-                    $p = $liveProducts->get($itemData['product_id']);
-                    if ($p) {
-                        $p->decrement('stock', $itemData['quantity']);
+                    } else {
+                        $p = $liveProducts->get($itemData['product_id']);
+                        if (! $p) {
+                            throw new \RuntimeException('Produk tidak tersedia.');
+                        }
+                        $affected = Product::where('id', $p->id)
+                            ->where('stock', '>=', $itemData['quantity'])
+                            ->decrement('stock', $itemData['quantity']);
+                        if ($affected === 0) {
+                            throw new \RuntimeException("Stok '{$p->name}' tidak mencukupi.");
+                        }
                         $p->recordStockHistory(-$itemData['quantity'], 'order', null, Order::class, $order->id);
                     }
                 }
-            }
 
-            if ($request->payment_method === 'manual_transfer') {
-                Payment::create([
-                    'order_id' => $order->id,
-                    'method' => 'manual_transfer',
-                    'amount' => $total,
-                    'status' => 'pending',
-                ]);
-            }
-
-            if ($usePoints > 0) {
-                auth()->user()->redeemPoints($usePoints, 'Poin ditukar untuk pesanan #'.$order->order_number, $order);
-            }
-
-            if ($couponId) {
-                $coupon = Coupon::find($couponId);
-                if ($coupon) {
-                    $coupon->users()->attach(auth()->id());
+                if ($request->payment_method === 'manual_transfer') {
+                    Payment::create([
+                        'order_id' => $order->id,
+                        'method' => 'manual_transfer',
+                        'amount' => $total,
+                        'status' => 'pending',
+                    ]);
                 }
-            }
 
-            return $order;
-        });
+                if ($usePoints > 0) {
+                    auth()->user()->redeemPoints($usePoints, 'Poin ditukar untuk pesanan #'.$order->order_number, $order);
+                }
+
+                if ($couponId) {
+                    $coupon = Coupon::find($couponId);
+                    if ($coupon) {
+                        if (! $coupon->consumeUsage()) {
+                            throw new \RuntimeException('Kuota kupon sudah habis.');
+                        }
+                        $coupon->users()->syncWithoutDetaching([
+                            auth()->id() => ['order_id' => $order->id],
+                        ]);
+                    }
+                }
+
+                return $order;
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
 
         Cart::where('user_id', auth()->id())->each(function ($cart) {
             $cart->items()->delete();
@@ -394,20 +419,20 @@ class OrderController extends Controller
             ], 403);
         }
 
-        if ($order->status !== 'shipped') {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Pesanan tidak dalam status dikirim.',
-            ], 422);
-        }
+        $confirmed = DB::transaction(function () use ($order) {
+            $affected = Order::whereKey($order->getKey())
+                ->where('status', 'shipped')
+                ->update([
+                    'status' => 'delivered',
+                    'delivered_at' => now(),
+                    'payment_status' => 'paid',
+                ]);
 
-        DB::transaction(function () use ($order) {
-            $order->update([
-                'status' => 'delivered',
-                'delivered_at' => now(),
-                'payment_status' => 'paid',
-            ]);
+            if ($affected === 0) {
+                return false;
+            }
+
+            $order->refresh();
 
             $user = auth()->user();
             $user->increment('total_spent', $order->total);
@@ -419,7 +444,17 @@ class OrderController extends Controller
             }
 
             $user->autoUpgradeSegment();
+
+            return true;
         });
+
+        if (! $confirmed) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Pesanan tidak dalam status dikirim.',
+            ], 422);
+        }
 
         Notification::createForUser(
             $order->user_id,
@@ -447,21 +482,20 @@ class OrderController extends Controller
             ], 403);
         }
 
-        if ($order->status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Hanya pesanan dengan status menunggu yang dapat dibatalkan.',
-            ], 422);
-        }
+        $cancelled = DB::transaction(function () use ($order) {
+            $affected = Order::whereKey($order->getKey())
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
 
-        DB::transaction(function () use ($order) {
+            if ($affected === 0) {
+                return false;
+            }
+
+            $order->refresh();
             $order->load('items.product');
-
-            $order->update([
-                'status' => 'cancelled',
-                'cancelled_at' => now(),
-            ]);
 
             foreach ($order->items as $item) {
                 if (! empty($item->product_variant_id)) {
@@ -481,7 +515,17 @@ class OrderController extends Controller
                     }
                 }
             }
+
+            return true;
         });
+
+        if (! $cancelled) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Hanya pesanan dengan status menunggu yang dapat dibatalkan.',
+            ], 422);
+        }
 
         Notification::createForUser(
             $order->user_id,

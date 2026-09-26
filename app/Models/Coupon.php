@@ -52,6 +52,30 @@ class Coupon extends Model
         return true;
     }
 
+    /**
+     * Tambah used_count secara atomik dengan menghormati usage_limit.
+     * Mengembalikan false bila kuota sudah habis (mencegah pemakaian melebihi batas
+     * ketika ada beberapa checkout bersamaan).
+     */
+    public function consumeUsage(): bool
+    {
+        $affected = static::whereKey($this->getKey())
+            ->where(function ($query) {
+                $query->whereNull('usage_limit')
+                    ->orWhere('usage_limit', 0)
+                    ->orWhereColumn('used_count', '<', 'usage_limit');
+            })
+            ->increment('used_count');
+
+        if ($affected === 0) {
+            return false;
+        }
+
+        $this->refresh();
+
+        return true;
+    }
+
     public function canUseBy(User $user): bool
     {
         if (! $this->isValid()) {

@@ -17,8 +17,8 @@ Route::get('/', [StoreController::class, 'home'])->name('home');
 // NOTE: InfinityFree edge WAF blocks any URL containing "chat" (403).
 // Keep route names as chat.* but use URL /obrolan/... instead.
 Route::get('/obrolan', [ChatController::class, 'index'])->name('chat.index');
-Route::post('/obrolan/send', [ChatController::class, 'send'])->name('chat.send');
-Route::get('/obrolan/poll', [ChatController::class, 'poll'])->name('chat.poll');
+Route::post('/obrolan/send', [ChatController::class, 'send'])->middleware('throttle:10,1')->name('chat.send');
+Route::get('/obrolan/poll', [ChatController::class, 'poll'])->middleware('throttle:60,1')->name('chat.poll');
 
 Route::get('/privacy-policy', fn () => view('store.privacy-policy'))->name('privacy-policy');
 
@@ -41,17 +41,17 @@ Route::get('/bundles/{slug}', [StoreController::class, 'bundleDetail'])->name('p
 
 Route::get('/checkout', [StoreController::class, 'checkout'])->name('checkout');
 Route::post('/checkout/place-order', [StoreController::class, 'placeOrder'])->name('checkout.place');
-Route::post('/checkout/apply-coupon', [StoreController::class, 'applyCoupon'])->name('checkout.apply-coupon');
+Route::post('/checkout/apply-coupon', [StoreController::class, 'applyCoupon'])->middleware('throttle:20,1')->name('checkout.apply-coupon');
 
 Route::get('/track-order', [StoreController::class, 'trackOrder'])->name('track.order');
-Route::post('/track-order', [StoreController::class, 'trackOrderLookup'])->name('track.order.lookup');
+Route::post('/track-order', [StoreController::class, 'trackOrderLookup'])->middleware('throttle:5,1')->name('track.order.lookup');
 
 Route::get('/orders/{order}', [StoreController::class, 'orderShow'])->name('orders.show');
 Route::post('/orders/{order}/payment', [StoreController::class, 'paymentUpload'])->name('orders.payment');
 Route::post('/orders/{order}/confirm-received', [StoreController::class, 'confirmReceived'])->name('orders.confirm-received');
 Route::post('/orders/{order}/cancel', [StoreController::class, 'cancelOrder'])->name('orders.cancel');
 Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->name('orders.print');
-Route::post('/orders/{order}/send-invoice', [StoreController::class, 'sendInvoice'])->name('orders.send-invoice');
+Route::post('/orders/{order}/send-invoice', [StoreController::class, 'sendInvoice'])->middleware('throttle:3,1')->name('orders.send-invoice');
 
 Route::middleware('auth')->group(function () {
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');
