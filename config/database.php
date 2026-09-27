@@ -54,6 +54,13 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            // Paksa session timezone MySQL ke WIB. Tanpa ini session mengikuti
+            // default host (InfinityFree = UTC), sedangkan start_at/end_at ditulis
+            // Eloquent dari PHP yang sudah Asia/Jakarta. Akibatnya NOW() di raw
+            // query meleset 7 jam dan banner/coupon/flash sale ikut mati lebih awal.
+            // Pakai offset '+07:00', BUKAN 'Asia/Jakarta': named zone butuh tabel
+            // mysql.time_zone yang tidak dimuat di shared hosting.
+            'timezone' => env('DB_TIMEZONE', '+07:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
@@ -74,6 +81,7 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'timezone' => env('DB_TIMEZONE', '+07:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
