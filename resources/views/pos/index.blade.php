@@ -991,3 +991,6 @@
     }
 </script>
 @endpush
+
+{{-- Auto-logout idle 30 menit + modal countdown "Tetap masuk" --}}
+@include('partials.idle-timer', ['area' => 'pos'])

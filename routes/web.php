@@ -9,7 +9,9 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductExportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\StoreController;
+use App\Http\Middleware\EnforceIdleLogout;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StoreController::class, 'home'])->name('home');
@@ -54,6 +56,13 @@ Route::get('/orders/{order}/print', [StoreController::class, 'printReceipt'])->n
 Route::post('/orders/{order}/send-invoice', [StoreController::class, 'sendInvoice'])->middleware('throttle:3,1')->name('orders.send-invoice');
 
 Route::middleware('auth')->group(function () {
+    // Di-refresh oleh partial idle-timer saat ada interaksi user. Sengaja
+    // TIDAK diberi EnforceIdleLogout supaya request ini selalu bisa
+    // memperpanjang sesi, termasuk saat sudah masuk jendela peringatan.
+    Route::post('/session/keep-alive', [SessionController::class, 'keepAlive'])
+        ->middleware('throttle:60,1')
+        ->name('session.keep-alive');
+
     Route::post('/wishlist/toggle/{product}', [StoreController::class, 'wishlistToggle'])->name('wishlist.toggle');
     Route::get('/wishlist', [StoreController::class, 'wishlistIndex'])->name('wishlist.index');
 
@@ -81,7 +90,7 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-Route::middleware(['auth', 'can:access-pos'])->group(function () {
+Route::middleware(['auth', 'can:access-pos', EnforceIdleLogout::class.':pos'])->group(function () {
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
     Route::get('/pos/search', [PosController::class, 'search'])->name('pos.search');
     Route::get('/pos/customers', [PosController::class, 'customers'])->name('pos.customers');

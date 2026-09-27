@@ -38,6 +38,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Idle Session Timeout
+    |--------------------------------------------------------------------------
+    |
+    | 'lifetime' di atas TIDAK menyebabkan auto-logout. Laravel 13
+    | Illuminate\Session\Middleware\AuthenticateSession hanya memvalidasi
+    | password hash, tidak punya cek last_activity_time. Nilai 'lifetime'
+    | hanya=max-age cookie + garbage collection.
+    |
+    | Auto-logout idle diimplementasikan lewat App\Http\Middleware
+    | \EnforceIdleLogout, yang dipasang di panel Filament (area 'admin') dan
+    | group route POS (area 'pos'). Nilai = menit. Set 0 untuk mematikan.
+    |
+    | 'warning' = berapa detik sebelum expired halaman menampilkan modal
+    | countdown, supaya kasir/admin sempat klik "Tetap masuk" dan tidak
+    | kehilangan keranjang atau form yang sedang diisi.
+    |
+    */
+
+    'idle_timeout' => [
+        'enabled' => env('SESSION_IDLE_ENABLED', true),
+        'admin' => (int) env('SESSION_IDLE_ADMIN', 30),
+        'pos' => (int) env('SESSION_IDLE_POS', 30),
+        'warning' => (int) env('SESSION_IDLE_WARNING', 60),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |

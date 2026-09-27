@@ -20,6 +20,7 @@ use App\Filament\Widgets\TopCashiersTableWidget;
 use App\Filament\Widgets\TopCategoriesTableWidget;
 use App\Filament\Widgets\TopProductsTableWidget;
 use App\Filament\Widgets\TotalAsetWidget;
+use App\Http\Middleware\EnforceIdleLogout;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -98,12 +99,15 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                EnforceIdleLogout::class.':admin',
             ])
             ->authMiddleware([
                 Authenticate::class,
             ])
             ->renderHook(PanelsRenderHook::BODY_END, function (): string {
-                return <<<'HTML'
+                $idleTimer = view('partials.idle-timer', ['area' => 'admin'])->render();
+
+                return $idleTimer.<<<'HTML'
 <script>
 (function() {
     var tips = {

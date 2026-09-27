@@ -88,6 +88,7 @@
 | POST | `/compare/toggle/{product}` | `StoreController@compareToggle` | `compare.toggle` |
 | GET | `/compare` | `StoreController@compareIndex` | `compare.index` |
 | POST | `/orders/{order}/reorder` | `StoreController@reorder` | `orders.reorder` |
+| POST | `/session/keep-alive` | `SessionController@keepAlive` | `session.keep-alive` |
 | POST | `/checkout/apply-coupon` | `StoreController@applyCoupon` | `checkout.coupon` |
 | POST | `/orders/{order}/refund` | `StoreController@processRefund` | `orders.refund` |
 | GET | `/orders/{order}/download/{product}` | `StoreController@downloadDigital` | `orders.download` |
@@ -883,6 +884,36 @@
 
 ---
 
+## 55. Auto-Logout Idle (Panel Admin + POS)
+
+- **Kenapa butuh implementasi sendiri**: Laravel 13 `Illuminate\Session\Middleware\AuthenticateSession` **TIDAK punya idle-timeout**. Isinya cuma validasi password hash (`validatePasswordHash` + `storePasswordHashInSession`) untuk invalidate "other devices". `Filament\Http\Middleware\AuthenticateSession` cuma extends kelas itu dan override `redirectTo()`. Jadi `SESSION_LIFETIME` cuma=max-age cookie + garbage collection, **tidak pernah menyebabkan logout**.
+- **Config**: `config/session.php` → `idle_timeout` (`enabled`, `admin` = 30, `pos` = 30, `warning` = 60 detik). Set `0` untuk mematikan per-area.
+- **`App\Support\IdleTimeout`**: sumber tunggal aturan timing. Dipakai middleware DAN Blade partial supaya expire-nya tidak bisa beda. Semua perhitungan pakai `time()` (epoch), **bukan `now()`** — kebebas timezone.
+  - Session key: `idle_last_activity`
+  - `timeoutMinutes()`, `isEnabledFor()`, `lastActivity()`, `touch()`, `remainingSeconds()`, `isExpired()`, `inWarningWindow()`, `snapshot()`
+- **`App\Http\Middleware\EnforceIdleLogout`** (param area, default `admin`):
+  - Pasang di POS: `routes/web.php` group → `EnforceIdleLogout::class.':pos'`
+  - Pasang di panel: `AdminPanelProvider.php` `->middleware([...])` → `EnforceIdleLogout::class.':admin'`
+  - Redirect: area `admin` → `Filament::getLoginUrl()` (`/admin/login`); area `pos` → `route('login')`
+  - Response flash `status` (ditampilkan `auth/login.blade.php` via `<x-auth-session-status>`)
+  - Request JSON yang expired → **401** (langsung `response()->json()`, bukan lewat exception handler)
+- **Polling Livewire diabaikan** (`isBackgroundRequest()`): `api/*`, header `X-Livewire`, path `livewire/*`. **PENTING** — Filament widget default `pollingInterval = '5s'` (`Filament\Widgets\Concerns\CanPoll`), jadi ~8 widget dashboard = ~96 request/menit. Kalau polling ikut me-refresh last activity, session tidak akan pernah idle dan timeout mustahil terjadi. Aktivitas user asli ditangkap oleh ping dari frontend.
+- **POS tetap dihitung aktivitas**: semua `fetch()` di `pos/index.blade.php` dipicu interaksi kasir (search, add, update, checkout, hold, scan) — tidak ada `setInterval`. Jadi POS tidak masuk daftar background request.
+- **`resources/views/partials/idle-timer.blade.php`** (vanilla JS, inline style, tanpa Alpine):
+  - Di-inject ke Filament via `renderHook(PanelsRenderHook::BODY_END)` dan ke `pos/index.blade.php` dengan `@include(..., ['area' => 'pos'])`
+  - Tracking event: `mousemove`, `keydown`, `click`, `touchstart`, `scroll`, `wheel` → set flag `dirty`
+  - Ping `POST /session/keep-alive` **throttle 60 detik** (bukan per-event, jangan hammered)
+  - Modal countdown muncul di 60 detik terakhir, tombol "Tetap masuk" → ping langsung
+  - Countdown habis → `location.reload()`, middleware yang memutuskan logout + arahkan ke login
+  - Response 401 **atau** body HTML (proxy/CDN redirect) → langsung `location.href = LOGIN_URL`
+  - Penting: di Blade, `session()` mengembalikan `SessionManager` (factory) — harus `request()->session()`
+- **`SessionController@keepAlive`**: `touch()` session + return `snapshot()`. Sengaja **tidak** diberi `EnforceIdleLogout` supaya request ini selalu bisa memperpanjang sesi, termasuk saat sudah expired. Validasi `area` dengan `Rule::in(['admin', 'pos'])` (area tak dikenal = 422). Route `throttle:60,1`.
+- **Cek halaman login** menampilkan flash: `auth/login.blade.php:2` punya `<x-auth-session-status :status="session('status')" />`
+- **Residual risk**: cart POS + held order masih session-based, jadi logout paksa = cart hilang. Mitigasi = modal warning 60 detik. Persistensi cart ke tabel `carts` belum dibuat.
+- Test: `tests/Feature/IdleTimeoutTest.php` (25 test) — config, sisa waktu, jendela peringatan, polling diabaikan, refresh request biasa, redirect per area, 401 JSON, keep-alive, render partial, customer POS tidak kena
+
+---
+
 ## 🔜 ROADMAP: Video (BELUM diimplementasikan)
 
 > Status: **rencana saja**. Belum ada migration, kolom, atau view video di repo.
@@ -1012,8 +1043,11 @@ Sudah diverifikasi bahwa `.htaccess` yang ada **aman** untuk video:
 - **FK cascadeOnDelete**: Deleting a parent (user, supplier) cascades to orders, shifts, expenses, purchase records. Use `nullOnDelete` + nullable FK for business-critical data.
 - **API rate limiting**: `bootstrap/app.php` applies `ThrottleRequests:60,1` (60 req/min) to all API routes. If mobile gets 429 errors, check if too many requests are being made.
 - **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
-- **API rate limiting**: `bootstrap/app.php` applies `ThrottleRequests:60,1` (60 req/min) to all API routes. If mobile gets 429 errors, check if too many requests are being made.
-- **Site audit checklist**: Check migrations (FK/indexes/defaults), controllers (null guards, PPN calc, transaction boundaries), views (alt text, hardcoded URLs), routes (GET|POST where POST only is needed), Filament (SoftDeletes widgets, navigation groups, sort values).
+- **`shouldRenderJsonWhen` MENGGANTIKAN `expectsJson()`**: `Illuminate\Foundation\Exceptions\Handler::shouldReturnJson()` (line ~923) memakai `callback ?: $request->expectsJson()`. Jadi kalau `bootstrap/app.php` mendaftarkan callback `is('api/*')` saja, SEMUA route web yang dipanggil AJAX (`/cart/count`, `/pos/*`, `/wishlist/toggle`, `/compare/toggle`, `/products/suggestions`) dibalas **302 HTML** saat session expired atau validasi gagal — frontend `response.json()` jadi throw. `Authenticate::unauthenticated()` tetap melempar `AuthenticationException` dengan `redirectTo = null` karena `expectsJson()` true, tapi handler-lah yang mengabaikannya. Fix: `fn (Request $r) => $r->is('api/*') || $r->expectsJson()`.
+- **`Illuminate\Session\Middleware\AuthenticateSession` tidak punya idle-timeout**: cuma validasi password hash. Jangan berharap `SESSION_LIFETIME` bisa dipakai untuk auto-logout. Lihat fitur 55.
+- **MySQL session timezone ≠ app timezone**: `config/app.php` WIB tapi `NOW()` di raw SQL ikut session timezone MySQL. 18 call site (`Slider`, `Banner`, `Coupon`, `FlashSale`, `Notification`, `OrderDownload`, `SalesTarget`, `SocialFollowClaim`, `PushNotificationService`) jadi meleset 7 jam di hosting UTC. Fix: `'timezone' => env('DB_TIMEZONE', '+07:00')` di `config/database.php`. **Pakai offset, BUKAN `'Asia/Jakarta'`** — named zone butuh tabel `mysql.time_zone` yang tidak dimuat di shared hosting.
+- **`time()` vs `now()` untuk interval**: hitungan durasi (idle timeout, throttle) harus pakai `time()` epoch, bukan `now()`. `now()` bergantung timezone app/DB, `time()` tidak.
+- **`session()` di Blade = `SessionManager`**: helper `session()` mengembalikan factory, bukan store aktif. Untuk baca/tulis nilai session di view, pakai `request()->session()`. Kalau tidak, `Argument #1 must be of type Session, SessionManager given`.
 
 ---
 
@@ -1036,8 +1070,8 @@ Sudah diverifikasi bahwa `.htaccess` yang ada **aman** untuk video:
 - Unit tests: `PHPUnit\Framework\TestCase` (tanpa app boot)
 - Feature tests: `Tests\TestCase` (full app boot), SQLite `:memory:`
 - Semua feature tests pakai `RefreshDatabase` (kecuali ExampleTest)
-- 25 tests, 61 assertions — semuanya pass
-- Pint clean: 300 files, 0 issues
+- 100 tests, 268 assertions — semuanya pass
+- Pint clean: 0 issues
 - Command: `composer test` (config:clear lalu artisan test)
 
 ---
