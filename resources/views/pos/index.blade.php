@@ -50,7 +50,9 @@
 @endpush
 
 @section('content')
-<div x-data="posApp()" class="pos-layout" @keydown.window="handleKeydown($event)">
+<div x-data="posApp()" class="pos-layout" @keydown.window="handleKeydown($event)"
+    @pos:filter.window="search = $event.detail; searchProducts()"
+    @pos:add-product.window="addToCart($event.detail)">
     {{-- Left: Products --}}
     <div class="pos-products">
         {{-- Top bar --}}
@@ -93,9 +95,6 @@
                 <input type="checkbox" x-model="ppnEnabled" class="rounded border-gray-300 text-amber-500 focus:ring-amber-500">
                 PPN <span x-text="ppnRate"></span>%
             </label>
-
-            <input type="text" id="search-product" x-model="search" @input.debounce="searchProducts" placeholder="Cari nama / SKU..." x-ref="searchInput"
-                class="ml-auto max-w-[200px] border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
 
             {{-- Hold badge --}}
             <div class="hold-badge" @click="showHoldModal = true" x-show="holds.length > 0">
@@ -716,7 +715,7 @@
             handleKeydown(e) {
                 if (e.key === 'F2') {
                     e.preventDefault();
-                    document.getElementById('search-product')?.focus();
+                    document.querySelector('.pos-search-input')?.focus();
                     return;
                 }
                 if (e.key === 'F4') {

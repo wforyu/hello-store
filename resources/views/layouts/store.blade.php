@@ -94,7 +94,10 @@
                     @endif
                 </a>
 
-                {{-- Search with Suggestions --}}
+                {{-- Search: pencarian POS di halaman POS, pencarian storefront di halaman lain --}}
+                @if (request()->routeIs('pos.*'))
+                    @include('partials.pos-search', ['wrapper' => 'hidden sm:block flex-1 max-w-lg mx-6 lg:mx-10'])
+                @else
                 <div class="hidden sm:block flex-1 max-w-lg mx-6 lg:mx-10"
                     x-data="searchSuggestions()"
                     @click.away="show = false"
@@ -141,6 +144,7 @@
                         </div>
                     </form>
                 </div>
+                @endif
 
                 {{-- Right Actions --}}
                 <div class="flex items-center gap-3 lg:gap-5">
@@ -311,6 +315,9 @@
 
             {{-- Mobile Search --}}
             <div class="mobile-search hidden sm:hidden pb-3">
+                @if (request()->routeIs('pos.*'))
+                    @include('partials.pos-search')
+                @else
                 <form action="{{ route('products.index') }}" method="GET" class="relative">
                     <input type="text" name="search" value="{{ request('search') }}"
                         placeholder="Cari produk..."
@@ -319,6 +326,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                 </form>
+                @endif
             </div>
         </div>
     </nav>

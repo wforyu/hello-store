@@ -61,6 +61,24 @@ class PosWebTest extends TestCase
         $this->get('/pos')->assertForbidden();
     }
 
+    public function test_halaman_pos_pakai_pencarian_pos_bukan_storefront(): void
+    {
+        $response = $this->get('/pos')->assertOk();
+
+        $response->assertSee('Cari produk di POS', false);
+        $response->assertSee('function posNavSearch', false);
+        $response->assertSee('pos:add-product', false);
+        $response->assertDontSee('action="'.url('/products').'"', false);
+    }
+
+    public function test_halaman_storefront_tetap_pakai_pencarian_produk(): void
+    {
+        $response = $this->get('/')->assertOk();
+
+        $response->assertSee('Cari produk...', false);
+        $response->assertSee('action="'.url('/products').'"', false);
+    }
+
     public function test_tambah_keranjang_dibatasi_stok(): void
     {
         $product = $this->makeProduct('Sisa Stok', 2, 10000);
