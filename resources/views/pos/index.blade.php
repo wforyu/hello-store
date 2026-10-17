@@ -167,7 +167,8 @@
                     <div class="bg-gray-100 rounded-lg h-24 flex items-center justify-center mb-2 text-gray-400 text-xs overflow-hidden relative">
                         <img x-show="product.image" :src="product.image" :alt="product.name + ' gambar'" class="w-full h-full object-cover rounded-lg">
                         <span x-show="!product.image">Gambar</span>
-                        <span x-show="product.stock <= 5" class="stock-badge absolute top-1 right-1 bg-red-500 text-white">Habis</span>
+                        <span x-show="product.stock <= 0" class="stock-badge absolute top-1 right-1 bg-red-500 text-white">Habis</span>
+                        <span x-show="product.stock > 0 && product.stock <= 5" class="stock-badge absolute top-1 right-1 bg-orange-500 text-white">Hampir Habis</span>
                     </div>
                     <p class="text-sm font-semibold text-gray-900 truncate leading-tight" x-text="product.name"></p>
                     <p class="sku-text truncate" x-show="product.sku" x-text="product.sku"></p>
