@@ -427,6 +427,399 @@
 
 ---
 
+## 56. POS Desktop (Electron) — Offline-First
+
+Mesin POS Windows (`desktop/`) yang tetap jalan saat internet mati. Penjualan offline
+tidak pernah hilang dan tidak pernah dobel: kasir tetap jalan, antrean outbox mengirim
+ulang nanti, dan server menolak order kembar lewat unique index.
+
+### Prinsip: kasir TIDAK PERNAH diblokir jaringan
+
+| Kondisi server | Yang terjadi |
+|---|---|
+| Online | `POST /api/pos/checkout` mode **strict** — stok kurang = order ditolak (422) |
+| Offline | Order ditulis ke SQLite lokal, stok lokal turun, masuk **outbox** |
+| Online lagi | `POST /api/pos/sync` mode **clamp** — order tetap written utuh, stok dipotong insofar ada, selisih ditandai `stock_conflict` untuk admin |
+
+Uang customer selalu utuh: kalau stok kurang saat sync, order tetap dicatat atas qty yang
+dibayar kasir (`PosService::checkout()` — "a stock conflict is a bookkeeping problem,
+never a revenue one"). Yang dipotong hanya stok fisik yang tersedia.
+
+### Backend (Laravel)
+
+| File | Isi |
+|---|---|
+| `app/Services/PosService.php` | **Single source of truth** untuk semua hitungan uang & stok POS. Web POS (`/pos`) dan API POS (`/api/pos/*`) sama-sama lewat class ini, jadi harga/PPN/diskon/stok tidak bisa melenceng. Mode: `MODE_STRICT` / `MODE_CLAMP`. `PRICE_DRIFT_TOLERANCE = 5.0`% |
+| `app/Http/Controllers/Api/PosController.php` | `config`, `catalog`, `checkout`, `sync`, `syncStatus`, `orders` |
+| `app/Exceptions/PosException.php` (+ `PosStockException`, `PosValidationException`) | Error domain, ditangkap controller → 422 |
+| `database/migrations/2026_09_28_000001_add_pos_sync_fields_to_orders_table.php` | Kolom `client_id`, `client_ref`, `stock_conflict`, `conflict_reason`, `synced_at` + **unique `['client_id','client_ref']`** |
+| `database/seeders/PosDummyProductsSeeder.php` | 40 produk dummy multi-kategori untuk uji desktop (`php artisan db:seed --class=PosDummyProductsSeeder`) |
+
+**Unique index `orders_client_id_ref_unique` adalah mekanisme idempotensi**, bukan
+ sekadar pagar pengaman. Retry setelah timeout = no-op, bukan order kedua. Controller
+juga menangkap `QueryException` dan melapor order yang menang (§ "dua retry berlomba").
+
+| Method | URI | Nama |
+|---|---|---|
+| GET | `/api/pos/config` | `api.pos.config` — PPN on/off + rate, metode pembayaran |
+| GET | `/api/pos/catalog?since=&search=&category_id=&per_page=` | `api.pos.catalog` — delta sync, `server_time` = kursor |
+| GET | `/api/pos/orders` | `api.pos.orders` — riwayat penjualan kasir yang sedang login |
+| POST | `/api/pos/checkout` | `api.pos.checkout` — strict, online |
+| POST | `/api/pos/sync` | `api.pos.sync` — clamp, batch ≤ 100, tiap entry transaksi sendiri |
+| GET | `/api/pos/sync/status?client_id=` | `api.pos.sync.status` — reconcile |
+
+Semua di middleware `auth` + `can:access-pos`, plus `throttle:60,1` global API.
+
+### Desktop client (`desktop/`)
+
+| File | Isi |
+|---|---|
+| `src/main/store.js` | SQLite (sql.js/WASM) + schema: `meta`, `products`, `orders`, `outbox`. Flush ke disk tiap mutasi |
+| `src/main/client.js` | HTTP client. `Accept: application/json` **wajib** (tanpa itu Laravel balas 302 HTML), error transport di-tag `offline` |
+| `src/main/sync.js` | `PosSync`: `checkout()`, `flush()`, `reconcile()`, `bootstrap()`, loop 20 detik. `quote()` adalah mirror `PosService::quote()` |
+| `src/main/preload.js` | Jembatan IPC (`contextIsolation` on, `nodeIntegration` off) |
+| `src/main/menu.js` | Menu aplikasi (File/Edit/Tampilan/Jendela/Bantuan) — label Indonesia, semua item jalan |
+| `src/main/print.js` | Cetak struk: render di window tersembunyi → ukur tinggi → `webContents.print()` dengan page size kustom. `renderReceipt()` dipisah supaya tinggi bisa dites tanpa printer |
+| `src/main/print-preload.js` | Bridge khusus window struk (payload + tinggi terukur), bukan `preload.js` till |
+| `src/renderer/receipt.js` | UMD: `buildReceipt()` — sumber tunggal isi struk untuk cetak & cetak ulang |
+| `src/renderer/receipt.html` + `receipt-print.js` | Halaman struk thermal (monospace, hitam-putih, 58/80 mm) |
+| `src/renderer/*` | UI vanilla JS: grid produk, cart, checkout, indikator sync |
+| `test/pos.test.js` | 30 unit test (store, quote, outbox, receipt, printOptions, restart, parse-guard semua skrip `src/`) |
+| `test/integration.js` | E2E kontrak API terhadap server Laravel sungguhan |
+
+**Kenapa `sql.js` (WASM), bukan `better-sqlite3`**: better-sqlite3 harus dikompilasi ulang
+untuk tiap ABI Electron, jadi `npm install` jadi butuh Visual Studio. sql.js cukup
+disalin, dan seluruh DB (40 produk ≈ 200 KB) di-flush ke disk tiap mutasi — power cut
+maksimal kehilangan satu statement yang sedang jalan.
+
+### Penting: nilai `order_type` adalah `dine_in` / `takeaway`
+
+Bukan `take_away`. Ini sudah pernah dipakai di UI + test dan bikin **seluruh batch sync
+ditolak 422** (validasi Laravel menolak satu payload = satu batch gagal). Kalau berubah,
+ubah di tiga tempat: `src/renderer/index.html` (value option), `src/main/sync.js`
+(default), dan validasi `Api/PosController`.
+
+### Checkout online TIDAK memakai client_id
+
+`/api/pos/checkout` sengaja tidak menerima `client_id`/`client_ref` (dijaga test
+`test_checkout_online_tidak_menandai_client_ref`): order online sudah dapat
+`order_number` langsung, jadi tidak perlu masuk reconcile. **Hanya** order yang lewat
+`/sync` yang bertanda client. Efeknya: `/api/pos/sync/status` hanya melihat penjualan
+offline milik kasir itu.
+
+### Build `.exe`
+
+```bash
+cd desktop
+npm install
+npm start          # dev
+npm test           # 30 unit test
+npm run check:layout  # offscreen render, pastikan layar pertama = login
+npm run verify     # test + check:layout
+npm run test:e2e   # E2E, butuh server Laravel jalan di 127.0.0.1:8000
+npx electron-builder --win --x64   # -> release/HelloStorePOS-1.0.0-x64.exe + -portable.exe
+```
+
+**Batasan build di mesin ini**: `win.signAndEditExecutable: false` di `package.json`
+karena ekstraksi `winCodeSign` butuh privilege symlink Windows
+(`SeCreateSymbolicLinkPrivilege`). Efeknya: `.exe` jalan normal tapi **pakai ikon default
+Electron dan tanpa version stamping**. Kalau mau ikon asli: aktifkan Developer Mode
+atau jalankan build dari shell Admin, lalu set `signAndEditExecutable` jadi `true` dan
+tambah `"icon": "build/icon.ico"` di `build.win`. `asarUnpack` untuk
+`sql-wasm.wasm` sudah benar — Electron otomatis redirect path `app.asar/...` ke
+`app.asar.unpacked/...`, jadi `locateFile` di `store.js` tidak perlu diubah.
+
+### Test
+
+- `tests/Feature/PosApiTest.php` (26) — kontrak endpoint, strict/clamp, idempotensi, delta cursor, identitas toko untuk kepala struk
+- `tests/Feature/PosServiceTest.php` — hitungan quote/PPN/diskon
+- `tests/Feature/PosWebTest.php` — parity web POS vs PosService
+- `tests/Feature/StockConflictAdminTest.php` — konflik stok & price drift tampil di admin
+- `tests/Concurrency/` — dua kasir jual unit terakhir yang sama
+- `desktop/test/integration.js` — offline → online round trip
+- `desktop/test/check-layout.js` - render renderer di window offscreen: layar pertama = login, nggak ada `[hidden]` yang bocor, daftar printer termuat, `pos:menu` sampai ke renderer, dan **halaman struk beneran ter-render** (tinggi 1 item vs 30 item)
+
+Total 78 test / 295 assertion hijau (Laravel) + 30 unit test (Node).
+
+### Gotcha: atribut `hidden` kalah dari `display` milik author
+
+`index.html` ini **nggak** pakai Tailwind — CSS-nya self-contained di
+`src/renderer/styles.css`, dan semua panel (login, app, modal, drawer, baris PPN)
+di-toggle lewat atribut `hidden`.
+
+Aturan UA `[hidden] { display: none }` kalah dari **author** `display` mana pun.
+`.modal { display: grid }`, `.drawer { … }`, `.login { display: grid }` semuanya
+menimpanya. Akibatnya modal `hidden` tetap `position: fixed; inset: 0; z-index: 40`
+dan **menutupi layar login** — kasir buka aplikasi langsung mendarat di dialog
+"Pengaturan Perangkat" (Alamat server + Client ID) alih-alih form login.
+
+Fix ada di baris teratas `styles.css`:
+
+```css
+[hidden] { display: none !important; }
+```
+
+`!important` wajib, karena utility ini harus mengalahkan `.modal`.
+
+**Jangan pernah** menghapus aturan itu, dan kalau nambah panel baru yang punya
+`display` sendiri, jalankan `npm run check:layout` — unit test nggak bisa menangkap
+kelas bug ini, cuma render nyata yang bisa.
+
+### Menu aplikasi itu wajib, bukan default Electron
+
+Tanpa `installMenu()`, Electron menaruh menu default-nya sendiri (label Inggris,
+sebagian besar item mati). Jadi `src/main/menu.js` wajib dipasang di `main.js`.
+
+Pembagian tanggung jawab: item yang cuma butuh window (zoom, layar penuh, reload,
+devtools, about) ditangani di main. Item yang butuh state renderer (Sinkron Sekarang,
+Muat Ulang Katalog, Pengaturan, Riwayat, Keluar dari Perangkat) **dikirim lewat
+IPC `pos:menu`**, bukan diimplementasikan ulang di main — supaya tombol di menu dan
+tombol di layar menjalankan fungsi yang sama, bukan dua salinan yang bisa melenceng.
+
+**Accelerator dobel bikin `Menu.setApplicationMenu` gagal saat boot** = aplikasi
+langsung crash sebelum window tampil. Karena itu `check-layout.js` ikut mem-build
+menu dan menghitung duplikat. Menu juga **nggak boleh memakai F2/F4/Esc** —
+key itu sudah ditangani `document.addEventListener('keydown')` di `app.js`, dan
+accelerator menu akan menelan event sebelum sampai halaman.
+
+Tutup aplikasi saat masih ada antrean offline selalu minta konfirmasi
+(`confirmQuit()` di `main.js`) — outbox-nya durable jadi penjualan aman, tapi kasir
+harus tahu angkanya belum masuk panel admin.
+
+### Cetak struk thermal: tinggi kertas diukur, bukan dipatok
+
+Printer thermal itu **roll, bukan kertas** — dia cuma punya lebar, panjangnya
+ditentukan oleh seberapa jauh kertasnya keluar. Jadi tinggi halaman **diukur dari
+konten struk**, lalu dipasang lewat CSS `@page { size: 58mm 103.98mm; margin: 0 }`
+di `src/renderer/receipt.html`, dan `print()` dipanggil dengan
+`preferCSSPageSize: true` (**tanpa** `pageSize`).
+
+Kalau height-nya dipatok A4, struk 3 item keluar 30 cm kertas kosong dan struk 30
+item kepotong tengah. `check-layout` wajib menguji ini (**tinggi struk 1 item
+369px · 30 item 1229px**) karena konsekuensinya uang hilang/keluar dobel, dan
+screencap nggak bisa menangkapnya.
+
+**JANGAN pakai `pageSize` dari `WebContentsPrintOptions`.** Dokumentasi Electron
+bilang inches, tapi runtime-nya membandingkan dengan **353 micron** — jadi
+`{ width: 2.28, height: 1.05 }` (inch) ditolak dengan
+`RangeError: width and height must be minimum 353 microns`, dan karena `print()`
+melempar **sinkron**, errornya lolos jadi `Error invoking remote method
+'pos:receipt:print'` tanpa konteks apa pun. Satu-satunya cara yang aman:gurunya
+lewat CSS `@page` + `preferCSSPageSize`. Kebukti bahwa itu bener: `printToPDF`
+(lewat pipeline page-size yang sama tapi nggak butuh printer) keluar
+**80.1 × 104.1 mm** untuk struk 80mm — `check-layout` mengukur ini dari `MediaBox`
+PDF, jadi regresi ke `pageSize` bakal ketahuan tanpa printer nyala.
+
+`print()` juga dibungkus `try/catch`: driver yang nolak halaman harus jadi pesan
+yang bisa dibaca kasir, bukan exception yang menjatuhkan seluruh penjualan.
+
+**Jangan pakai `requestAnimationFrame` di window tersembunyi** — Chromium **berhenti
+total** menembakkan rAF di window yang nggak pernah `show()`, jadi strut nge-hang
+selamanya tanpa error (kasir cuma lihat aplikasi beku). Pakai `setTimeout`, plus
+`backgroundThrottling: false` di `webPreferences` biar timer nggak di-throttle
+ketika kasir sedang sibuk.
+
+**`src/renderer/receipt.js` wajib UMD** — file yang sama di-`require()` unit test
+**dan** di-`<script>`-kan di browser. `module.exports` telanjang bikin
+`ReferenceError` di renderer; `window.x =` telanjang `undefined` di Node. Dan
+seluruh isi file harus di dalam factory, kalau tidak `const`/`function` di dua
+script global bakal bentrok (`SyntaxError: Identifier has already been declared`)
+padahal tiap file kelihatan nggak nyentuh.
+
+Printer dipilih kasir di **Pengaturan Perangkat** (dağıar dari
+`getPrintersAsync()`, bukan tebakan) + lebar 58/80 mm, disimpan di tabel `meta`
+jadiPrinter mati dicatat di struk. Nggak ada printer pilihan? Otomatis jatuh ke
+dialog cetak Windows — **`pos:receipt:print` tetap jalan di instalasi baru**.
+Struk yang belum masuk server (offline) dicap **"Belum terkirim ke server"**, dan
+`Riwayat Transaksi Lokal` bisa cetak ulang karena payload disimpan utuh
+(`store.getOrder()` — `listOrders()` sengaja nggak megafin payload).
+
+Gagal cetak **tidak boleh diam**: hasilnya muncul di toast tengah layar
+("Struk dicetak ke …" / "Gagal mencetak: …"). Kasir ngasih struk kosong ke
+pelanggan karena kertas habis adalah kegagalan yang paling mahal di kasir.
+
+### Pratinjau + kalibrasi kertas (v1.0.2)
+
+Dua keluhan nyata dari printer: **ujung kanan angka rupiah kepotong** dan
+**ada kertas kosong dulu beberapa cm sebelum struk mulai tercetak**. Keduanya
+bukan bug render — keduanya soal geometri head printer:
+
+| Gejala | Penyebab | Solusi |
+|---|---|---|
+| Ujung kanan terpotong | Head thermal nggak bisa cetak di mm terakhir roller; teks dari tepi ke tepi kehilangan ujung angka | `margin` kiri/kanan (default **3mm**) via `receiptCss()` |
+| Kertas kosong di depan | Area atas roller juga nggak printable, jadi roll-nya lebih dulu | `topOffset` — konten **dinaikkan** (`margin-top` negatif) dan panjang halaman **dipotong sebesar itu** |
+
+Semua nilai di `Pengaturan Perangkat`, disimpan di tabel `meta`
+(`paper_margin_mm`, `paper_top_offset_mm`, `paper_font_scale`), di-clamp di dua
+sisi (renderer `clampMm` + main) supaya renderer yang mengirim nilai aneh tidak
+bisa merusak struk.
+
+**Pratinjau memakai fungsi yang sama persis dengan yang dicetak**:
+`renderReceiptHtml()` + `receiptCss()` + `pageSizeMm()` ada di `receipt.js`,
+dipakai oleh `receipt-print.js` (window tersembunyi) **dan** panel pratinjau.
+Pratinjau yang diimplementasi ulang adalah pratinjau yang bohong — kelihatan
+benar, kertasnya beda.
+
+Pratinjau memakai **lebar milimeter sungguhan** (58mm = 219px, bukan dikecilkan
+ke lebar panel), baru di-`transform: scale()` untuk tampilan. Kalau pratinjau
+dipersen pelan, line-wrap-nya beda dan panjang kertas yang dikutip beda dari
+yang keluar dari printer.
+
+Sumber tunggal panjang kertas = `pageSizeMm(receipt, contentHeightPx)`
+(`CUT_BUFFER_PX = 20` untuk ruang potong). Dipakai print window untuk `@page`
+dan dipakai panel pratinjau untuk label "58 x 134 mm" — angkanya **wajib sama**,
+dan `check-layout` membandingkannya.
+
+### Akar masalah "margin tidak berefek": `layout` dibuang di preload (v1.0.3)
+
+Dua rilis (1.0.1, 1.0.2) kasir complained "masih ngak berubah" — margin &
+kompensasi atas tidak berefek sama sekali. Penyebabnya **bukan printer**:
+`preload.js` punya
+
+```js
+setPrinter: (name, paper) => invoke('pos:printer:set', { name, paper })
+```
+
+Argumen ketiga (`layout`) **tidak pernah ikut diteruskan**, jadi main selalu
+menerima `layout = {}` dan menyimpan default `{margin: 3, topOffset: 0,
+fontScale: 1}`. Form di UI kelihatan kesimpan, pratinjau berubah, tapi yang
+sampai ke printer tetap default. Persis gejala "saya ubah, tidak ada efeknya".
+
+Gejala yang sama persis bisa datang dari build lama yang masih jalan. Jadi
+`describePrinter()` di panel Pengaturan menampilkan **nomor versi** + **ukuran
+kertas yang dilaporkan driver** (`printer.pageSize` dari `getPrintersAsync()`),
+dan memberi peringatan kalau driver masih di kertas tetap (A4/Letter) —
+karena Windows akan letterbox halaman custom kita, dan margin berapapun pun
+tidak akan menolong selama itu terjadi.
+
+Aturan: **ubah signature IPC di preload = audit call site-nya**. Unit test dan
+`check:layout` memakai stub `ipcMain.handle`, jadi stub ikut "cocok" dengan
+signature yang salah — tidak ada yang menangkap argumen yang hilang. Yang
+menangkap: assertion bahwa isi database benar-benar tersimpan.
+
+### Kertas Kalibrasi (v1.0.3)
+
+Dua gejala (tepi kanan terpotong, kertas kosong di depan) punya **empat**
+kemungkinan sebab, tiga di antaranya bukan sisi kita: dead zone head, driver
+letterbox, lebar roll ≠ lebar yang dipilih, atau margin kita yang kurang.
+Menebak tidak bisa memisahkannya — jadi yang dicetak adalah ambigunya.
+
+`buildCalibrationPaper()` di `receipt.js` mencetak lembar dengan
+`margin: 0, topOffset: 0` **sengaja** (kalibrasi yang mengikuti margin saat ini
+hanya mengonfirmasi angka yang sudah kita tebak), berisi:
+- `.cal-frame` — kotak di keempat sisi; sisi yang hilang = tepi terpotong
+- `.ticks` — penggaris 1mm, label tiap 5mm (`0..80mm` = 81 tick)
+- `.bar-row` — 12 bar hitam setinggi 1mm di paling atas; bar pertama yang
+  tercetak = batas atas area cetak
+- `.probes` — `Rp 123.456` diulang pada inset 0..8mm **kiri dan kanan**,
+  masing-masing diberi label inset-nya
+
+Main **tidak** menimpa `layout` pada struk kalibrasi
+(`$calibration ? receipt.layout : layout`) — kalau ditimpa, lembar kalibrasi
+mengulang setting yang justru sedang diuji.
+
+Aktif di `Pengaturan Perangkat` → **Kertas Kalibrasi**, dan dipratinjau yang
+sama ditampilkan sebagai struk biasa.
+
+### Perbaikan cetak (v1.0.4): pipeline mati diam-diam + ukuran kertas driver
+
+Tiga akar masalah yang bikin keluhan lama (ujung kanan kepotong, kertas kosong
+di depan) **tidak pernah bisa diselesaikan** oleh pengguna:
+
+1. **`receipt-print.js` SyntaxError mematikan seluruh pipeline cetak.** Ada
+   duplikat `const paper` (shadowing) di file itu → gagal parse → window struk
+   nggak pernah lapor tinggi → `print()` nggak pernah dipanggil, **tanpa
+   error di mana pun** (kasir cuma lihat aplikasi diam). Unit test gak
+   nangkep karena gak ada yang `require()` file itu. Fix: rename ke
+   `const pinned`, plus test **`every shipped script parses`** —
+   `new vm.Script()` atas semua `src/**/*.js` (11 skrip). SyntaxError-class
+   regresi sekarang ketahuan di `npm test`.
+2. **Lembar kalibrasi nggak pernah bisa dicetak.** Guard
+   `items.length === 0` di handler `pos:receipt:print` nolak lembar kalibrasi
+   (0 item sale) — alat diagnostik untuk mengukur tepi kanan justru ditolak
+   olehnya. Fix: `refusalReason(receipt)` di `receipt.js` (UMD) — nolak
+   struk beneran yang kosong, tapi `kind === 'calibration'` selalu lolos;
+   dipakai main dan diuji langsung.
+3. **`printer.pageSize` gak pernah ada di mesin nyata.** Electron 33
+   `PrinterInfo` **tidak punya field `pageSize`** (dicek di
+   `electron/d.ts`: cuma description/displayName/isDefault/name/options/status),
+   jadi `p.pageSize || null` selalu null dan peringatan "driver masih di
+   kertas tetap" di `describePrinter()` cuma jalan di test — stub
+   `pos:printers` di `check-layout.js` ngarang `pageSize: 'A4'`. Fix: query
+   terpisah `queryDriverPaper()` di `print.js` (PowerShell
+   `Get-PrintConfiguration`, win32-only, cache per nama termasuk kegagalan,
+   timeout 5 detik) → IPC `pos:printer:paper` → preload
+   `pos.printerPaper()` → `describePrinter()` jadi **async**: skeleton dulu,
+   jawaban diisi setelah sampai, dan jawaban basi dibuang dengan mengecek
+   nilai `set-printer` saat itu. `check-layout.js` stub IPC-nya (POS-58/
+  PDF → `A4`, POS-80 → `80 x 297 mm`) dan menunggu ~400ms sebelum baca
+  `printer-info`.
+
+Bonus fix: `printerSettings()` di main.js dulu `Number(meta) || fallback` —
+margin tersimpan `"0"` balik jadi 3 (angka 0 itu sendiri valid).
+Sekarang pakai `metaNum()` yang menghormati 0 eksplisit.
+
+Aturan yang dipetik: **stub test harus mencerminkan API asli** — kalau field
+itu gak ada di API produksi, stub juga gak boleh punya (kecuali memang sedang
+menguji jalur fallback). Dan **ubah signature/IPC baru = audit call site +
+tambah assertion isi database**, karena stub `ipcMain.handle` gak akan pernah
+menolak payload yang salah.
+
+Rincian item Receipt yang lain ada di bagian atas tabel file desktop.
+
+### Perbaikan cetak (v1.0.5): akar "setting nggak ngefek" = Electron lama
+
+Setelah v1.0.4, kasir masih melaporkan hal yang sama persis: ubah margin &
+kompensasi, **nggak ada efek apa-apa**, ujung kanan tetap kepotong, kertas
+kosong tetap keluar. Bukti dari sisi kita: `printToPDF` (jalur page-size yang
+sama dengan `print()` tapi tanpa printer) keluar **58mm, margin bergeser
+1:1, `topOffset` naik pas** — jadi template, CSS, dan perhitungan tinggi
+**sudah benar**. Sisa masalahnya di jalur `print()` ke driver.
+
+Akar masalahnya bug Electron: `webContents.print()` mengabaikan `pageSize`
+saat `silent: true` (kondisi pas printer dipilih di settings) dan **diam-diam
+balik ke A4**. Windows lalu men-scale/letterbox halaman 58mm kita ke tengah
+kertas A4 → kertas kosong di atas + tepi kanan kepotong, dan **margin sebesar
+apa pun nggak akan kelihatan** karena seluruh halaman sedang di-scale.
+Rujukan: electron#50785 (fix di PR #50808), electron#49374.
+
+**Fix:** upgrade Electron `33.4.11 → 44.7.0`, yang sudah punya fix
+silent+`pageSize` dan opsi `usePrinterDefaultPageSize`. Catatan operasional:
+root `.npmrc` punya `ignore-scripts=true`, dan walau `desktop/.npmrc` set
+`ignore-scripts=false`, binary Electron-nya **tetap belum ke-download** saat
+`npm install` — jalankan sekali `node node_modules/electron/install.js`.
+
+Perubahan pendukung:
+
+- **`printOptions()` di `receipt.js` (UMD).** Semua opsi `webContents.print()`
+  dibangun di fungsi murni supaya bisa dites tanpa printer. Aturan yang
+  dijaga: `pageSize` (mikron) dan `usePrinterDefaultPageSize` **tidak boleh
+  keduanya** — Electron throw "cannot be combined". `print.js` tinggal
+  memanggilnya.
+- **Setting baru `pageMode`**: `auto` (default — kirim halaman pas ukuran
+  struk) atau `driver` (ikut form driver sendiri). Disimpan di meta
+  `paper_mode`, disalurkan `preload.setPrinter(name, paper, layout, pageMode)`
+  → IPC `pos:printer:set` → `pos:receipt:print`. Dropdown **"Ukuran halaman"**
+  di Pengaturan Perangkat. `driver` adalah jalan keluar kalau driver tetap
+  menolak ukuran custom (konsekuensinya feed bisa sepanjang form driver).
+- **Beda lebar window vs lebar roll.** Window struk 400px, tapi struk dicetak
+  58/80mm → tinggi yang diukur beda dari yang dicetak. `receiptCss(layout,
+  paperMm)` sekarang memaku `html, body { width: <paper>mm }` supaya
+  pengukuran = cetakan.
+- **Default margin 3mm → 5mm (58mm) / 4mm (80mm)** via `defaultMargin()`:
+  3mm masih menyisakan ujung angka rupiah di bawah dead zone head.
+- Test: `pos.test.js` (30) termasuk `printOptions` (auto vs driver, tidak
+  pernah keduanya). `npm run verify` hijau. Build `1.0.5`.
+
+### Gaya CSS struk
+
+`receipt.html` tidak lagi punya CSS inline. Dua `<style>` kosong diisi runtime:
+`#receipt-css` (dari `receiptCss()`) dan `#page-size` (dari `pageSizeMm()`).
+Semua elemen yang bukan HTML escaped lewat `esc()` — nama produk bisa berisi
+`&` dan `<`.
+
+---
+
 ## Settings System
 
 - **Model**: `Setting` — key-value store; `Setting::get($key, $default)` (bank_accounts returns `[]` never null; boolean settings disimpan sebagai string `"1"`/`"0"`)

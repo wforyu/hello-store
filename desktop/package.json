@@ -1,0 +1,76 @@
+{
+  "name": "hello-store-pos",
+  "productName": "Hello Store POS",
+  "version": "1.0.5",
+  "description": "Mesin POS desktop untuk Hello Store - bisa operate offline dan sync otomatis",
+  "main": "src/main/main.js",
+  "author": "Hello Store",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test test/pos.test.js",
+    "test:e2e": "node --test test/integration.js",
+    "check:layout": "electron test/check-layout.js",
+    "verify": "npm run test && npm run check:layout",
+    "build": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win portable --x64",
+    "build:dir": "electron-builder --dir"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.0"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "id.hellostore.pos",
+    "productName": "Hello Store POS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/sql.js/dist/sql-wasm.wasm"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "HelloStorePOS-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Hello Store POS"
+    },
+    "portable": {
+      "artifactName": "HelloStorePOS-${version}-portable.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@44.7.0": true
+  }
+}

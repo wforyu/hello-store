@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use App\Models\Notification;
+use App\Models\Order;
+use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -80,6 +82,19 @@ class OrdersTable
                     ->money('IDR')
                     ->sortable()
                     ->weight('bold'),
+                TextColumn::make('stock_conflict')
+                    ->label('Konflik Stok')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Konflik' : '-')
+                    ->color(fn (bool $state): string => $state ? 'danger' : 'gray')
+                    ->icon(fn (bool $state): string => $state ? 'heroicon-o-exclamation-triangle' : '')
+                    ->description(fn (Order $record): ?string => $record->stock_conflict ? $record->conflict_reason : null)
+                    ->toggleable(),
+                TextColumn::make('client_ref')
+                    ->label('Ref. Client')
+                    ->copyable()
+                    ->placeholder('POS web')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('payment_method')
                     ->label('Metode')
                     ->formatStateUsing(fn (string $state): string => match ($state) {
@@ -128,10 +143,16 @@ class OrdersTable
             ->filters([
                 Filter::make('hari_ini')
                     ->label('Hari Ini')
-                    ->query(fn (Builder $q) => $q->whereDate('created_at', today())),
+                    ->query(fn (Builder $query): Builder => $query->whereDate('created_at', today())),
                 Filter::make('menunggu')
                     ->label('Pending / Processing')
-                    ->query(fn (Builder $q) => $q->whereIn('status', ['pending', 'processing'])),
+                    ->query(fn (Builder $query): Builder => $query->whereIn('status', ['pending', 'processing'])),
+                Filter::make('stock_conflict')
+                    ->label('Konflik Stok')
+                    ->query(fn (Builder $query): Builder => $query->where('stock_conflict', true)),
+                Filter::make('dari_pos_client')
+                    ->label('Dari POS Desktop')
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('client_id')),
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -151,6 +172,27 @@ class OrdersTable
             ])
             ->recordActions([
                 EditAction::make(),
+                Action::make('tandaiKonflikSudahDicek')
+                    ->label('Tandai Sudah Dicek')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->color('warning')
+                    ->visible(fn (Order $record): bool => (bool) $record->stock_conflict)
+                    ->requiresConfirmation()
+                    ->modalHeading('Tandai Konflik Stok Sudah Dicek?')
+                    ->modalDescription('Alasan konflik akan dipindahkan ke Catatan Admin dan order dikeluarkan dari daftar konflik. Stok dan total tidak diubah.')
+                    ->modalSubmitActionLabel('Ya, Sudah Dicek')
+                    ->action(function (Order $record): void {
+                        $archive = trim(implode("\n", array_filter([
+                            '['.now()->format('d M Y H:i').'] Konflik stok ditandai sudah dicek oleh admin.',
+                            $record->conflict_reason,
+                        ])));
+
+                        $record->update([
+                            'stock_conflict' => false,
+                            'conflict_reason' => null,
+                            'admin_notes' => trim(((string) $record->admin_notes)."\n\n".$archive),
+                        ]);
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

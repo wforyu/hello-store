@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\GuestOrderController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PosController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReviewController;
@@ -101,4 +102,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/chat', [ChatApiController::class, 'index']);
     Route::post('/chat/send', [ChatApiController::class, 'send']);
     Route::get('/chat/{conversation}/poll', [ChatApiController::class, 'poll']);
+
+    // POS (desktop client). Stateless: the cart travels inline with each call
+    // so the client can keep selling while disconnected.
+    Route::middleware('can:access-pos')->prefix('pos')->name('api.pos.')->group(function () {
+        Route::get('/config', [PosController::class, 'config']);
+        Route::get('/catalog', [PosController::class, 'catalog']);
+        Route::get('/orders', [PosController::class, 'orders']);
+        Route::post('/checkout', [PosController::class, 'checkout']);
+        Route::post('/sync', [PosController::class, 'sync']);
+        Route::get('/sync/status', [PosController::class, 'syncStatus']);
+    });
 });

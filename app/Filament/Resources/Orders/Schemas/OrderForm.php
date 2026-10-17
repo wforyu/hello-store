@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Models\Order;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -111,6 +112,28 @@ class OrderForm
                 TextInput::make('shipping_tracking_number')
                     ->label('No. Resi')
                     ->helperText('Masukkan nomor resi setelah paket dikirim.'),
+                Section::make('Transaksi POS Desktop')
+                    ->description('Data tambahan untuk order yang disinkronkan dari kasir desktop yang sempat offline.')
+                    ->collapsible()
+                    ->collapsed()
+                    ->columns(2)
+                    ->schema([
+                        Placeholder::make('pos_client_ref')
+                            ->label('Referensi Client')
+                            ->content(fn (Order $record): string => $record->client_ref ?: '— (POS web)'),
+                        Placeholder::make('pos_synced_at')
+                            ->label('Waktu Sinkronisasi')
+                            ->content(fn (Order $record): string => $record->synced_at?->format('d M Y, H:i') ?? '—'),
+                        Placeholder::make('pos_stock_conflict')
+                            ->label('Status Konflik Stok')
+                            ->content(fn (Order $record): string => $record->stock_conflict
+                                ? 'Konflik stok - perlu koreksi pembukuan'
+                                : 'Tidak ada konflik'),
+                        Placeholder::make('pos_conflict_reason')
+                            ->label('Alasan Konflik')
+                            ->content(fn (Order $record): string => $record->conflict_reason ?: '—')
+                            ->columnSpanFull(),
+                    ]),
                 Section::make('Tracking Pengiriman')
                     ->schema([
                         Repeater::make('trackingEvents')

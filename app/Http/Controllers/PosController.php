@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\PosException;
 use App\Models\Category;
 use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Shift;
 use App\Models\ShiftExpense;
 use App\Models\User;
+use App\Services\PosService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PosController extends Controller
@@ -165,17 +164,14 @@ class PosController extends Controller
         return response()->json(['cart' => $cart, 'subtotal' => $this->getSubtotal($cart)]);
     }
 
-    public function checkout(Request $request)
+    public function checkout(Request $request, PosService $pos)
     {
         $cart = collect(session('pos_cart', []));
         if ($cart->isEmpty()) {
             return response()->json(['error' => 'Keranjang kosong!'], 422);
         }
 
-        $itemSubtotal = $this->getSubtotal($cart);
-        $itemDiscounts = $this->getItemDiscountsTotal($cart);
-        $activeShift = Shift::where('user_id', auth()->id())->whereNull('closed_at')->first();
-        $afterItemDiscount = $itemSubtotal - $itemDiscounts;
+        $afterItemDiscount = $pos->quote($cart)['after_item_discount'];
 
         $validated = $request->validate([
             'customer_name' => 'nullable|string|max:100',
@@ -187,121 +183,21 @@ class PosController extends Controller
             'order_type' => 'required|in:dine_in,takeaway',
         ]);
 
-        $globalDiscount = (float) ($validated['discount'] ?? 0);
-        $ppnEnabled = Setting::get('ppn_enabled', '0') === '1';
-        $ppn = $ppnEnabled && (bool) ($validated['ppn'] ?? false);
-        $ppnRate = (int) Setting::get('ppn_percentage', 11);
-        $ppnAmount = $ppn ? round(max(0, $afterItemDiscount - $globalDiscount) * $ppnRate / 100) : 0;
-        $total = max(0, $afterItemDiscount - $globalDiscount + $ppnAmount);
-
-        if ($validated['payment_method'] === 'cash') {
-            if (! $request->filled('amount_paid') || $validated['amount_paid'] < $total) {
-                return response()->json(['error' => 'Jumlah dibayar kurang dari total!'], 422);
-            }
-        }
-
-        $productIds = $cart->pluck('product_id');
-        $liveProducts = Product::whereIn('id', $productIds)->get()->keyBy('id');
-
-        foreach ($cart as $item) {
-            $product = $liveProducts->get($item['product_id']);
-            if (! $product || $product->stock < $item['quantity']) {
-                return response()->json([
-                    'error' => "Stok '{$item['name']}' tidak mencukupi (tersedia: ".($product?->stock ?? 0).')!',
-                ], 422);
-            }
-        }
-
         try {
-            $order = DB::transaction(function () use ($cart, $itemSubtotal, $globalDiscount, $ppn, $ppnAmount, $ppnRate, $total, $validated, $liveProducts, $activeShift) {
-                $paymentMethodMap = [
-                    'cash' => 'cash',
-                    'qris' => 'qris',
-                    'debit' => 'debit_card',
-                    'transfer' => 'bank_transfer',
-                ];
-
-                $orderTypeLabel = $validated['order_type'] === 'dine_in' ? 'Dine-in' : 'Takeaway';
-
-                $notes = $orderTypeLabel.' - '.($validated['customer_name'] ?? 'Umum');
-                if ($globalDiscount > 0) {
-                    $notes .= ' | Diskon: Rp '.number_format($globalDiscount, 0, ',', '.');
-                }
-                if ($ppn) {
-                    $notes .= ' | PPN '.$ppnRate.'%: Rp '.number_format($ppnAmount, 0, ',', '.');
-                }
-                if ($validated['customer_id']) {
-                    $notes .= ' | Customer ID: '.$validated['customer_id'];
-                }
-
-                $order = Order::create([
-                    'user_id' => auth()->id(),
-                    'order_number' => 'POS-'.strtoupper(Str::random(8)),
-                    'status' => 'completed',
-                    'subtotal' => $itemSubtotal,
-                    'shipping_cost' => 0,
-                    'total' => $total,
-                    'payment_method' => $paymentMethodMap[$validated['payment_method']],
-                    'payment_status' => 'paid',
-                    'notes' => $notes,
-                ]);
-
-                if ($activeShift) {
-                    $order->update(['shift_id' => $activeShift->id]);
-                }
-
-                foreach ($cart as $item) {
-                    $itemTotal = $item['price'] * $item['quantity'];
-                    $itemDisc = $this->calcItemDiscount($item);
-                    OrderItem::create([
-                        'order_id' => $order->id,
-                        'product_id' => $item['product_id'],
-                        'product_name' => $item['name'],
-                        'product_price' => $item['price'],
-                        'quantity' => $item['quantity'],
-                        'subtotal' => $itemTotal - $itemDisc,
-                    ]);
-
-                    $p = $liveProducts->get($item['product_id']);
-                    if (! $p) {
-                        throw new \RuntimeException("Produk '{$item['name']}' tidak tersedia.");
-                    }
-                    $affected = Product::where('id', $p->id)
-                        ->where('stock', '>=', $item['quantity'])
-                        ->decrement('stock', $item['quantity']);
-                    if ($affected === 0) {
-                        throw new \RuntimeException("Stok '{$item['name']}' tidak mencukupi.");
-                    }
-                    $p->recordStockHistory(-$item['quantity'], 'pos', null, Order::class, $order->id);
-                }
-
-                Payment::create([
-                    'order_id' => $order->id,
-                    'method' => $paymentMethodMap[$validated['payment_method']],
-                    'amount' => $total,
-                    'status' => 'paid',
-                    'paid_at' => now(),
-                ]);
-
-                return $order;
-            });
-        } catch (\RuntimeException $e) {
+            $result = $pos->checkout(auth()->user(), $cart, $validated);
+        } catch (PosException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
         session()->forget('pos_cart');
 
-        $change = $validated['payment_method'] === 'cash'
-            ? max(0, ($validated['amount_paid'] ?? 0) - $total)
-            : 0;
-
         return response()->json([
             'success' => true,
-            'order_id' => $order->id,
-            'order_number' => $order->order_number,
-            'change' => $change,
-            'discount' => $globalDiscount,
-            'ppn' => $ppnAmount,
+            'order_id' => $result['order']->id,
+            'order_number' => $result['order']->order_number,
+            'change' => $result['change'],
+            'discount' => $result['quote']['global_discount'],
+            'ppn' => $result['quote']['ppn_amount'],
             'payment_method' => $validated['payment_method'],
         ]);
     }
@@ -574,28 +470,6 @@ class PosController extends Controller
 
     protected function getSubtotal($cart): float
     {
-        return $cart->sum(fn ($item) => $item['price'] * $item['quantity']);
-    }
-
-    protected function getItemDiscountsTotal($cart): float
-    {
-        return $cart->sum(fn ($item) => $this->calcItemDiscount($item));
-    }
-
-    protected function calcItemDiscount(array $item): float
-    {
-        $itemTotal = $item['price'] * $item['quantity'];
-        $discount = (float) ($item['discount'] ?? 0);
-        $type = $item['discount_type'] ?? 'nominal';
-
-        if ($discount <= 0) {
-            return 0;
-        }
-
-        if ($type === 'percent') {
-            return round($itemTotal * min($discount, 100) / 100);
-        }
-
-        return min($discount, $itemTotal);
+        return app(PosService::class)->quote(collect($cart))['subtotal'];
     }
 }

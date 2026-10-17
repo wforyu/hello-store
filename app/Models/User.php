@@ -192,6 +192,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Cart::class);
     }
 
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(Shift::class);
+    }
+
+    public function openShift(): ?Shift
+    {
+        return $this->shifts()->whereNull('closed_at')->orderByDesc('id')->first();
+    }
+
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);

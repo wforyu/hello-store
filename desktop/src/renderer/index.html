@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+  <title>Hello Store POS</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============================ LOGIN ============================ -->
+<section id="login" class="login" hidden>
+  <form class="login-card" id="login-form">
+    <div class="brand">
+      <div class="brand-mark">HS</div>
+      <div>
+        <h1>Hello Store POS</h1>
+        <p>Kasir offline-ready</p>
+      </div>
+    </div>
+
+    <label for="api-url">Alamat server</label>
+    <input id="api-url" type="text" placeholder="http://localhost:8000" autocomplete="off" spellcheck="false">
+
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="kasir@hello-store.test" autocomplete="username" required>
+
+    <label for="password">Kata sandi</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+
+    <p class="login-error" id="login-error" hidden></p>
+
+    <button type="submit" class="btn-primary" id="login-submit">Masuk</button>
+
+    <p class="login-hint">
+      Kasir maupun admin bisa masuk. Password tidak disimpan di perangkat ini.
+    </p>
+  </form>
+</section>
+
+<!-- ============================= APP ============================= -->
+<div id="app" hidden>
+
+  <header class="topbar">
+    <div class="brand brand-sm">
+      <div class="brand-mark">HS</div>
+      <strong>Hello Store POS</strong>
+    </div>
+
+    <div class="topbar-stats" id="topbar-stats"></div>
+
+    <div class="topbar-right">
+      <span class="badge" id="conn-badge">Memeriksa…</span>
+      <button class="btn-ghost" id="btn-sync" title="Kirim antrean ke server">Sinkron</button>
+      <button class="btn-ghost" id="btn-orders">Riwayat</button>
+      <button class="btn-ghost" id="btn-settings">Pengaturan</button>
+      <span class="cashier" id="cashier-name"></span>
+      <button class="btn-ghost" id="btn-logout">Keluar</button>
+    </div>
+  </header>
+
+  <p class="offline-banner" id="offline-banner" hidden></p>
+
+  <main class="workspace">
+
+    <!-- ---------------- products ---------------- -->
+    <section class="catalog">
+      <div class="catalog-bar">
+        <input id="search" type="search" placeholder="Cari nama atau SKU…" autocomplete="off" spellcheck="false">
+        <button class="btn-ghost" id="btn-clear-search">Bersihkan</button>
+      </div>
+
+      <div class="pills" id="categories"></div>
+
+      <div class="grid" id="grid"></div>
+      <p class="empty" id="grid-empty" hidden>Tidak ada produk yang cocok.</p>
+    </section>
+
+    <!-- ---------------- cart ---------------- -->
+    <aside class="cart">
+      <div class="cart-head">
+        <h2>Keranjang</h2>
+        <button class="btn-link" id="btn-clear-cart">Kosongkan</button>
+      </div>
+
+      <div class="cart-items" id="cart-items"></div>
+      <p class="empty" id="cart-empty">Keranjang masih kosong.</p>
+
+      <div class="cart-foot">
+        <label class="check">
+          <input type="checkbox" id="opt-ppn"> <span id="ppn-label">PPN 11%</span>
+        </label>
+
+        <div class="field-inline">
+          <span>Diskon global</span>
+          <input id="opt-discount" type="text" inputmode="numeric" placeholder="0">
+        </div>
+
+        <dl class="totals">
+          <div><dt>Subtotal</dt><dd id="sum-subtotal">Rp 0</dd></div>
+          <div><dt>Diskon item</dt><dd id="sum-item-discount">Rp 0</dd></div>
+          <div><dt>Diskon global</dt><dd id="sum-global-discount">Rp 0</dd></div>
+          <div id="row-ppn" hidden><dt id="ppn-row-label">PPN 11%</dt><dd id="sum-ppn">Rp 0</dd></div>
+          <div class="grand"><dt>Total</dt><dd id="sum-total">Rp 0</dd></div>
+        </dl>
+
+        <div class="field-inline">
+          <span>Uang diterima</span>
+          <input id="opt-paid" type="text" inputmode="numeric" placeholder="0">
+        </div>
+
+        <div class="quick" id="quick-amounts">
+          <button data-amount="50000">50rb</button>
+          <button data-amount="100000">100rb</button>
+          <button data-amount="200000">200rb</button>
+          <button data-amount="500000">500rb</button>
+          <button data-amount="1000000">1jt</button>
+        </div>
+
+        <div class="field-inline">
+          <span>Kembalian</span>
+          <strong id="change-due">Rp 0</strong>
+        </div>
+
+        <div class="field-inline">
+          <span>Metode bayar</span>
+          <select id="opt-payment">
+            <option value="cash">Tunai</option>
+            <option value="qris">QRIS</option>
+            <option value="debit">Kartu debit</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <span>Tipe</span>
+          <select id="opt-order-type">
+            <option value="dine_in">Makan di tempat</option>
+            <option value="takeaway">Bawa pulang</option>
+          </select>
+        </div>
+
+        <div class="field-inline">
+          <span>Nama pelanggan</span>
+          <input id="opt-customer" type="text" placeholder="Umum" autocomplete="off">
+        </div>
+
+        <p class="warn" id="cash-warning" hidden>Uang diterima kurang dari total.</p>
+
+        <button class="btn-primary big" id="btn-checkout" disabled>Bayar</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- =========================== RECEIPT =========================== -->
+<div class="modal" id="receipt" hidden>
+  <div class="modal-card">
+    <h2 id="receipt-title">Transaksi Berhasil</h2>
+    <p class="receipt-mode" id="receipt-mode"></p>
+    <dl class="totals">
+      <div><dt>Subtotal</dt><dd id="r-subtotal"></dd></div>
+      <div id="r-ppn-row" hidden><dt id="r-ppn-label"></dt><dd id="r-ppn"></dd></div>
+      <div class="grand"><dt>Total</dt><dd id="r-total"></dd></div>
+      <div><dt>Uang diterima</dt><dd id="r-paid"></dd></div>
+      <div><dt>Kembalian</dt><dd id="r-change"></dd></div>
+    </dl>
+    <p class="receipt-note" id="receipt-note"></p>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btn-receipt-done">Transaksi Baru</button>
+      <button class="btn-ghost" id="btn-print-receipt">Cetak Struk</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== SETTINGS =========================== -->
+<div class="modal" id="settings" hidden>
+  <div class="modal-card">
+    <h2>Pengaturan Perangkat</h2>
+
+    <label for="set-url">Alamat server</label>
+    <input id="set-url" type="text" spellcheck="false">
+
+    <label for="set-client">Client ID (jangan diubah)</label>
+    <input id="set-client" type="text" readonly>
+
+    <h3 class="modal-subhead">Printer Struk</h3>
+
+    <label for="set-printer">Printer</label>
+    <select id="set-printer">
+      <option value="">Belum dipilih — pakai dialog cetak Windows</option>
+    </select>
+    <p class="field-hint" id="printer-hint">Belum ada printer thermal terdaftar di komputer ini.</p>
+
+    <label for="set-paper">Lebar kertas struk</label>
+    <select id="set-paper">
+      <option value="58">58 mm (struk pendek)</option>
+      <option value="80">80 mm (struk lebar)</option>
+    </select>
+
+    <label for="set-paper-mode">Ukuran halaman</label>
+    <select id="set-paper-mode">
+      <option value="auto">Otomatis — panjang pas struk (disarankan)</option>
+      <option value="driver">Ikuti driver printer</option>
+    </select>
+    <p class="field-hint">Biarkan <strong>Otomatis</strong>. Kalau hasil cetak tetap mengecil di tengah kertas atau kepotong walau margin sudah diubah, ganti ke <strong>Ikuti driver printer</strong> — sebagian driver mengabaikan ukuran halaman yang kita minta.</p>
+
+    <label for="set-margin">Margin kiri &amp; kanan (mm)</label>
+    <input id="set-margin" type="number" min="0" max="8" step="0.5" inputmode="decimal">
+    <p class="field-hint">Besarkan kalau ujung kanan angka di struk terpotong. Head printer thermal nggak bisa mencetak sampai tepi kertas.</p>
+
+    <label for="set-top-offset">Kompensasi kertas kosong atas (mm)</label>
+    <input id="set-top-offset" type="number" min="0" max="15" step="0.5" inputmode="decimal">
+    <p class="field-hint">Naikkan kalau struk keluar ada kertas kosong dulu di bagian atas. Isi 0 kalau printer lo sudah potong pas.</p>
+
+    <label for="set-font">Ukuran teks struk</label>
+    <select id="set-font">
+      <option value="0.85">Kecil (struk lebih hemat)</option>
+      <option value="1">Normal</option>
+      <option value="1.2">Besar (lebih gampang dibaca)</option>
+      <option value="1.4">Sangat besar</option>
+    </select>
+
+    <div class="preview-head">
+      <h3 class="modal-subhead">Pratinjau</h3>
+      <span class="preview-size" id="preview-size">—</span>
+    </div>
+    <p class="field-hint">Isinya persis yang akan keluar dari printer.</p>
+
+    <div class="preview-stage" id="preview-stage">
+      <div class="preview-paper" id="preview-paper"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btn-refresh-printers">Segarkan daftar printer</button>
+      <button class="btn-ghost" id="btn-calibrate">Kertas Kalibrasi</button>
+      <button class="btn-ghost" id="btn-test-print">Uji Cetak</button>
+    </div>
+
+    <div class="printer-info" id="printer-info"></div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btn-refresh-catalog">Muat ulang katalog</button>
+      <button class="btn-ghost" id="btn-export">Ekspor database</button>
+      <button class="btn-primary" id="btn-save-settings">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== ORDERS ============================ -->
+<div class="drawer" id="orders" hidden>
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <h2>Riwayat Transaksi Lokal</h2>
+      <button class="btn-ghost" id="btn-orders-close">Tutup</button>
+    </div>
+    <div id="orders-list" class="orders-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="receipt.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

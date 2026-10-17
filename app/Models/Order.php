@@ -23,6 +23,7 @@ class Order extends Model
         'shipped_at', 'delivered_at', 'cancelled_at',
         'coupon_id', 'discount',
         'guest_name', 'guest_email', 'guest_phone', 'guest_token',
+        'client_id', 'client_ref', 'stock_conflict', 'conflict_reason', 'synced_at',
     ];
 
     protected function casts(): array
@@ -35,6 +36,8 @@ class Order extends Model
             'shipped_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'stock_conflict' => 'boolean',
+            'synced_at' => 'datetime',
         ];
     }
 

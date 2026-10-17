@@ -40,5 +40,6 @@ class DatabaseSeeder extends Seeder
         Setting::create(['key' => 'ppn_percentage', 'value' => '11']);
 
         $this->call(BundleSeeder::class);
+        $this->call(PosDummyProductsSeeder::class);
     }
 }
