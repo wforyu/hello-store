@@ -116,6 +116,8 @@ class PosController extends Controller
             ]);
         }
 
+        $cart = $cart->values();
+
         session(['pos_cart' => $cart]);
 
         return response()->json(['cart' => $cart, 'subtotal' => $this->getSubtotal($cart)]);
@@ -146,7 +148,7 @@ class PosController extends Controller
             }
 
             return $item;
-        });
+        })->values();
 
         session(['pos_cart' => $cart]);
 
@@ -242,13 +244,17 @@ class PosController extends Controller
             return response()->json(['error' => 'Pesanan tidak ditemukan!'], 404);
         }
 
-        session(['pos_cart' => $hold['cart']]);
+        // ->values() supaya payload JSON selalu array, bukan object. Handler POS
+        // merender cart dengan x-for; object membuat daftar item kosong.
+        $cart = collect($hold['cart'] ?? [])->values();
+
+        session(['pos_cart' => $cart]);
 
         $holds = $holds->where('id', '!=', (int) $id)->values();
         session(['pos_holds' => $holds]);
 
         return response()->json([
-            'cart' => $hold['cart'],
+            'cart' => $cart,
             'customer_name' => $hold['customer_name'] ?? '',
             'holds' => $holds,
         ]);
@@ -333,6 +339,8 @@ class PosController extends Controller
                 'discount_type' => 'nominal',
             ]);
         }
+
+        $cart = $cart->values();
 
         session(['pos_cart' => $cart]);
 

@@ -565,11 +565,7 @@
             ],
 
             init() {
-                this.cart = (Array.isArray(this.cart) ? this.cart : []).map(item => ({
-                    ...item,
-                    discountText: item.discount ? String(item.discount) : '',
-                    discountType: item.discount_type || 'nominal',
-                }));
+                this.cart = this.hydrateCart(this.cart);
             },
 
             // --- Computed ---
@@ -619,6 +615,49 @@
                 return num.toLocaleString('id-ID');
             },
 
+            formatNominal(value) {
+                const digits = String(value ?? '').replace(/\D/g, '');
+                if (!digits) return '';
+                return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            },
+
+            /**
+             * Server hanya menyimpan `discount` + `discount_type`, sedangkan input
+             * diskon di UI terikat ke `discountText`. Setiap payload cart dari server
+             * WAJIB lewat sini — kalau tidak, `discountText` jadi undefined dan angka
+             * yang baru diketik kasir kelihatan hilang.
+             */
+            hydrateCart(items) {
+                const list = Array.isArray(items)
+                    ? items
+                    : Object.values(items && typeof items === 'object' ? items : {});
+
+                return list.filter(Boolean).map(item => this.hydrateCartItem(item));
+            },
+
+            /**
+             * Satu baris cart → bentuk yang dipakai UI (`discountText`, `_dirty`,
+             * timer sync). Dipakai `hydrateCart()` dan penambahan optimistis di
+             * `addToCart()`.
+             */
+            hydrateCartItem(item) {
+                const type = item.discountType || item.discount_type || 'nominal';
+                const discount = parseFloat(item.discount) || 0;
+
+                return {
+                    ...item,
+                    discount: discount,
+                    discountType: type,
+                    discount_type: type,
+                    // Diskon 0 tampil sebagai input KOSONG, bukan "0".
+                    discountText: discount > 0
+                        ? (type === 'percent' ? String(discount) : this.formatNominal(discount))
+                        : '',
+                    _dirty: false,
+                    _syncSeq: 0,
+                };
+            },
+
             calcItemDisc(item) {
                 const total = item.price * item.quantity;
                 const disc = parseFloat(item.discount || 0);
@@ -630,6 +669,41 @@
 
             itemTotal(item) {
                 return (item.price * item.quantity) - this.calcItemDisc(item);
+            },
+
+            /**
+             * Pasang payload cart dari server sebagai state UI.
+             *
+             * Diskon baris yang BELUM terkirim (masih menunggu debounce 400 ms,
+             * atau requestnya sedang jalan) tidak ada di balasan server. Kalau
+             * begitu array-nya diganti mentah-mentah, angka yang baru diketik
+             * kasir langsung kosong — persis keluhan "diskon hilang sendiri".
+             * Jadi baris yang masih `_dirty` memakai nilai lokalnya, lalu
+             * dikirim ulang.
+             */
+            replaceCart(items) {
+                if (!Array.isArray(this.cart)) this.cart = [];
+
+                const previous = {};
+                this.cart.forEach(item => {
+                    clearTimeout(item._syncTimer);
+                    previous[String(item.product_id)] = item;
+                });
+
+                this.cart = this.hydrateCart(items).map(item => {
+                    const old = previous[String(item.product_id)];
+
+                    if (old && old._dirty) {
+                        item.discount = old.discount;
+                        item.discountType = old.discountType;
+                        item.discount_type = old.discount_type;
+                        item.discountText = old.discountText;
+                        item._dirty = true;
+                        this.syncItemDiscount(item);
+                    }
+
+                    return item;
+                });
             },
 
             // --- Input handlers ---
@@ -669,46 +743,84 @@
 
             toggleItemDiscountType(item) {
                 item.discountType = item.discountType === 'percent' ? 'nominal' : 'percent';
-                if (!item.discountText && item.discount && item.discount > 0) {
-                    item.discountText = String(item.discount);
-                }
-                if (item.discountType === 'nominal' && item.discountText) {
-                    var raw = item.discountText.replace(/\D/g, '');
-                    var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                    item.discountText = formatted;
-                }
+                item.discountText = item.discountType === 'percent'
+                    ? String(parseInt(item.discountText || 0, 10) || '')
+                    : this.formatNominal(item.discountText);
+                item.discount = parseFloat(String(item.discountText).replace(/\D/g, '')) || 0;
+                item._dirty = true;
                 this.syncItemDiscount(item);
             },
 
             updateItemDiscount(item, idx) {
-                var raw = item.discountText.replace(/\D/g, '');
-                if (raw === '') { item.discountText = ''; item.discount = 0; this.syncItemDiscount(item); return; }
+                var raw = String(item.discountText ?? '').replace(/\D/g, '');
+
+                if (raw === '') {
+                    item.discountText = '';
+                    item.discount = 0;
+                    item._dirty = true;
+                    this.syncItemDiscount(item);
+                    return;
+                }
+
                 if (item.discountType === 'nominal') {
                     var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
                     if (item.discountText !== formatted) item.discountText = formatted;
                 } else {
-                    item.discountText = raw;
+                    // Persen tidak pakai pemisah ribuan, jadi cukup digit mentah.
+                    // Nilai > 100 dibiarkan apa adanya; calcItemDisc() dan server
+                    // sama-sama membatasinya di 100%.
+                    if (item.discountText !== raw) item.discountText = raw;
                 }
+
                 item.discount = parseFloat(raw);
+                item._dirty = true;
                 this.syncItemDiscount(item);
             },
 
+            /**
+             * Simpan diskon baris ke session cart di server (dipakai saat checkout).
+             *
+             * PENTING: JANGAN mengganti `this.cart` dengan respons server di sini.
+             * Respons hanya membawa `discount`/`discount_type`, bukan `discountText`,
+             * jadi mengganti array membuat input diskon kosong lagi persis setelah
+             * diketik (dan kalau payload-nya bukan array, seluruh baris keranjang
+             * ikut lenyap). Yang dikirim hanya field diskon — `quantity` sengaja
+             * tidak ikut supaya sync diskon tidak bisa menimpa qty terbaru.
+             */
             syncItemDiscount(item) {
                 clearTimeout(item._syncTimer);
-                item._syncTimer = setTimeout(() => {
-                    fetch('{{ route("pos.update") }}', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                        body: JSON.stringify({
-                            product_id: item.product_id,
-                            quantity: item.quantity,
-                            discount: item.discount || 0,
-                            discount_type: item.discountType || 'nominal',
-                        })
-                    }).then(r => r.json()).then(data => {
-                        if (data.cart) this.cart = data.cart;
-                    });
-                }, 400);
+                item._syncTimer = setTimeout(() => this.pushItemDiscount(item), 400);
+            },
+
+            pushItemDiscount(item) {
+                item._syncSeq = (item._syncSeq || 0) + 1;
+                const seq = item._syncSeq;
+
+                return this.posPost('{{ route("pos.update") }}', {
+                    product_id: item.product_id,
+                    discount: item.discount || 0,
+                    discount_type: item.discountType || 'nominal',
+                }).then(data => {
+                    // Hanya tandai bersih kalau tidak ada ketikan yang lebih baru.
+                    if (seq === item._syncSeq) item._dirty = false;
+
+                    return data;
+                });
+            },
+
+            /**
+             * Kirim semua diskon baris yang belum tersimpan sebelum checkout.
+             * Tanpa ini, kasir yang mengetik diskon lalu langsung F4 (dalam < 400ms)
+             * membuat server menghitung total tanpa diskon tersebut.
+             */
+            flushItemDiscounts() {
+                const pending = this.cart.filter(item => item._dirty);
+                if (pending.length === 0) return Promise.resolve();
+
+                return Promise.all(pending.map(item => {
+                    clearTimeout(item._syncTimer);
+                    return this.pushItemDiscount(item).catch(() => null);
+                }));
             },
 
             // --- Keyboard ---
@@ -758,7 +870,9 @@
             searchProducts() {
                 let url = '{{ route("pos.search") }}?search=' + encodeURIComponent(this.search);
                 if (this.categoryId) url += '&category_id=' + this.categoryId;
-                fetch(url).then(r => r.json()).then(data => this.products = data);
+                fetch(url, {headers: {'Accept': 'application/json'}})
+                    .then(r => (r.ok ? r.json().catch(() => null) : null))
+                    .then(data => { if (Array.isArray(data)) this.products = data; });
             },
 
             searchCustomers() {
@@ -766,8 +880,8 @@
                 if (!val) {
                     this.customerResults = this.customers;
                 } else {
-                    fetch('{{ route("pos.customers") }}?search=' + encodeURIComponent(val))
-                        .then(r => r.json()).then(data => this.customerResults = data);
+                    this.posGet('{{ route("pos.customers") }}?search=' + encodeURIComponent(val))
+                        .then(data => { if (Array.isArray(data)) this.customerResults = data; });
                 }
                 this.showCustomerDropdown = true;
                 this.selectedCustomerId = null;
@@ -780,67 +894,187 @@
             },
 
             // --- Cart operations ---
+
+            /**
+             * Satu pintu untuk semua POST JSON ke POS.
+             *
+             * `Accept: application/json` WAJIB. Tanpa header itu Laravel membalas
+             * redirect/halaman HTML (302) untuk request yang sesinya sudah lepas
+             * atau validasinya gagal — `r.json()` lalu melempar dan kegagalannya
+             * tidak kelihatan sama sekali di layar kasir.
+             *
+             * Fungsi ini tidak pernah melempar: respons yang tidak kebaca jadi
+             * `null`, pemanggil yang memutuskan.
+             */
+            posPost(url, payload) {
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    // Badan respons tetap dibaca walau statusnya 4xx: server
+                    // mengirim alasan penolakan (`error`), dan kasir berhak tahu
+                    // kenapa, bukan cuma "terjadi kesalahan".
+                    .then(r => r.json().catch(() => null))
+                    .catch(() => null);
+            },
+
+            /** GET JSON ke POS; sama-sama tidak pernah melempar. */
+            posGet(url) {
+                return fetch(url, {headers: {'Accept': 'application/json'}})
+                    .then(r => r.json().catch(() => null))
+                    .catch(() => null);
+            },
+
+            /** Baris cart untuk sebuah produk. product_id dari server bisa string. */
+            cartRow(productId) {
+                return (Array.isArray(this.cart) ? this.cart : [])
+                    .find(item => String(item.product_id) === String(productId));
+            },
+
+            /**
+             * Server MENOLAK permintaan secara eksplisit (bukan koneksi putus).
+             *
+             * Perbedaannya penting: penolakan pasti berarti server tidak mengubah
+             * session, jadi perubahan optimistis di layar boleh dibatalkan. Respons
+             * yang tidak terbaca bisa saja justru BERHASIL, jadi layar dibiarkan.
+             */
+            serverRefused(data) {
+                return !!(data && (data.error || data.message));
+            },
+
+            /**
+             * Pasang balasan server ke layar.
+             *
+             * Kalau balasannya kosong / tidak bisa dibaca (proxy hosting kadang
+             * menyisipkan HTML ke respons JSON), state lokal DIBIARKAN apa adanya:
+             * kasir sudah melihat barangnya di layar, dan request berikutnya yang
+             * berhasil akan menyelaraskan lagi.
+             *
+             * @returns {boolean} true kalau layar sudah diselaraskan dari server.
+             */
+            applyServerCart(data) {
+                if (data && Array.isArray(data.cart)) {
+                    this.replaceCart(data.cart);
+
+                    return true;
+                }
+
+                this.errorMsg = (data && (data.error || data.message))
+                    || 'Perubahan belum tersimpan ke server — periksa koneksi.';
+
+                return false;
+            },
+
             addToCart(product) {
                 this.errorMsg = '';
-                fetch('{{ route("pos.add") }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    body: JSON.stringify({product_id: product.id})
-                }).then(r => r.json()).then(data => {
-                    if (data.cart) {
-                        this.cart = data.cart.map(item => ({
-                            ...item,
-                            discountText: item.discount ? String(item.discount) : '',
-                            discountType: item.discount_type || 'nominal',
-                        }));
+
+                // Tampilkan dulu di layar, baru sinkron ke server.
+                //
+                // Ini inti perbaikannya: barang yang SUDAH masuk session tidak
+                // boleh tampak "belum masuk" hanya karena bentuk respons server
+                // tidak terduga (yang dulu bikin kasir harus refresh dulu untuk
+                // melihat produk yang baru ditambahkan).
+                const row = this.cartRow(product.id);
+                let pushed = false;
+
+                if (row) {
+                    if (row.quantity >= row.stock) {
+                        this.errorMsg = 'Stok ' + product.name + ' tinggal ' + row.stock + '.';
+
+                        return;
                     }
-                });
+
+                    row.quantity = row.quantity + 1;
+                } else {
+                    this.cart.push(this.hydrateCartItem(product));
+                    pushed = true;
+                }
+
+                this.posPost('{{ route("pos.add") }}', {product_id: product.id})
+                    .then(data => {
+                        if (this.applyServerCart(data)) return;
+
+                        // Server menolak (mis. stok ternyata sudah habis):
+                        // barang yang tidak pernah masuk tidak boleh tampil.
+                        if (this.serverRefused(data)) {
+                            if (pushed) {
+                                this.cart = this.cart
+                                    .filter(item => String(item.product_id) !== String(product.id));
+                            } else if (row) {
+                                row.quantity = Math.max(1, row.quantity - 1);
+                            }
+                        }
+                    });
             },
 
             updateQty(productId, qty) {
                 if (qty < 1) return;
                 this.errorMsg = '';
-                fetch('{{ route("pos.update") }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    body: JSON.stringify({product_id: productId, quantity: qty})
-                }).then(r => r.json()).then(data => {
-                    if (data.cart) {
-                        this.cart = data.cart.map(item => ({
-                            ...item,
-                            discountText: item.discount ? String(item.discount) : '',
-                            discountType: item.discount_type || 'nominal',
-                        }));
-                    }
-                });
+
+                // Ubah di layar dulu — tombol +/− harus terasa instan.
+                const row = this.cartRow(productId);
+                const before = row ? row.quantity : null;
+                if (row) row.quantity = Math.min(qty, row.stock);
+
+                this.posPost('{{ route("pos.update") }}', {product_id: productId, quantity: qty})
+                    .then(data => {
+                        if (this.applyServerCart(data)) return;
+
+                        if (this.serverRefused(data) && row && before !== null) {
+                            row.quantity = before;
+                        }
+                    });
             },
 
             removeItem(productId) {
                 this.errorMsg = '';
-                fetch('{{ route("pos.remove") }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    body: JSON.stringify({product_id: productId})
-                }).then(r => r.json()).then(data => {
-                    if (data.cart) {
-                        this.cart = data.cart.map(item => ({
-                            ...item,
-                            discountText: item.discount ? String(item.discount) : '',
-                            discountType: item.discount_type || 'nominal',
-                        }));
-                    }
-                });
+
+                // Buang di layar dulu, lalu sinkron ke server.
+                const row = this.cartRow(productId);
+                if (row) clearTimeout(row._syncTimer);
+
+                const previous = Array.isArray(this.cart) ? this.cart.slice() : [];
+
+                this.cart = (Array.isArray(this.cart) ? this.cart : [])
+                    .filter(item => String(item.product_id) !== String(productId));
+
+                this.posPost('{{ route("pos.remove") }}', {product_id: productId})
+                    .then(data => {
+                        if (this.applyServerCart(data)) return;
+
+                        // Gagal eksplisit: baris yang sudah dibuang dikembalikan,
+                        // supaya keranjang di layar sama dengan yang akan ditagih.
+                        if (this.serverRefused(data)) this.cart = previous;
+                    });
             },
 
             // --- Checkout ---
-            processCheckout() {
+            async processCheckout() {
                 if (!this.canCheckout) return;
                 this.loading = true;
                 this.errorMsg = '';
 
+                // Diskon baris yang masih menunggu debounce harus terkirim dulu,
+                // supaya total yang dihitung server sama dengan yang di layar.
+                try {
+                    await this.flushItemDiscounts();
+                } catch (e) {
+                    // Gagal kirim (mis. koneksi putus): lanjut, server tetap
+                    // menolak kalau jumlah bayar tidak cocok.
+                }
+
                 fetch('{{ route("pos.checkout") }}', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
                     body: JSON.stringify({
                         customer_name: this.customerName,
                         customer_id: this.selectedCustomerId,
@@ -850,19 +1084,26 @@
                         payment_method: this.paymentMethod,
                         order_type: this.orderType,
                     })
-                }).then(r => {
-                    return r.json().then(data => ({status: r.status, data}));
-                }).then(({status, data}) => {
-                    if (data.success) {
+                }).then(r => r.json().catch(() => null)
+                    .then(data => ({status: r.status, data}))
+                ).then(({status, data}) => {
+                    if (data && data.success) {
                         this.checkoutResult = data.order_number;
                         this.changeAmount = data.change || 0;
                         this.ppnAmount = data.ppn || 0;
                         this.lastOrderId = data.order_id;
+                        this.cart.forEach(item => clearTimeout(item._syncTimer));
                         this.cart = [];
                         this.discountText = '';
                         this.amountPaidText = '';
                     } else {
-                        this.errorMsg = data.error || data.message || 'Terjadi kesalahan';
+                        // Pesan dari server dipakai kalau ada — kasir butuh tahu
+                        // ALASAN penolakan (jumlah bayar kurang, stok berubah),
+                        // bukan hanya "terjadi kesalahan".
+                        this.errorMsg = (data && (data.error || data.message))
+                            || (status === 419
+                                ? 'Sesi kasir sudah berakhir — muat ulang halaman lalu login kembali.'
+                                : 'Terjadi kesalahan, coba lagi');
                     }
                 }).catch(() => {
                     this.errorMsg = 'Terjadi kesalahan, coba lagi';
@@ -875,55 +1116,55 @@
             holdCurrentOrder() {
                 if (this.cart.length === 0) return;
                 this.errorMsg = '';
-                fetch('{{ route("pos.hold") }}', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'},
-                    body: JSON.stringify({
-                        name: this.customerName ? 'Pesanan ' + this.customerName : '',
-                        customer_name: this.customerName,
-                    })
-                }).then(r => r.json()).then(data => {
-                    if (data.holds) {
+
+                // Diskon yang masih menunggu debounce harus ikut tersimpan,
+                // kalau tidak pesanan yang ditahan kehilangan diskonnya.
+                this.flushItemDiscounts();
+
+                this.posPost('{{ route("pos.hold") }}', {
+                    name: this.customerName ? 'Pesanan ' + this.customerName : '',
+                    customer_name: this.customerName,
+                }).then(data => {
+                    if (data && data.holds) {
                         this.holds = data.holds;
+                        this.cart.forEach(item => clearTimeout(item._syncTimer));
                         this.cart = [];
                         this.customerName = '';
                         this.discountText = '';
                         this.amountPaidText = '';
+                    } else {
+                        this.errorMsg = (data && (data.error || data.message)) || 'Gagal menahan pesanan';
                     }
-                }).catch(() => {
-                    this.errorMsg = 'Gagal menahan pesanan';
                 });
             },
 
             recallOrder(id) {
-                fetch('/pos/hold/' + id)
-                    .then(r => r.json()).then(data => {
-                        if (data.cart) {
-                            this.cart = data.cart.map(item => ({
-                                ...item,
-                                discountText: item.discount ? String(item.discount) : '',
-                                discountType: item.discount_type || 'nominal',
-                            }));
-                            this.customerName = data.customer_name || '';
-                            this.holds = data.holds || [];
-                            this.showHoldModal = false;
-                        }
-                    });
+                this.posGet('/pos/hold/' + id).then(data => {
+                    if (data && data.cart) {
+                        this.replaceCart(data.cart);
+                        this.customerName = data.customer_name || '';
+                        this.holds = data.holds || [];
+                        this.showHoldModal = false;
+                    } else {
+                        this.errorMsg = 'Gagal memanggil pesanan yang ditahan.';
+                    }
+                });
             },
 
             deleteHold(id) {
-                fetch('/pos/hold/' + id, {method: 'DELETE', headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}})
-                    .then(r => r.json()).then(data => {
-                        if (data.holds) this.holds = data.holds;
-                    });
+                fetch('/pos/hold/' + id, {
+                    method: 'DELETE',
+                    headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'}
+                })
+                    .then(r => (r.ok ? r.json().catch(() => null) : null))
+                    .then(data => { if (data && data.holds) this.holds = data.holds; })
+                    .catch(() => null);
             },
 
             // --- History ---
             loadHistory() {
-                fetch('{{ route("pos.history") }}')
-                    .then(r => r.json()).then(data => {
-                        this.history = data;
-                    });
+                this.posGet('{{ route("pos.history") }}')
+                    .then(data => { if (Array.isArray(data)) this.history = data; });
             },
 
             printOrder(orderId) {
@@ -945,29 +1186,27 @@
                 this.barcodeMessage = '';
                 this.barcodeSuccess = false;
 
-                fetch('{{ route("pos.scan") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ barcode: input.value.trim() })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.found) {
-                        window.location.reload();
-                    } else {
-                        this.barcodeSuccess = false;
-                        this.barcodeMessage = data.message;
+                this.posPost('{{ route("pos.scan") }}', {barcode: input.value.trim()})
+                    .then(data => {
+                        if (data && data.found) {
+                            // JANGAN reload halaman di sini. Reload membuat setiap
+                            // penambahan barang terasa "harus refresh dulu", dan
+                            // diskon baris lain yang belum tersimpan ikut hilang.
+                            this.barcodeSuccess = true;
+                            this.barcodeMessage = data.message || 'Produk ditambahkan.';
+                            if (data.cart) this.replaceCart(data.cart);
+                        } else {
+                            this.barcodeSuccess = false;
+                            this.barcodeMessage = (data && data.message) || 'Gagal memindai barcode.';
+                        }
+
                         input.value = '';
                         input.focus();
-                    }
-                })
-                .catch(() => {
-                    this.barcodeMessage = 'Gagal memindai barcode.';
-                    input.focus();
-                });
+                    })
+                    .catch(() => {
+                        this.barcodeMessage = 'Gagal memindai barcode.';
+                        input.focus();
+                    });
             },
 
             // --- Reset ---

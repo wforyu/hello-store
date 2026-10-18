@@ -225,6 +225,96 @@ class PosWebTest extends TestCase
         $this->assertSame(9, $history->stock_after);
     }
 
+    public function test_diskon_baris_persen_dipakai_saat_checkout(): void
+    {
+        $product = $this->makeProduct('Jas Hujan', 10, 50000);
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 2])->assertOk();
+
+        // Payload diskon sengaja tanpa `quantity`: sync diskon tidak boleh
+        // menimpa qty yang sudah diatur kasir lewat tombol +/−.
+        $this->postJson('/pos/update', [
+            'product_id' => $product->id,
+            'discount' => 10,
+            'discount_type' => 'percent',
+        ])->assertOk()
+            ->assertJsonPath('cart.0.quantity', 2)
+            ->assertJsonPath('cart.0.discount', 10)
+            ->assertJsonPath('cart.0.discount_type', 'percent');
+
+        $this->postJson('/pos/checkout', [
+            'payment_method' => 'qris',
+            'order_type' => 'dine_in',
+        ])->assertOk();
+
+        // 2 x 50.000 = 100.000, diskon 10% = 10.000
+        $this->assertSame('90000.00', Order::first()->total);
+        $this->assertSame('90000.00', Order::first()->items()->first()->subtotal);
+    }
+
+    public function test_diskon_baris_nominal_dibatasi_total_baris(): void
+    {
+        $product = $this->makeProduct('Payung', 10, 20000);
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 1])->assertOk();
+        $this->postJson('/pos/update', [
+            'product_id' => $product->id,
+            'discount' => 999999,
+            'discount_type' => 'nominal',
+        ])->assertOk()->assertJsonPath('cart.0.discount', 999999);
+
+        $this->postJson('/pos/checkout', [
+            'payment_method' => 'cash',
+            'order_type' => 'dine_in',
+            'amount_paid' => 0,
+        ])->assertOk();
+
+        // Diskon tidak boleh melebihi harga baris, jadi total mentok di 0.
+        $this->assertSame('0.00', Order::first()->total);
+    }
+
+    public function test_diskon_baris_tunai_divalidasi_terhadap_total_setelah_diskon(): void
+    {
+        $product = $this->makeProduct('Tas', 10, 15000);
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 1])->assertOk();
+        $this->postJson('/pos/update', [
+            'product_id' => $product->id,
+            'discount' => 5000,
+            'discount_type' => 'nominal',
+        ])->assertOk();
+
+        // 15.000 - 5.000 = 10.000; bayar 10.000 harus diterima.
+        $this->postJson('/pos/checkout', [
+            'payment_method' => 'cash',
+            'order_type' => 'dine_in',
+            'amount_paid' => 10000,
+        ])->assertOk()->assertJsonPath('change', 0);
+    }
+
+    public function test_payload_keranjang_selalu_list_setelah_item_dihapus(): void
+    {
+        $first = $this->makeProduct('Item Pertama', 5, 10000);
+        $second = $this->makeProduct('Item Kedua', 5, 20000);
+
+        $this->postJson('/pos/add', ['product_id' => $first->id])->assertOk();
+        $this->postJson('/pos/add', ['product_id' => $second->id])->assertOk();
+        $this->postJson('/pos/remove', ['product_id' => $first->id])->assertOk();
+
+        $response = $this->postJson('/pos/update', [
+            'product_id' => $second->id,
+            'discount' => 2000,
+        ])->assertOk();
+
+        $cart = $response->json('cart');
+
+        // Kalau payload jadi object, x-for di POS merender nol baris dan seluruh
+        // item kelihatan hilang.
+        $this->assertTrue(array_is_list($cart));
+        $this->assertSame($second->id, $cart[0]['product_id']);
+        $this->assertSame(2000, (int) $cart[0]['discount']);
+    }
+
     public function test_hold_dan_recall_mengembalikan_keranjang(): void
     {
         $product = $this->makeProduct('Sapu Lantai', 10, 25000);
@@ -295,5 +385,77 @@ class PosWebTest extends TestCase
         $this->post('/pos/shift/open', ['opening_balance' => 50000]);
 
         $this->assertSame(1, Shift::count());
+    }
+
+    /**
+     * Keluhan "tambah produk di POS harus refresh dulu".
+     *
+     * Servernya sendiri sudah benar (`POST /pos/add` mengembalikan cart terbaru),
+     * jadi yang dijaga di sini adalah sisi layarnya: baris ditampilkan lebih
+     * dulu (optimistis), lalu disinkronkan. Tidak boleh ada reload halaman,
+     * karena reload membuat setiap penambahan terasa "harus refresh" dan diskon
+     * baris lain yang belum tersimpan ikut hilang.
+     */
+    public function test_halaman_pos_memperbarui_keranjang_tanpa_memuat_ulang_halaman(): void
+    {
+        $html = $this->get('/pos')->assertOk()->getContent();
+
+        // Satu-satunya reload yang boleh ada di halaman ini milik auto-logout idle
+        // (`partials/idle-timer`). Kalau jumlahnya nambah, berarti ada alur POS
+        // yang kembali "harus refresh dulu".
+        $this->assertSame(1, substr_count($html, 'window.location.reload'), 'Hanya idle-timer yang boleh memuat ulang halaman POS.');
+
+        $this->assertStringContainsString('this.cart.push(this.hydrateCartItem(product))', $html);
+
+        // Semua panggilan POS lewat dua pintu yang selalu minta JSON dan tidak
+        // pernah melempar — kegagalan harus muncul di layar kasir, bukan hilang
+        // sebagai unhandled rejection.
+        $this->assertStringContainsString('posPost(', $html);
+        $this->assertStringContainsString('posGet(', $html);
+        $this->assertStringContainsString("'Accept': 'application/json'", $html);
+    }
+
+    /**
+     * Diskon baris yang belum terkirim (masih menunggu debounce) tidak boleh
+     * hilang ketika cart disegarkan dari server — mis. kasir mengetik diskon
+     * lalu langsung menekan tombol +.
+     */
+    public function test_diskon_baris_yang_belum_tersimpan_dipertahankan_saat_cart_disinkron(): void
+    {
+        $html = $this->get('/pos')->assertOk()->getContent();
+
+        $this->assertStringContainsString('if (old && old._dirty)', $html);
+        $this->assertStringContainsString('discountText: discount > 0', $html);
+
+        // Input diskon terikat ke discountText; payload server cuma punya
+        // `discount`, jadi konversinya wajib ada di satu tempat.
+        $this->assertStringContainsString('hydrateCartItem', $html);
+    }
+
+    /** Menambah produk yang sudah ada di keranjang menaikkan qty, bukan baris baru. */
+    public function test_tambah_produk_yang_sudah_ada_menambah_kuantitas(): void
+    {
+        $product = $this->makeProduct('Teh Kotak', 5, 6000);
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 1])->assertOk();
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 1])
+            ->assertOk()
+            ->assertJsonCount(1, 'cart')
+            ->assertJsonPath('cart.0.quantity', 2);
+    }
+
+    /** Balasan `update` tetap membawa harga + stok supaya layar bisa disegarkan. */
+    public function test_balasan_update_membawa_harga_dan_stok_terbaru(): void
+    {
+        $product = $this->makeProduct('Sirup', 7, 12000);
+
+        $this->postJson('/pos/add', ['product_id' => $product->id])->assertOk();
+
+        $this->postJson('/pos/update', ['product_id' => $product->id, 'quantity' => 3])
+            ->assertOk()
+            ->assertJsonPath('cart.0.quantity', 3)
+            ->assertJsonPath('cart.0.stock', 7)
+            ->assertJsonPath('cart.0.price', 12000);
     }
 }
