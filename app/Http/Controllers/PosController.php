@@ -118,20 +118,29 @@ class PosController extends Controller
 
         $cart = $cart->values();
 
-        session(['pos_cart' => $cart]);
+        session(['pos_cart' => $cart->values()]);
 
-        return response()->json(['cart' => $cart, 'subtotal' => $this->getSubtotal($cart)]);
+        return response()->json(['cart' => $cart->values(), 'subtotal' => $this->getSubtotal($cart->values())]);
     }
 
     public function update(Request $request)
     {
+        $validated = $request->validate([
+            'product_id' => 'required|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
+            'discount' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:nominal,percent',
+        ]);
+
         $cart = collect(session('pos_cart', []));
 
         $productIds = $cart->pluck('product_id');
         $liveProducts = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
-        $cart = $cart->map(function ($item) use ($request, $liveProducts) {
-            if ($item['product_id'] === (int) $request->product_id) {
+        $productId = (int) $validated['product_id'];
+
+        $cart = $cart->map(function ($item) use ($request, $liveProducts, $productId) {
+            if ($item['product_id'] === $productId) {
                 $liveStock = $liveProducts->get($item['product_id'])?->stock ?? $item['stock'];
 
                 if ($request->has('quantity')) {
@@ -150,20 +159,29 @@ class PosController extends Controller
             return $item;
         })->values();
 
-        session(['pos_cart' => $cart]);
+        session(['pos_cart' => $cart->values()]);
 
-        return response()->json(['cart' => $cart, 'subtotal' => $this->getSubtotal($cart)]);
+        return response()->json(['cart' => $cart->values(), 'subtotal' => $this->getSubtotal($cart->values())]);
     }
 
     public function remove(Request $request)
     {
+        // `product_id` yang hilang DULU lolos sebagai `(int) null = 0`, sehingga
+        // keranjang tidak berubah tapi balasannya tetap 200 dengan isi UTUH â€”
+        // baris yang sudah hilang di layar jadi "muncul lagi". Sekarang request
+        // seperti itu ditolak eksplisit (422), jadi klien tahu harus membatalkan
+        // perubahan optimistisnya.
+        $validated = $request->validate([
+            'product_id' => 'required|integer|min:1',
+        ]);
+
         $cart = collect(session('pos_cart', []))
-            ->where('product_id', '!=', (int) $request->product_id)
+            ->where('product_id', '!=', (int) $validated['product_id'])
             ->values();
 
-        session(['pos_cart' => $cart]);
+        session(['pos_cart' => $cart->values()]);
 
-        return response()->json(['cart' => $cart, 'subtotal' => $this->getSubtotal($cart)]);
+        return response()->json(['cart' => $cart->values(), 'subtotal' => $this->getSubtotal($cart->values())]);
     }
 
     public function checkout(Request $request, PosService $pos)
@@ -481,3 +499,4 @@ class PosController extends Controller
         return app(PosService::class)->quote(collect($cart))['subtotal'];
     }
 }
+

@@ -557,6 +557,9 @@
             barcodeMessage: '',
             barcodeSuccess: false,
             cartTab: 'cart',
+            // Nomor urut permintaan yang boleh mengubah keranjang (lihat
+            // komentar beginCartRequest()).
+            cartSeq: 0,
             paymentMethods: [
                 { id: 'cash', label: 'Tunai' },
                 { id: 'qris', label: 'QRIS' },
@@ -656,6 +659,33 @@
                     _dirty: false,
                     _syncSeq: 0,
                 };
+            },
+
+            /**
+             * Kartu produk dari grid (punya `id`) → satu baris cart (punya
+             * `product_id`).
+             *
+             * WAJIB dipakai untuk penambahan optimistis. Kalau objek kartu produk
+             * dimasukkan mentah-mentah, barisnya tidak punya `product_id`: baris
+             * itu tidak ter-render dengan benar oleh `x-for` (`:key` undefined),
+             * dan tombol hapus mengirim `product_id: undefined` yang dibuang
+             * `JSON.stringify` — server tidak menemukan apa pun untuk dihapus,
+             * jadi balasannya MASIH memuat barang itu dan barisnya muncul lagi
+             * ("hilang lalu nampil lagi"). Itu bug yang paling sering dilaporkan
+             * kasir, dan terjadi justru karena penambahan optimistis.
+             */
+            productToCartItem(product) {
+                return this.hydrateCartItem({
+                    product_id: product.product_id ?? product.id,
+                    name: product.name,
+                    price: parseFloat(product.price) || 0,
+                    quantity: 1,
+                    stock: product.stock,
+                    image: product.image ?? null,
+                    sku: product.sku ?? null,
+                    discount: 0,
+                    discount_type: 'nominal',
+                });
             },
 
             calcItemDisc(item) {
@@ -936,6 +966,30 @@
                     .find(item => String(item.product_id) === String(productId));
             },
 
+            /** `product_id` yang benar-benar bisa dipakai request ke server. */
+            hasProductId(productId) {
+                return productId !== null && productId !== undefined && productId !== '';
+            },
+
+            /**
+             * Ambil nomor urut untuk satu permintaan yang mengubah keranjang.
+             *
+             * Di hosting lambat (InfinityFree ~300-800 ms per request) kasir bisa
+             * menekan tombol berikutnya sebelum balasan sebelumnya tiba. Balasan
+             * LAMA yang dipasang belakangan akan menghidupkan kembali baris yang
+             * baru dihapus — persis keluhan "dihapus, hilang lalu muncul lagi,
+             * harus refresh dulu". Karena itu hanya balasan dari permintaan
+             * TERAKHIR yang boleh dipasang.
+             */
+            beginCartRequest() {
+                return ++this.cartSeq;
+            },
+
+            /** Balasan ini berasal dari permintaan cart terbaru? */
+            isLatestCartRequest(seq) {
+                return seq === this.cartSeq;
+            },
+
             /**
              * Server MENOLAK permintaan secara eksplisit (bukan koneksi putus).
              *
@@ -973,13 +1027,24 @@
             addToCart(product) {
                 this.errorMsg = '';
 
+                // Kartu produk dari grid memakai `id`, sedangkan event
+                // `pos:add-product` (hasil pencarian) bisa mengirim
+                // `product_id`. Samakan dulu supaya keduanya jalan.
+                const productId = product.product_id ?? product.id;
+
+                if (!this.hasProductId(productId)) {
+                    this.errorMsg = 'Produk tidak dikenali — muat ulang halaman POS.';
+
+                    return;
+                }
+
                 // Tampilkan dulu di layar, baru sinkron ke server.
                 //
                 // Ini inti perbaikannya: barang yang SUDAH masuk session tidak
                 // boleh tampak "belum masuk" hanya karena bentuk respons server
                 // tidak terduga (yang dulu bikin kasir harus refresh dulu untuk
                 // melihat produk yang baru ditambahkan).
-                const row = this.cartRow(product.id);
+                const row = this.cartRow(productId);
                 let pushed = false;
 
                 if (row) {
@@ -989,14 +1054,20 @@
                         return;
                     }
 
+                    // Baris lama bisa saja belum punya product_id (baris sisa
+                    // versi sebelumnya). Lengkapi supaya tombol hapus tetap jalan.
+                    if (!this.hasProductId(row.product_id)) row.product_id = productId;
                     row.quantity = row.quantity + 1;
                 } else {
-                    this.cart.push(this.hydrateCartItem(product));
+                    this.cart.push(this.productToCartItem(product));
                     pushed = true;
                 }
 
-                this.posPost('{{ route("pos.add") }}', {product_id: product.id})
+                const seq = this.beginCartRequest();
+
+                this.posPost('{{ route("pos.add") }}', {product_id: productId})
                     .then(data => {
+                        if (!this.isLatestCartRequest(seq)) return;
                         if (this.applyServerCart(data)) return;
 
                         // Server menolak (mis. stok ternyata sudah habis):
@@ -1004,7 +1075,7 @@
                         if (this.serverRefused(data)) {
                             if (pushed) {
                                 this.cart = this.cart
-                                    .filter(item => String(item.product_id) !== String(product.id));
+                                    .filter(item => String(item.product_id) !== String(productId));
                             } else if (row) {
                                 row.quantity = Math.max(1, row.quantity - 1);
                             }
@@ -1014,6 +1085,15 @@
 
             updateQty(productId, qty) {
                 if (qty < 1) return;
+
+                // Baris tanpa product_id tidak bisa dikenali server; jangan kirim
+                // request yang pasti gagal (dan diam-diam memunculkan barang lagi).
+                if (!this.hasProductId(productId)) {
+                    this.errorMsg = 'Baris ini belum tersinkron ke server — muat ulang halaman POS.';
+
+                    return;
+                }
+
                 this.errorMsg = '';
 
                 // Ubah di layar dulu — tombol +/− harus terasa instan.
@@ -1021,8 +1101,11 @@
                 const before = row ? row.quantity : null;
                 if (row) row.quantity = Math.min(qty, row.stock);
 
+                const seq = this.beginCartRequest();
+
                 this.posPost('{{ route("pos.update") }}', {product_id: productId, quantity: qty})
                     .then(data => {
+                        if (!this.isLatestCartRequest(seq)) return;
                         if (this.applyServerCart(data)) return;
 
                         if (this.serverRefused(data) && row && before !== null) {
@@ -1032,6 +1115,15 @@
             },
 
             removeItem(productId) {
+                // Baris tanpa product_id tidak ada di session server (baris
+                // optimistis yang gagal terkirim). Kalau tetap dikirim, server
+                // mengembalikan keranjang UTUH dan barisnya muncul kembali.
+                if (!this.hasProductId(productId)) {
+                    this.errorMsg = 'Baris ini belum tersinkron ke server — muat ulang halaman POS.';
+
+                    return;
+                }
+
                 this.errorMsg = '';
 
                 // Buang di layar dulu, lalu sinkron ke server.
@@ -1043,8 +1135,13 @@
                 this.cart = (Array.isArray(this.cart) ? this.cart : [])
                     .filter(item => String(item.product_id) !== String(productId));
 
+                const seq = this.beginCartRequest();
+
                 this.posPost('{{ route("pos.remove") }}', {product_id: productId})
                     .then(data => {
+                        // Balasan permintaan yang lebih baru sudah mengurus layar.
+                        if (!this.isLatestCartRequest(seq)) return;
+
                         if (this.applyServerCart(data)) return;
 
                         // Gagal eksplisit: baris yang sudah dibuang dikembalikan,
@@ -1139,7 +1236,11 @@
             },
 
             recallOrder(id) {
+                const seq = this.beginCartRequest();
+
                 this.posGet('/pos/hold/' + id).then(data => {
+                    if (!this.isLatestCartRequest(seq)) return;
+
                     if (data && data.cart) {
                         this.replaceCart(data.cart);
                         this.customerName = data.customer_name || '';
@@ -1186,8 +1287,12 @@
                 this.barcodeMessage = '';
                 this.barcodeSuccess = false;
 
+                const seq = this.beginCartRequest();
+
                 this.posPost('{{ route("pos.scan") }}', {barcode: input.value.trim()})
                     .then(data => {
+                        if (!this.isLatestCartRequest(seq)) return;
+
                         if (data && data.found) {
                             // JANGAN reload halaman di sini. Reload membuat setiap
                             // penambahan barang terasa "harus refresh dulu", dan

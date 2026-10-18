@@ -405,7 +405,7 @@ class PosWebTest extends TestCase
         // yang kembali "harus refresh dulu".
         $this->assertSame(1, substr_count($html, 'window.location.reload'), 'Hanya idle-timer yang boleh memuat ulang halaman POS.');
 
-        $this->assertStringContainsString('this.cart.push(this.hydrateCartItem(product))', $html);
+        $this->assertStringContainsString('this.cart.push(this.productToCartItem(product))', $html);
 
         // Semua panggilan POS lewat dua pintu yang selalu minta JSON dan tidak
         // pernah melempar — kegagalan harus muncul di layar kasir, bukan hilang
