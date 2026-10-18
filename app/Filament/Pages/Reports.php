@@ -2,11 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Models\Category;
-use App\Models\Expense;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Product;
+use App\Services\SalesReportService;
 use BackedEnum;
 use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
@@ -36,6 +32,12 @@ class Reports extends Page
     public array $topProducts = [];
 
     public array $topCategories = [];
+
+    /**
+     * Detail pesanan pada periode terpilih, dipangkas jadi array biasa supaya
+     * ringan diserialisasi Livewire (Collection besar bikin payload membengkak).
+     */
+    public array $orderRows = [];
 
     public function mount(): void
     {
@@ -103,64 +105,22 @@ class Reports extends Page
         $start = isset($this->data['startDate']) ? Carbon::parse($this->data['startDate'])->startOfDay() : now()->startOfMonth();
         $end = isset($this->data['endDate']) ? Carbon::parse($this->data['endDate'])->endOfDay() : now()->endOfDay();
 
-        $orders = Order::whereBetween('created_at', [$start, $end])
-            ->where('payment_status', 'paid')
-            ->get();
+        // Angka laporan dihitung di SalesReportService — sumber yang sama dipakai
+        // export CSV, jadi isi layar dan isi file tidak mungkin melenceng.
+        $report = app(SalesReportService::class)->build($start, $end);
 
-        $this->salesData = [
-            'total_orders' => $orders->count(),
-            'total_revenue' => $orders->sum('total'),
-            'total_products' => OrderItem::whereHas('order', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('payment_status', 'paid'))->sum('quantity'),
-            'average_order' => $orders->count() > 0 ? round($orders->sum('total') / $orders->count()) : 0,
-        ];
+        $this->salesData = $report['sales'];
+        $this->profitData = $report['profit'];
+        $this->topProducts = $report['topProducts'];
+        $this->topCategories = $report['topCategories'];
 
-        $totalExpense = Expense::whereBetween('expense_date', [$start, $end])->sum('amount');
-
-        $totalCOGS = OrderItem::whereHas('order', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('payment_status', 'paid'))
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->whereNotNull('products.cost_price')
-            ->selectRaw('COALESCE(SUM(order_items.quantity * products.cost_price), 0) as total_cogs')
-            ->value('total_cogs');
-
-        $this->profitData = [
-            'revenue' => $this->salesData['total_revenue'],
-            'expense' => $totalExpense,
-            'cogs' => $totalCOGS,
-            'profit' => $this->salesData['total_revenue'] - $totalCOGS - $totalExpense,
-        ];
-
-        $this->topProducts = OrderItem::selectRaw('product_id, SUM(quantity) as total_qty, SUM(subtotal) as total_revenue')
-            ->whereHas('order', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('payment_status', 'paid'))
-            ->groupBy('product_id')
-            ->orderByDesc('total_qty')
-            ->take(20)
-            ->get()
-            ->map(function ($item) {
-                $product = Product::find($item->product_id);
-
-                return [
-                    'name' => $product?->name ?? 'Produk #'.$item->product_id,
-                    'qty' => $item->total_qty,
-                    'revenue' => $item->total_revenue,
-                ];
-            })
-            ->toArray();
-
-        $this->topCategories = OrderItem::selectRaw('products.category_id, SUM(order_items.quantity) as total_qty')
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->whereHas('order', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('payment_status', 'paid'))
-            ->groupBy('products.category_id')
-            ->orderByDesc('total_qty')
-            ->take(10)
-            ->get()
-            ->map(function ($item) {
-                $category = Category::find($item->category_id);
-
-                return [
-                    'name' => $category?->name ?? 'Kategori #'.$item->category_id,
-                    'qty' => $item->total_qty,
-                ];
-            })
-            ->toArray();
+        $this->orderRows = $report['orders']
+            ->map(fn ($order) => [
+                'number' => $order->order_number,
+                'date' => $order->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '-',
+                'status' => $order->status,
+                'total' => (float) $order->total,
+            ])
+            ->all();
     }
 }
