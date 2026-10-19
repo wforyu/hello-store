@@ -132,6 +132,51 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Session Request Blocking (anti race keranjang POS)
+    |--------------------------------------------------------------------------
+    |
+    | Laravel MENYIMPAN session di akhir SETIAP request, dan driver database
+    | tidak punya locking: dua request tumpang-tindih bisa membaca session
+    | yang sama lalu saling menimpa — pemenangnya yang menulis TERAKHIR,
+    | bukan yang paling baru. Di POS, kasir yang klik cepat (tambah produk
+    | lalu langsung klik produk berikutnya, atau debounce diskon 400 ms yang
+    | masih jalan) mengirim request berbarengan, sehingga keranjang di layar
+    | tidak sinkron dengan session di database — gejala "produk muncul sebentar
+    | lalu hilang, harus refresh dulu baru benar".
+    |
+    | Serialisasi request per session dijalankan oleh
+    | App\Http\Middleware\SerializeSessionRequests — GAGAL-OPEN: kunci gagal
+    | dibuat atau giliran ditunggu terlalu lama = request tetap jalan tanpa
+    | serialisasi dan kegagalannya dicatat ke laravel.log.
+    |
+    | 'serialize_requests' = tombol utama middleware tersebut.
+    | 'block_lock_seconds' = lama kunci dipegang; otomatis lepas kalau proses
+    | mati mendadak, jadi jangan terlalu kecil (request lambat bisa lebih
+    | dulu kehilangan kuncinya) dan jangan terlalu besar (session tetap
+    | terkunci setelah crash).
+    | 'block_wait_seconds' = berapa lama menunggu giliran sebelum lanjut
+    | tanpa kunci — sengaja pendek supaya kasir tidak menunggu lama.
+    |
+    | PENTING — 'session.block' bawaan Laravel SENGAJA dibiarkan false:
+    | key-nya sama dengan mekanisme blocking bawaan StartSession, dan
+    | mekanisme bawaan itu MELEMPAR exception (LockTimeoutException /
+    | QueryException) yang berujung 500 untuk SEMUA request saat kunci
+    | tidak bisa diambil. Pernah terbukti di produksi: mengaktifkan
+    | 'session.block' = POS mogok total dengan 500 di /pos/add & /pos/remove.
+    | Serialisasi yang aman ada di middleware fail-open, BUKAN di sini.
+    |
+    */
+
+    'serialize_requests' => (bool) env('SESSION_SERIALIZE_REQUESTS', true),
+
+    'block' => (bool) env('SESSION_BLOCK', false),
+
+    'block_lock_seconds' => (int) env('SESSION_BLOCK_LOCK_SECONDS', 30),
+
+    'block_wait_seconds' => (int) env('SESSION_BLOCK_WAIT_SECONDS', 10),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Sweeping Lottery
     |--------------------------------------------------------------------------
     |

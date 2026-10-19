@@ -499,4 +499,3 @@ class PosController extends Controller
         return app(PosService::class)->quote(collect($cart))['subtotal'];
     }
 }
-

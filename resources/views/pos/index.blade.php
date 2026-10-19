@@ -515,6 +515,29 @@
 
 @push('scripts')
 <script>
+    // --- Antrean request cart (satu per satu) ---
+    //
+    // Server (Laravel) menyimpan session di akhir SETIAP request tanpa
+    // locking bawaan. Kalau dua request cart dikirim berbarengan, yang kedua
+    // bisa membaca session SEBELUM yang pertama menulis, lalu menimpanya
+    // dengan snapshot basi — baris yang baru ditambahkan hilang dari layar
+    // padahal ada di database (atau sebaliknya saat hapus). Guard seq di
+    // bawah hanya menolak respons basi; yang dibutuhkan adalah request
+    // tidak pernah tumpang-tindih. Antrean ini menjamin itu dari sisi client:
+    // permintaan berikutnya baru DIKIRIM setelah yang sebelumnya selesai
+    // (dan session sudah tertulis). Server-side juga ada middleware
+    // SerializeSessionRequests — dua lapis, keduanya jaring pengaman.
+    //
+    // Di luar objek Alpine supaya Promise tidak ikut ter-proxy reactivity.
+    let cartRequestQueue = Promise.resolve();
+
+    // Pengaman: rantai tidak boleh selamanya macet kalau satu request
+    // menggantung (koneksi mati). 45 detik jauh di atas latensi normal
+    // hosting lambat, termasuk cold start, tapi cukup cepat untuk membebaskan
+    // kasir. Resolve `null` = posPost tidak pernah melempar; pemanggil yang
+    // memutuskan (state optimistis DIBIARKAN, lihat applyServerCart()).
+    const CART_REQUEST_TIMEOUT_MS = 45000;
+
     function posApp() {
         return {
             products: @json($products),
@@ -826,13 +849,16 @@
                 item._syncSeq = (item._syncSeq || 0) + 1;
                 const seq = item._syncSeq;
 
-                return this.posPost('{{ route("pos.update") }}', {
+                return this.enqueueCartRequest(() => this.posPost('{{ route("pos.update") }}', {
                     product_id: item.product_id,
                     discount: item.discount || 0,
                     discount_type: item.discountType || 'nominal',
-                }).then(data => {
-                    // Hanya tandai bersih kalau tidak ada ketikan yang lebih baru.
-                    if (seq === item._syncSeq) item._dirty = false;
+                })).then(data => {
+                    // Hanya tandai bersih kalau tidak ada ketikan yang lebih baru
+                    // DAN server benar-benar menerima (balasan null = timeout atau
+                    // gagal kirim; kalau tetap ditandai bersih, diskon ini tidak
+                    // akan pernah terkirim dan total checkout salah).
+                    if (data && data.cart && seq === item._syncSeq) item._dirty = false;
 
                     return data;
                 });
@@ -960,6 +986,34 @@
                     .catch(() => null);
             },
 
+            /**
+             * Kirim satu request cart lewat antrean (satu per satu).
+             *
+             * `thunk` = fungsi yang mengembalikan Promise (posPost/posGet/
+             * fetch checkout). Semua request yang MENGGANTI isi session cart —
+             * add, update qty/diskon, remove, scan, recall, hold, checkout —
+             * wajib lewat sini supaya tidak pernah tumpang-tindih di server
+             * (lihat komentar cartRequestQueue di atas). Tanpa ini, respons
+             * "terbaru" bisa bawa session basi dan baris yang baru
+             * ditambahkan/dihapus langsung salah di layar.
+             *
+             * Tidak pernah melempar dan tidak pernah menolak: gagal = null,
+             * state optimistis dibiarkan, sinkron berikutnya yang menyusulkan.
+             */
+            enqueueCartRequest(thunk) {
+                const run = () => Promise.race([
+                    Promise.resolve().then(thunk),
+                    new Promise(resolve => setTimeout(() => resolve(null), CART_REQUEST_TIMEOUT_MS)),
+                ]);
+
+                const next = cartRequestQueue.then(run, run);
+
+                // Rantai tidak boleh putus walau satu permintaan gagal.
+                cartRequestQueue = next.then(() => null, () => null);
+
+                return next;
+            },
+
             /** Baris cart untuk sebuah produk. product_id dari server bisa string. */
             cartRow(productId) {
                 return (Array.isArray(this.cart) ? this.cart : [])
@@ -1065,7 +1119,7 @@
 
                 const seq = this.beginCartRequest();
 
-                this.posPost('{{ route("pos.add") }}', {product_id: productId})
+                this.enqueueCartRequest(() => this.posPost('{{ route("pos.add") }}', {product_id: productId}))
                     .then(data => {
                         if (!this.isLatestCartRequest(seq)) return;
                         if (this.applyServerCart(data)) return;
@@ -1103,7 +1157,7 @@
 
                 const seq = this.beginCartRequest();
 
-                this.posPost('{{ route("pos.update") }}', {product_id: productId, quantity: qty})
+                this.enqueueCartRequest(() => this.posPost('{{ route("pos.update") }}', {product_id: productId, quantity: qty}))
                     .then(data => {
                         if (!this.isLatestCartRequest(seq)) return;
                         if (this.applyServerCart(data)) return;
@@ -1137,7 +1191,7 @@
 
                 const seq = this.beginCartRequest();
 
-                this.posPost('{{ route("pos.remove") }}', {product_id: productId})
+                this.enqueueCartRequest(() => this.posPost('{{ route("pos.remove") }}', {product_id: productId}))
                     .then(data => {
                         // Balasan permintaan yang lebih baru sudah mengurus layar.
                         if (!this.isLatestCartRequest(seq)) return;
@@ -1165,7 +1219,10 @@
                     // menolak kalau jumlah bayar tidak cocok.
                 }
 
-                fetch('{{ route("pos.checkout") }}', {
+                // Lewat antrean cart: checkout tidak boleh membaca session
+                // sebelum add/diskon yang masih menunggu giliran sempat tertulis,
+                // kalau tidak totalnya dihitung dari keranjang yang basi.
+                this.enqueueCartRequest(() => fetch('{{ route("pos.checkout") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1181,9 +1238,20 @@
                         payment_method: this.paymentMethod,
                         order_type: this.orderType,
                     })
-                }).then(r => r.json().catch(() => null)
-                    .then(data => ({status: r.status, data}))
-                ).then(({status, data}) => {
+                })).then(r => {
+                    // null = antrean gagal/timeout — tetap tampilkan pesan, cart
+                    // biarkan utuh supaya kasir bisa mencoba lagi tanpa kehilangan.
+                    if (!r) {
+                        this.errorMsg = 'Koneksi lambat — pesanan belum terkirim, coba lagi.';
+                        return;
+                    }
+
+                    return r.json().catch(() => null)
+                        .then(data => ({status: r.status, data}));
+                }).then(result => {
+                    if (!result) return;
+
+                    const {status, data} = result;
                     if (data && data.success) {
                         this.checkoutResult = data.order_number;
                         this.changeAmount = data.change || 0;
@@ -1215,13 +1283,15 @@
                 this.errorMsg = '';
 
                 // Diskon yang masih menunggu debounce harus ikut tersimpan,
-                // kalau tidak pesanan yang ditahan kehilangan diskonnya.
+                // kalau tidak pesanan yang ditahan kehilangan diskonnya. flush
+                // mengantre duluan, hold menyusul setelahnya — urutannya terjaga
+                // oleh antrean cart, tidak perlu await.
                 this.flushItemDiscounts();
 
-                this.posPost('{{ route("pos.hold") }}', {
+                this.enqueueCartRequest(() => this.posPost('{{ route("pos.hold") }}', {
                     name: this.customerName ? 'Pesanan ' + this.customerName : '',
                     customer_name: this.customerName,
-                }).then(data => {
+                })).then(data => {
                     if (data && data.holds) {
                         this.holds = data.holds;
                         this.cart.forEach(item => clearTimeout(item._syncTimer));
@@ -1238,7 +1308,7 @@
             recallOrder(id) {
                 const seq = this.beginCartRequest();
 
-                this.posGet('/pos/hold/' + id).then(data => {
+                this.enqueueCartRequest(() => this.posGet('/pos/hold/' + id)).then(data => {
                     if (!this.isLatestCartRequest(seq)) return;
 
                     if (data && data.cart) {
@@ -1253,11 +1323,14 @@
             },
 
             deleteHold(id) {
-                fetch('/pos/hold/' + id, {
+                // Menulis session (pos_holds) juga membawa-bawa snapshot pos_cart —
+                // tanpa antrean, hold yang baru dihapus bisa menimpa cart yang
+                // baru saja ditambahkan. Masuk antrean cart juga.
+                this.enqueueCartRequest(() => fetch('/pos/hold/' + id, {
                     method: 'DELETE',
                     headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}'}
-                })
-                    .then(r => (r.ok ? r.json().catch(() => null) : null))
+                }))
+                    .then(r => (r && r.ok ? r.json().catch(() => null) : null))
                     .then(data => { if (data && data.holds) this.holds = data.holds; })
                     .catch(() => null);
             },
@@ -1289,7 +1362,7 @@
 
                 const seq = this.beginCartRequest();
 
-                this.posPost('{{ route("pos.scan") }}', {barcode: input.value.trim()})
+                this.enqueueCartRequest(() => this.posPost('{{ route("pos.scan") }}', {barcode: input.value.trim()}))
                     .then(data => {
                         if (!this.isLatestCartRequest(seq)) return;
 

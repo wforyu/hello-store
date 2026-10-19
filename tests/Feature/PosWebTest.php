@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\Shift;
 use App\Models\StockHistory;
 use App\Models\User;
+use App\Services\PosService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -69,6 +70,29 @@ class PosWebTest extends TestCase
         $response->assertSee('function posNavSearch', false);
         $response->assertSee('pos:add-product', false);
         $response->assertDontSee('action="'.url('/products').'"', false);
+    }
+
+    /**
+     * Semua request yang mengubah session cart (tambah, update qty/diskon, hapus,
+     * hold, recall, delete hold, scan, checkout) wajib lewat enqueueCartRequest.
+     *
+     * Tanpa antrean, dua request tumpang-tindih membaca session yang sama lalu
+     * saling menimpa (last-writer-wins dengan snapshot basi) — gejala "produk
+     * muncul sebentar lalu hilang, harus refresh dulu". Lapis utamanya ada di
+     * server (middleware SerializeSessionRequests); antrean client ini jaring
+     * kedua yang tidak bergantung pada kondisi hosting.
+     */
+    public function test_mutasi_cart_pos_lewat_antrean_request(): void
+    {
+        $html = $this->get('/pos')->assertOk()->getContent();
+
+        $this->assertStringContainsString('enqueueCartRequest', $html);
+
+        $this->assertGreaterThanOrEqual(
+            8,
+            substr_count($html, 'this.enqueueCartRequest('),
+            'Semua mutasi cart POS harus lewat antrean enqueueCartRequest, bukan posPost/fetch langsung.'
+        );
     }
 
     public function test_halaman_storefront_tetap_pakai_pencarian_produk(): void
@@ -457,5 +481,37 @@ class PosWebTest extends TestCase
             ->assertJsonPath('cart.0.quantity', 3)
             ->assertJsonPath('cart.0.stock', 7)
             ->assertJsonPath('cart.0.price', 12000);
+    }
+
+    /**
+     * Server POS wajib membawa pesan exception aslinya saat 500.
+     *
+     * Di InfinityFree tidak ada SSH dan tidak ada akses log, jadi "Server
+     * Error" polos membuat setiap kegagalan harus ditebak. Endpoint /pos/*
+     * ber-Accept-JSON dari kasir yang sudah login kini membalas 500 JSON
+     * berisi `ExceptionClass: pesan` — banner merah POS menampilkannya.
+     */
+    public function test_error_500_pos_membawa_pesan_asli_ke_layar_kasir(): void
+    {
+        $product = $this->makeProduct('Kopi Sachet', 10, 3000);
+
+        $this->app->bind(PosService::class, function () {
+            throw new \RuntimeException('Simulasi produksi: class PosService tidak ditemukan');
+        });
+
+        $this->postJson('/pos/add', ['product_id' => $product->id, 'quantity' => 1])
+            ->assertStatus(500)
+            ->assertJsonPath(
+                'error',
+                'RuntimeException: Simulasi produksi: class PosService tidak ditemukan'
+            );
+    }
+
+    /** 4xx (validasi/auth) tidak boleh ikut terseret ke envelope 500 di atas. */
+    public function test_validasi_pos_tetap_membalas_422_bukan_envelope_500(): void
+    {
+        $this->postJson('/pos/add', ['quantity' => 1])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['product_id']);
     }
 }
